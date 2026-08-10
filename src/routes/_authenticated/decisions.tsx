@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, ClipboardCheck, Loader2, ShieldAlert, XCircle } from "lucide-react";
 
@@ -67,6 +67,13 @@ function DecisionsScreen() {
   const [clientId, setClientId] = useState("");
   const [period, setPeriod] = useState("");
   const [tab, setTab] = useState("exclusions");
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const jumpToSection = useCallback((section: string) => {
+    setTab(section);
+    requestAnimationFrame(() => {
+      tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
 
   const clientsFn = useServerFn(listMyClients);
   const periodsFn = useServerFn(listAssemblyPeriods);
@@ -182,13 +189,13 @@ function DecisionsScreen() {
           <GatePanel
             gate={data.gate}
             readiness={data.readiness}
-            onJump={setTab}
+            onJump={jumpToSection}
             onMarkReady={() =>
               run(markReadyFn({ data: { clientId, period } }), "Period marked ready")
             }
           />
 
-          <Tabs value={tab} onValueChange={setTab}>
+          <Tabs ref={tabsRef} value={tab} onValueChange={setTab}>
             <TabsList>
               <TabsTrigger value="exclusions">Exclusions ({data.candidates.length})</TabsTrigger>
               <TabsTrigger value="merges">Merges ({data.mergeSuggestions.length})</TabsTrigger>
