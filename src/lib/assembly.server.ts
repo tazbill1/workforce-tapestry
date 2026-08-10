@@ -265,6 +265,7 @@ export function buildPersonPeriod(input: BuildInput): BuildResult {
       return (b.modified_at_src ?? "").localeCompare(a.modified_at_src ?? "");
     });
     const winner = ranked[0];
+    if (!winner) continue;
     const statusSet = new Set(group.rows.map((r) => canonicalStatus(r.status_raw).label ?? ""));
     if (group.mergedFrom.size > 0) {
       flags.push("merged_record");
