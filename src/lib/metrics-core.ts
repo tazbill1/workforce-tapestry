@@ -276,7 +276,52 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     formula_note: "recognition_counts.count / headcount_active for the same department.",
     effective_from: "2026-06-01",
   },
+  {
+    key: "recognitions_count",
+    version: 1,
+    description: "Recognitions given in the department during the period.",
+    formula_note: "Read from recognition_counts; stored so the report never re-reads manual entry.",
+    effective_from: "2026-06-01",
+  },
+  {
+    key: "not_checked_in_count",
+    version: 1,
+    description: "Active people with no check-in in the period.",
+    formula_note:
+      "headcount_active minus the active people with at least one check-in. Stored rather than derived so the report performs no arithmetic.",
+    effective_from: "2026-06-01",
+  },
+  {
+    key: "roster_size",
+    version: 1,
+    description: "People on the resolved roster for the period, after exclusions.",
+    formula_note: "Non-excluded person_period rows of any status, including Invited.",
+    effective_from: "2026-06-01",
+  },
+  {
+    key: "excluded_count",
+    version: 1,
+    description: "Roster rows removed by a confirmed exclusion.",
+    formula_note: "person_period rows with is_excluded true. Reported as the exclusions footnote.",
+    effective_from: "2026-06-01",
+  },
+  {
+    key: "role_benchmark_turnover_pct",
+    version: 1,
+    description: "External turnover benchmark for the role.",
+    formula_note:
+      "Read from role_benchmarks for the role code. Absent where no benchmark row exists — the report renders 'No benchmark' from the absence, never a hardcoded value.",
+    effective_from: "2026-06-01",
+  },
+  {
+    key: "turnover_variance_pp",
+    version: 1,
+    description: "Role turnover minus its benchmark, in percentage points.",
+    formula_note: "turnover_pct - role_benchmark_turnover_pct. Only stored where a benchmark exists.",
+    effective_from: "2026-06-01",
+  },
 ];
+
 
 /** Current (non-superseded) version for a metric key. */
 export function currentVersion(key: string): number {
