@@ -403,10 +403,6 @@ export function summarize(rows: PersonPeriodRow[]) {
       .sort((a, b) => b.count - a.count),
     nullRoleCode: rows.filter((r) => r.role_code === null).length,
     duplicateRows: rows.filter((r) => r.flags.includes("duplicate_roster_row")).length,
-    sourceRows: rows.reduce(
-      (total, r) => total + (r.flags.includes("duplicate_roster_row") ? 2 : 1),
-      0,
-    ),
     checkedIn: rows.filter((r) => r.checked_in === true).length,
     noMoodRow: rows.filter((r) => r.checked_in === null).length,
     noUsableDepartureDate: rows.filter((r) => r.flags.includes("no_usable_departure_date")).length,
