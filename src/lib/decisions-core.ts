@@ -309,7 +309,8 @@ export function mergeCandidates(
           name: person.name,
           statuses: person.statuses,
           title_raw: person.title_raw,
-        },
+          department_raw: person.department_raw,
+          hire_date: person.hire_date,
       ],
     });
   }
