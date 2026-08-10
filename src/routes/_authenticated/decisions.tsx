@@ -334,6 +334,13 @@ function DecisionsScreen() {
                     exist in this data — six pairs of unrelated people share one at a single client —
                     and merging on them silently deletes real employees from headcount.
                   </CardDescription>
+                  <CardDescription className="pt-2">
+                    <strong>Same person is necessary but not sufficient.</strong> Do not merge where
+                    the two records have different hire dates and different departments and one
+                    closed before the other opened — that is a rehire, and both records must
+                    survive so the earlier departure still counts in turnover.
+                  </CardDescription>
+
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {data.mergeSuggestions.length === 0 ? (
