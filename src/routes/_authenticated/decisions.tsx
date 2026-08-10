@@ -569,6 +569,36 @@ function ExclusionCandidateRow({
         </div>
       </div>
 
+      {candidate.hire_date && candidate.department_raw && candidate.title_raw ? (
+        <p className="mt-2 rounded-md bg-muted px-3 py-2 text-xs">
+          Has a hire date, a department and a title — treat as an employee unless there is
+          evidence of a vendor <em>company</em> domain and no employment record. A personal or
+          manufacturer email domain is not evidence.
+        </p>
+      ) : null}
+
+      {conflicts.length > 0 ? (
+        <div className="mt-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs">
+          <p className="flex items-center gap-2 font-medium">
+            <ShieldAlert className="h-4 w-4 text-amber-600" /> This reverses an existing decision
+          </p>
+          <ul className="mt-1 list-disc pl-5">
+            {conflicts.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-2"
+            onClick={() => setAcknowledged(true)}
+            disabled={acknowledged}
+          >
+            {acknowledged ? "Conflict acknowledged" : "I have checked — override the prior decision"}
+          </Button>
+        </div>
+      ) : null}
+
       <div className="mt-3 grid gap-3 md:grid-cols-4">
         <div className="space-y-1">
           <Label className="text-xs">Match type</Label>
