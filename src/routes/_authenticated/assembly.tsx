@@ -214,8 +214,13 @@ function AssemblyScreen() {
 
       {stats ? (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
             <Stat label="Total rows" value={stats.total} />
+            <Stat
+              label="Flagged duplicates"
+              value={stats.duplicateRows}
+              hint="same email more than once in the roster"
+            />
             <Stat label="Excluded" value={stats.excluded} hint="kept, flagged, never deleted" />
             <Stat label="Null role_code" value={stats.nullRoleCode} hint="unmapped, never guessed" />
             <Stat

@@ -271,8 +271,9 @@ export function buildPersonPeriod(input: BuildInput): BuildResult {
       flags.push("merged_record");
       if (statusSet.size > 1) flags.push("merged_status_conflict");
     }
-    if (group.rows.length > 1 && (seenIn.get(email)?.size ?? 0) > 1) {
-      flags.push("duplicate_across_parts");
+    if (group.rows.length > 1) {
+      flags.push("duplicate_roster_row");
+      if ((seenIn.get(email)?.size ?? 0) > 1) flags.push("duplicate_across_parts");
     }
 
     const status = canonicalStatus(winner.status_raw).label;
@@ -401,6 +402,7 @@ export function summarize(rows: PersonPeriodRow[]) {
       .map(([reason, count]) => ({ reason, count }))
       .sort((a, b) => b.count - a.count),
     nullRoleCode: rows.filter((r) => r.role_code === null).length,
+    duplicateRows: rows.filter((r) => r.flags.includes("duplicate_roster_row")).length,
     checkedIn: rows.filter((r) => r.checked_in === true).length,
     noMoodRow: rows.filter((r) => r.checked_in === null).length,
     noUsableDepartureDate: rows.filter((r) => r.flags.includes("no_usable_departure_date")).length,
