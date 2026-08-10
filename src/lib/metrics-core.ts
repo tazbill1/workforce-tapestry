@@ -179,18 +179,36 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
   {
     key: "mood_per_employee",
     version: 1,
+    description: "Mean of each person's own mean mood across their check-ins — original definition.",
+    formula_note:
+      "Denominator was everyone with a check-in, including people Inactive at period end. Superseded: mood then sat on a different population from headcount and checked_in_pct.",
+    effective_from: "2026-06-01",
+    superseded: true,
+  },
+  {
+    key: "mood_per_employee",
+    version: 2,
     description: "Mean of each person's own mean mood across their check-ins in the period.",
     formula_note:
-      "Equal weight per person. People with no check-in contribute nothing — they are not zeros.",
-    effective_from: "2026-06-01",
+      "Population: Active headcount at period end. A person who checked in during the period but was deactivated before period close is excluded. Equal weight per person; people with no check-in contribute nothing — they are not zeros.",
+    effective_from: "2026-07-01",
   },
   {
     key: "mood_per_checkin",
     version: 1,
+    description: "Mean across all individual check-ins in the period — original definition.",
+    formula_note:
+      "Included check-ins from people Inactive at period end. Superseded for the same reason as mood_per_employee v1.",
+    effective_from: "2026-06-01",
+    superseded: true,
+  },
+  {
+    key: "mood_per_checkin",
+    version: 2,
     description: "Mean across all individual check-ins in the period.",
     formula_note:
-      "Equal weight per check-in: sum(person mood_avg * checkin_count) / sum(checkin_count). Diverges from mood_per_employee wherever enthusiastic people check in more often; the report shows both.",
-    effective_from: "2026-06-01",
+      "Population: Active headcount at period end. A person who checked in during the period but was deactivated before period close is excluded. Equal weight per check-in: sum(person mood_avg * checkin_count) / sum(checkin_count). Diverges from mood_per_employee wherever enthusiastic people check in more often; the report shows both.",
+    effective_from: "2026-07-01",
   },
   {
     key: "checked_in_count",
