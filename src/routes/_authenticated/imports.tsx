@@ -95,6 +95,7 @@ function ImportScreen() {
   const [kind, setKind] = useState<string>("roster");
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [step, setStep] = useState<Step>(null);
   const [flagSummary, setFlagSummary] = useState<(FlagSummary & { totalRows: number }) | null>(null);
   const [diff, setDiff] = useState<DiffResult | null>(null);
