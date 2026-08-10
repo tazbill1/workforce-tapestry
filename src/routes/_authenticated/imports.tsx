@@ -280,6 +280,9 @@ function ImportScreen() {
           </div>
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm">
+              <Link to="/decisions">Decisions review</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
               <Link to="/assembly">Assembly layer</Link>
             </Button>
             <Button variant="ghost" size="sm" onClick={signOut}>

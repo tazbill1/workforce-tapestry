@@ -285,6 +285,38 @@ export type Database = {
         }
         Relationships: []
       }
+      period_readiness: {
+        Row: {
+          client_id: string
+          id: string
+          marked_ready_at: string
+          marked_ready_by: string | null
+          period: string
+        }
+        Insert: {
+          client_id: string
+          id?: string
+          marked_ready_at?: string
+          marked_ready_by?: string | null
+          period: string
+        }
+        Update: {
+          client_id?: string
+          id?: string
+          marked_ready_at?: string
+          marked_ready_by?: string | null
+          period?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "period_readiness_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       person_period: {
         Row: {
           built_at: string
@@ -752,6 +784,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "report_runs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_dismissals: {
+        Row: {
+          candidate_key: string
+          client_id: string
+          id: string
+          kind: string
+          note: string | null
+          period_reviewed: string | null
+          reviewed_at: string
+          reviewed_by: string | null
+        }
+        Insert: {
+          candidate_key: string
+          client_id: string
+          id?: string
+          kind: string
+          note?: string | null
+          period_reviewed?: string | null
+          reviewed_at?: string
+          reviewed_by?: string | null
+        }
+        Update: {
+          candidate_key?: string
+          client_id?: string
+          id?: string
+          kind?: string
+          note?: string | null
+          period_reviewed?: string | null
+          reviewed_at?: string
+          reviewed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_dismissals_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
