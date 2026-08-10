@@ -182,7 +182,7 @@ function DecisionsScreen() {
           <GatePanel
             gate={data.gate}
             readiness={data.readiness}
-            onJump={setTab}
+            onJump={jumpToSection}
             onMarkReady={() =>
               run(markReadyFn({ data: { clientId, period } }), "Period marked ready")
             }
