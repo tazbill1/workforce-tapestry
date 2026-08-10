@@ -188,7 +188,7 @@ function DecisionsScreen() {
             }
           />
 
-          <Tabs value={tab} onValueChange={setTab}>
+          <Tabs ref={tabsRef} value={tab} onValueChange={setTab}>
             <TabsList>
               <TabsTrigger value="exclusions">Exclusions ({data.candidates.length})</TabsTrigger>
               <TabsTrigger value="merges">Merges ({data.mergeSuggestions.length})</TabsTrigger>
