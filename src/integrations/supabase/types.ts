@@ -359,6 +359,7 @@ export type Database = {
           notes: string | null
           original_filename: string | null
           parse_error: string | null
+          part_label: string | null
           period: string
           row_count: number | null
           state: Database["public"]["Enums"]["import_state"]
@@ -380,6 +381,7 @@ export type Database = {
           notes?: string | null
           original_filename?: string | null
           parse_error?: string | null
+          part_label?: string | null
           period: string
           row_count?: number | null
           state?: Database["public"]["Enums"]["import_state"]
@@ -401,6 +403,7 @@ export type Database = {
           notes?: string | null
           original_filename?: string | null
           parse_error?: string | null
+          part_label?: string | null
           period?: string
           row_count?: number | null
           state?: Database["public"]["Enums"]["import_state"]

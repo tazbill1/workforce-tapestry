@@ -1,0 +1,1 @@
+ALTER TABLE public.raw_imports ADD COLUMN part_label text;
