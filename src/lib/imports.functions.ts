@@ -31,7 +31,7 @@ export const listImports = createServerFn({ method: "POST" })
     const { data: rows, error } = await context.supabase
       .from("raw_imports")
       .select(
-        "id, period, kind, original_filename, state, row_count, column_names, parse_error, uploaded_at, superseded_by",
+        "id, period, kind, original_filename, part_label, state, row_count, column_names, parse_error, uploaded_at, superseded_by",
       )
       .eq("client_id", data.clientId)
       .order("uploaded_at", { ascending: false })
