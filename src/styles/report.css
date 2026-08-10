@@ -139,6 +139,11 @@
 .rp-bullets {
   margin: 0;
   padding-left: 13pt;
+  list-style: disc outside;
+}
+
+.rp-bullets li::marker {
+  color: var(--rp-blue);
 }
 
 .rp-bullets li {
