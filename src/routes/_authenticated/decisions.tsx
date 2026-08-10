@@ -135,6 +135,9 @@ function DecisionsScreen() {
           <Button asChild variant="outline">
             <Link to="/assembly">Assembly</Link>
           </Button>
+          <Button asChild variant="outline">
+            <Link to="/metrics">Metrics</Link>
+          </Button>
         </div>
       </header>
 
