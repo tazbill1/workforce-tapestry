@@ -521,7 +521,8 @@ export function computeMetrics(input: ComputeInput): ComputedMetric[] {
     const value = turnover(bucket);
     if (value) out.push(value);
   }
-  for (const bucket of [company, ...franchises]) {
+  // Tenure is published at role scope as well so the report can table it by role.
+  for (const bucket of [company, ...franchises, ...roles]) {
     out.push(...tenure(bucket));
   }
   for (const bucket of [company, ...franchises, ...departments]) {
