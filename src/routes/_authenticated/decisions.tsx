@@ -721,6 +721,29 @@ function MergeCandidateRow({
         </TableBody>
       </Table>
 
+      {rehireRisk ? (
+        <div className="mt-3 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs">
+          <p className="flex items-center gap-2 font-medium">
+            <ShieldAlert className="h-4 w-4 text-amber-600" /> Looks like a rehire, not a duplicate
+          </p>
+          <p className="mt-1">
+            These records have different hire dates and different departments. If one closed
+            before the other opened, this is a rehire: two separate periods of employment. Merging
+            collapses them into one Active record and erases a real departure from turnover — both
+            records must survive.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-2"
+            onClick={() => setAcknowledged(true)}
+            disabled={acknowledged}
+          >
+            {acknowledged ? "Checked — not a rehire" : "I have checked the dates — not a rehire"}
+          </Button>
+        </div>
+      ) : null}
+
       {duplicates.length > 0 ? (
         <div className="mt-3 grid gap-3 md:grid-cols-3">
           <div className="space-y-1">
