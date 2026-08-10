@@ -297,6 +297,9 @@ export function buildPersonPeriod(input: BuildInput): BuildResult {
     if (!hire) flags.push("no_hire_date");
     const tenureEnd = departure ? new Date(`${departure}T00:00:00Z`) : end;
     const tenure = hire ? yearsBetween(hire, tenureEnd) : null;
+    // Impossible tenure: the proxy departure date precedes the hire date. Kept and flagged as a
+    // data-quality signal; the tenure metric drops these rows rather than averaging a negative.
+    if (tenure !== null && tenure < 0) flags.push("negative_tenure");
 
     // Department rules.
     const rule = input.departmentRules.find((item) =>
@@ -406,6 +409,7 @@ export function summarize(rows: PersonPeriodRow[]) {
     checkedIn: rows.filter((r) => r.checked_in === true).length,
     noMoodRow: rows.filter((r) => r.checked_in === null).length,
     noUsableDepartureDate: rows.filter((r) => r.flags.includes("no_usable_departure_date")).length,
+    negativeTenure: rows.filter((r) => r.flags.includes("negative_tenure")).length,
     builtAt: rows[0]?.built_at ?? null,
   };
 }

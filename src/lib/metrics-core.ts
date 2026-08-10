@@ -70,10 +70,40 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
   {
     key: "avg_tenure_years",
     version: 1,
-    description: "Mean tenure in years across Active and Inactive people.",
+    description: "Mean tenure in years across Active and Inactive people — as published.",
     formula_note:
-      "Active: period end minus hire_date. Inactive: departure_date_proxy minus hire_date. Rows flagged no_usable_departure_date are excluded (no reliable end date). Negative results excluded. Invited excluded.",
+      "Rows flagged no_usable_departure_date excluded, but negative tenures were left in the average. Published 2.95 for July 2026. Superseded: the definition always excluded negatives; the published figure did not.",
     effective_from: "2026-06-01",
+    superseded: true,
+  },
+  {
+    key: "avg_tenure_years",
+    version: 2,
+    description: "Mean tenure in years across Active and Inactive people — restated to the definition.",
+    formula_note:
+      "Active: period end minus hire_date. Inactive: departure_date_proxy minus hire_date. Excluded: rows flagged no_usable_departure_date (no reliable end date), rows flagged negative_tenure (departure precedes hire — impossible), and Invited. tenure_rows_included, tenure_dropped_negative and tenure_dropped_undated are stored alongside so the population is always visible.",
+    effective_from: "2026-07-01",
+  },
+  {
+    key: "tenure_rows_included",
+    version: 1,
+    description: "Rows entering avg_tenure_years.",
+    formula_note: "Active or Inactive, not excluded, with a tenure value, after dropping undated and negative rows.",
+    effective_from: "2026-07-01",
+  },
+  {
+    key: "tenure_dropped_negative",
+    version: 1,
+    description: "Rows dropped from avg_tenure_years for a negative result.",
+    formula_note: "departure_date_proxy earlier than hire_date. Also flagged negative_tenure on person_period.",
+    effective_from: "2026-07-01",
+  },
+  {
+    key: "tenure_dropped_undated",
+    version: 1,
+    description: "Rows dropped from avg_tenure_years for having no usable departure date.",
+    formula_note: "Active or Inactive rows flagged no_usable_departure_date.",
+    effective_from: "2026-07-01",
   },
   {
     key: "departures_count",
@@ -149,18 +179,36 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
   {
     key: "mood_per_employee",
     version: 1,
+    description: "Mean of each person's own mean mood across their check-ins — original definition.",
+    formula_note:
+      "Denominator was everyone with a check-in, including people Inactive at period end. Superseded: mood then sat on a different population from headcount and checked_in_pct.",
+    effective_from: "2026-06-01",
+    superseded: true,
+  },
+  {
+    key: "mood_per_employee",
+    version: 2,
     description: "Mean of each person's own mean mood across their check-ins in the period.",
     formula_note:
-      "Equal weight per person. People with no check-in contribute nothing — they are not zeros.",
-    effective_from: "2026-06-01",
+      "Population: Active headcount at period end. A person who checked in during the period but was deactivated before period close is excluded. Equal weight per person; people with no check-in contribute nothing — they are not zeros.",
+    effective_from: "2026-07-01",
   },
   {
     key: "mood_per_checkin",
     version: 1,
+    description: "Mean across all individual check-ins in the period — original definition.",
+    formula_note:
+      "Included check-ins from people Inactive at period end. Superseded for the same reason as mood_per_employee v1.",
+    effective_from: "2026-06-01",
+    superseded: true,
+  },
+  {
+    key: "mood_per_checkin",
+    version: 2,
     description: "Mean across all individual check-ins in the period.",
     formula_note:
-      "Equal weight per check-in: sum(person mood_avg * checkin_count) / sum(checkin_count). Diverges from mood_per_employee wherever enthusiastic people check in more often; the report shows both.",
-    effective_from: "2026-06-01",
+      "Population: Active headcount at period end. A person who checked in during the period but was deactivated before period close is excluded. Equal weight per check-in: sum(person mood_avg * checkin_count) / sum(checkin_count). Diverges from mood_per_employee wherever enthusiastic people check in more often; the report shows both.",
+    effective_from: "2026-07-01",
   },
   {
     key: "checked_in_count",
@@ -322,30 +370,39 @@ function turnover(bucket: Bucket): ComputedMetric | null {
   };
 }
 
-function tenure(bucket: Bucket): ComputedMetric | null {
-  const values = bucket.rows
-    .filter((row) => {
-      const status = (row.status ?? "").toLowerCase();
-      if (status !== "active" && status !== "inactive") return false;
-      if (isUndated(row)) return false;
-      return true;
-    })
+function tenure(bucket: Bucket): ComputedMetric[] {
+  // Population trace: A+I in, then the two documented exclusions, so the denominator is auditable.
+  const population = bucket.rows.filter((row) => {
+    const status = (row.status ?? "").toLowerCase();
+    return status === "active" || status === "inactive";
+  });
+  const undated = population.filter(isUndated);
+  const dated = population.filter((row) => !isUndated(row));
+  const withValue = dated
     .map((row) => num(row.tenure_years))
-    // Small negatives are hire/departure ordering artefacts within the same period and are
-    // kept (they reproduce the published figures). Implausible values are dropped outright.
-    .filter((value): value is number => value !== null && value > -1);
-  if (values.length === 0) return null;
+    .filter((value): value is number => value !== null);
+  const negative = withValue.filter((value) => value < 0);
+  const values = withValue.filter((value) => value >= 0);
+  const out: ComputedMetric[] = [
+    { metric_key: "tenure_rows_included", definition_version: currentVersion("tenure_rows_included"), scope: bucket.scope, value_numeric: values.length },
+    { metric_key: "tenure_dropped_negative", definition_version: currentVersion("tenure_dropped_negative"), scope: bucket.scope, value_numeric: negative.length },
+    { metric_key: "tenure_dropped_undated", definition_version: currentVersion("tenure_dropped_undated"), scope: bucket.scope, value_numeric: undated.length },
+  ];
+  if (values.length === 0) return out;
   const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-  return {
+  out.push({
     metric_key: "avg_tenure_years",
     definition_version: currentVersion("avg_tenure_years"),
     scope: bucket.scope,
     value_numeric: round(mean, 2),
-  };
+  });
+  return out;
 }
 
 function mood(bucket: Bucket): ComputedMetric[] {
-  const rows = bucket.rows.filter((row) => (row.status ?? "").toLowerCase() !== "invited");
+  // Mood sits on the same denominator as headcount and checked_in_pct: Active at period end.
+  // Someone who checked in during the period but was deactivated before close is excluded.
+  const rows = bucket.rows.filter((row) => (row.status ?? "").toLowerCase() === "active");
   const withMood = rows
     .map((row) => ({ avg: num(row.mood_avg), count: row.checkin_count ?? 0 }))
     .filter((entry): entry is { avg: number; count: number } => entry.avg !== null);
@@ -408,8 +465,7 @@ export function computeMetrics(input: ComputeInput): ComputedMetric[] {
     if (value) out.push(value);
   }
   for (const bucket of [company, ...franchises]) {
-    const value = tenure(bucket);
-    if (value) out.push(value);
+    out.push(...tenure(bucket));
   }
   for (const bucket of [company, ...franchises, ...departments]) {
     out.push(...mood(bucket));

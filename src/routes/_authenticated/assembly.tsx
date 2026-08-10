@@ -219,7 +219,7 @@ function AssemblyScreen() {
 
       {stats ? (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
             <Stat label="Total rows" value={stats.total} />
             <Stat
               label="Flagged duplicates"
@@ -237,6 +237,11 @@ function AssemblyScreen() {
               label="no_usable_departure_date"
               value={stats.noUsableDepartureDate}
               hint="modified = created on an inactive record"
+            />
+            <Stat
+              label="negative_tenure"
+              value={stats.negativeTenure}
+              hint="departure proxy earlier than hire date — impossible, dropped from tenure"
             />
           </div>
 
