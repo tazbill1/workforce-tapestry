@@ -117,11 +117,12 @@ export function patternMatches(pattern: string, value: string | null): boolean {
 export function headerAsDate(header: string, year: number): Date | null {
   const value = header.trim();
   const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (iso) return new Date(Date.UTC(+iso[1], +iso[2] - 1, +iso[3]));
+  if (iso) return new Date(Date.UTC(+iso[1]!, +iso[2]! - 1, +iso[3]!));
   const us = value.match(/^(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?$/);
   if (us) {
-    const y = us[3] ? (us[3].length === 2 ? 2000 + +us[3] : +us[3]) : year;
-    return new Date(Date.UTC(y, +us[1] - 1, +us[2]));
+    const rawYear = us[3];
+    const y = rawYear ? (rawYear.length === 2 ? 2000 + +rawYear : +rawYear) : year;
+    return new Date(Date.UTC(y, +us[1]! - 1, +us[2]!));
   }
   const parsed = Date.parse(`${value} ${year} UTC`);
   if (!Number.isNaN(parsed)) return new Date(parsed);
