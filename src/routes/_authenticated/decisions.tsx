@@ -229,6 +229,14 @@ function DecisionsScreen() {
                       <ExclusionCandidateRow
                         key={candidate.key}
                         candidate={candidate}
+                        priorDecisions={data.history.exclusions.filter(
+                          (row) =>
+                            row.match_value.toLowerCase() ===
+                            candidate.normalized_email.toLowerCase(),
+                        )}
+                        priorDismissal={data.history.dismissals.find(
+                          (row) => row.kind === "exclusion" && row.candidate_key === candidate.key,
+                        )}
                         onConfirm={(payload) =>
                           run(
                             confirmExclusionFn({ data: { clientId, period, ...payload } }),
@@ -326,6 +334,13 @@ function DecisionsScreen() {
                     exist in this data — six pairs of unrelated people share one at a single client —
                     and merging on them silently deletes real employees from headcount.
                   </CardDescription>
+                  <CardDescription className="pt-2">
+                    <strong>Same person is necessary but not sufficient.</strong> Do not merge where
+                    the two records have different hire dates and different departments and one
+                    closed before the other opened — that is a rehire, and both records must
+                    survive so the earlier departure still counts in turnover.
+                  </CardDescription>
+
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {data.mergeSuggestions.length === 0 ? (
@@ -501,10 +516,14 @@ function HistoryCard({ title, children }: { title: string; children: React.React
 
 function ExclusionCandidateRow({
   candidate,
+  priorDecisions,
+  priorDismissal,
   onConfirm,
   onDismiss,
 }: {
   candidate: Review["candidates"][number];
+  priorDecisions: Review["history"]["exclusions"];
+  priorDismissal: Review["history"]["dismissals"][number] | undefined;
   onConfirm: (payload: {
     matchType: (typeof MATCH_TYPES)[number];
     matchValue: string;
@@ -517,6 +536,25 @@ function ExclusionCandidateRow({
   const [matchValue, setMatchValue] = useState(candidate.normalized_email);
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("other");
   const [reason, setReason] = useState("");
+  const [acknowledged, setAcknowledged] = useState(false);
+
+  // A new exclusion sometimes contradicts a decision already on the record: this person was
+  // reviewed and deliberately kept, or an earlier exclusion was reversed as an error. Surface
+  // that before the row is written rather than silently layering one decision on the other.
+  const conflicts: string[] = [];
+  if (priorDismissal) {
+    conflicts.push(
+      `Reviewed and kept on ${new Date(priorDismissal.reviewed_at).toLocaleDateString()}${
+        priorDismissal.note ? ` — "${priorDismissal.note}"` : ""
+      }`,
+    );
+  }
+  for (const row of priorDecisions) {
+    if (!row.active && (row.reason ?? "").toLowerCase().startsWith("reversed")) {
+      conflicts.push(`A prior exclusion was reversed — "${row.reason}"`);
+    }
+  }
+  const blocked = conflicts.length > 0 && !acknowledged;
 
   return (
     <div className="rounded-lg border p-4">
@@ -537,6 +575,36 @@ function ExclusionCandidateRow({
           ))}
         </div>
       </div>
+
+      {candidate.hire_date && candidate.department_raw && candidate.title_raw ? (
+        <p className="mt-2 rounded-md bg-muted px-3 py-2 text-xs">
+          Has a hire date, a department and a title — treat as an employee unless there is
+          evidence of a vendor <em>company</em> domain and no employment record. A personal or
+          manufacturer email domain is not evidence.
+        </p>
+      ) : null}
+
+      {conflicts.length > 0 ? (
+        <div className="mt-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs">
+          <p className="flex items-center gap-2 font-medium">
+            <ShieldAlert className="h-4 w-4 text-amber-600" /> This reverses an existing decision
+          </p>
+          <ul className="mt-1 list-disc pl-5">
+            {conflicts.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-2"
+            onClick={() => setAcknowledged(true)}
+            disabled={acknowledged}
+          >
+            {acknowledged ? "Conflict acknowledged" : "I have checked — override the prior decision"}
+          </Button>
+        </div>
+      ) : null}
 
       <div className="mt-3 grid gap-3 md:grid-cols-4">
         <div className="space-y-1">
@@ -582,7 +650,7 @@ function ExclusionCandidateRow({
       <div className="mt-3 flex gap-2">
         <Button
           size="sm"
-          disabled={reason.trim().length < 3 || matchValue.trim().length === 0}
+          disabled={blocked || reason.trim().length < 3 || matchValue.trim().length === 0}
           onClick={() => onConfirm({ matchType, matchValue: matchValue.trim(), category, reason })}
         >
           Confirm exclusion
@@ -607,7 +675,23 @@ function MergeCandidateRow({
   const emails = candidate.members.map((member) => member.normalized_email);
   const [canonical, setCanonical] = useState(emails[0] ?? "");
   const [reason, setReason] = useState("same person, duplicate record");
+  const [acknowledged, setAcknowledged] = useState(false);
   const duplicates = emails.filter((email) => email !== canonical);
+
+  // Same person is necessary but not sufficient. Two records with different hire dates and
+  // different departments are a rehire: two separate periods of employment. Merging them
+  // collapses both into one Active record and erases a real departure from turnover.
+  const hireDates = new Set(
+    candidate.members.map((member) => member.hire_date).filter((value): value is string => Boolean(value)),
+  );
+  const departments = new Set(
+    candidate.members
+      .map((member) => (member.department_raw ?? "").trim().toLowerCase())
+      .filter((value) => value.length > 0),
+  );
+  const rehireRisk =
+    candidate.members.length > 1 && hireDates.size > 1 && departments.size > 1;
+  const blocked = rehireRisk && !acknowledged;
 
   return (
     <div className="rounded-lg border p-4">
@@ -625,6 +709,8 @@ function MergeCandidateRow({
             <TableHead>Email</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Title</TableHead>
+            <TableHead>Department</TableHead>
+            <TableHead>Hire date</TableHead>
             <TableHead>Statuses</TableHead>
           </TableRow>
         </TableHeader>
@@ -634,11 +720,36 @@ function MergeCandidateRow({
               <TableCell className="font-mono text-xs">{member.normalized_email}</TableCell>
               <TableCell>{member.name ?? "—"}</TableCell>
               <TableCell className="text-xs">{member.title_raw ?? "—"}</TableCell>
+              <TableCell className="text-xs">{member.department_raw ?? "—"}</TableCell>
+              <TableCell className="text-xs">{member.hire_date ?? "—"}</TableCell>
               <TableCell className="text-xs">{member.statuses.join(", ")}</TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+
+      {rehireRisk ? (
+        <div className="mt-3 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs">
+          <p className="flex items-center gap-2 font-medium">
+            <ShieldAlert className="h-4 w-4 text-amber-600" /> Looks like a rehire, not a duplicate
+          </p>
+          <p className="mt-1">
+            These records have different hire dates and different departments. If one closed
+            before the other opened, this is a rehire: two separate periods of employment. Merging
+            collapses them into one Active record and erases a real departure from turnover — both
+            records must survive.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-2"
+            onClick={() => setAcknowledged(true)}
+            disabled={acknowledged}
+          >
+            {acknowledged ? "Checked — not a rehire" : "I have checked the dates — not a rehire"}
+          </Button>
+        </div>
+      ) : null}
 
       {duplicates.length > 0 ? (
         <div className="mt-3 grid gap-3 md:grid-cols-3">
@@ -673,7 +784,7 @@ function MergeCandidateRow({
         {duplicates.length > 0 ? (
           <Button
             size="sm"
-            disabled={reason.trim().length < 3}
+            disabled={blocked || reason.trim().length < 3}
             onClick={() => onConfirm(canonical, duplicates, reason)}
           >
             Merge {duplicates.length} into {canonical}

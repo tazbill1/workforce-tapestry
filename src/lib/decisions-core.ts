@@ -247,7 +247,14 @@ export type MergeCandidate = {
   key: string;
   kind: "same_email_conflicting_status" | "identical_rows" | "similar_name";
   detail: string;
-  members: Array<{ normalized_email: string; name: string | null; statuses: string[]; title_raw: string | null }>;
+  members: Array<{
+    normalized_email: string;
+    name: string | null;
+    statuses: string[];
+    title_raw: string | null;
+    department_raw: string | null;
+    hire_date: string | null;
+  }>;
 };
 
 function nameKey(name: string | null): string | null {
@@ -302,6 +309,8 @@ export function mergeCandidates(
           name: person.name,
           statuses: person.statuses,
           title_raw: person.title_raw,
+          department_raw: person.department_raw,
+          hire_date: person.hire_date,
         },
       ],
     });
@@ -328,6 +337,8 @@ export function mergeCandidates(
         name: p.name,
         statuses: p.statuses,
         title_raw: p.title_raw,
+        department_raw: p.department_raw,
+        hire_date: p.hire_date,
       })),
     });
   }
