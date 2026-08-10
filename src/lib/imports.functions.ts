@@ -76,6 +76,7 @@ export const createImport = createServerFn({ method: "POST" })
       sha256: string;
       filename: string;
       storagePath: string;
+      partLabel?: string | null;
     }) =>
       z
         .object({
@@ -85,6 +86,7 @@ export const createImport = createServerFn({ method: "POST" })
           sha256: z.string().length(64),
           filename: z.string().min(1).max(400),
           storagePath: z.string().min(1).max(1000),
+          partLabel: z.string().max(120).nullable().optional(),
         })
         .parse(input),
   )
@@ -98,6 +100,7 @@ export const createImport = createServerFn({ method: "POST" })
         content_sha256: data.sha256,
         original_filename: data.filename,
         storage_path: data.storagePath,
+        part_label: data.partLabel?.trim() ? data.partLabel.trim() : null,
         state: "uploaded",
         uploaded_by: context.userId,
       })
@@ -111,6 +114,7 @@ export const createImport = createServerFn({ method: "POST" })
     }
     return { id: row.id as string, duplicate: false };
   });
+
 
 const recordSchema = z.object({
   row_number: z.number().int(),
