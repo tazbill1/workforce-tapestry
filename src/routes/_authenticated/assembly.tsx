@@ -122,9 +122,14 @@ function AssemblyScreen() {
             One resolved row per person, per client, per period. Reports read only from here.
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link to="/imports">Back to imports</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link to="/imports">Back to imports</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/metrics">Metrics layer</Link>
+          </Button>
+        </div>
       </header>
 
       <Card>
