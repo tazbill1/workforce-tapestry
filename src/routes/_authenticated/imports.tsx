@@ -135,7 +135,7 @@ function ImportScreen() {
       const storagePath = `${clientId}/${periodDate}/${sha256.slice(0, 12)}-${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from("raw-imports")
-        .upload(storagePath, file, { upsert: false, contentType: file.type || undefined });
+        .upload(storagePath, file, { upsert: false });
       if (uploadError && !uploadError.message.toLowerCase().includes("already exists")) {
         throw new Error(`Upload failed: ${uploadError.message}`);
       }
