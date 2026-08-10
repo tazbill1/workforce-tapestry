@@ -56,6 +56,120 @@ export type Database = {
         }
         Relationships: []
       }
+      department_rules: {
+        Row: {
+          active: boolean
+          client_id: string
+          confirmed_at: string
+          confirmed_by: string | null
+          effective_from: string | null
+          franchise_label: string | null
+          function_label: string | null
+          id: string
+          is_shared: boolean
+          pattern: string
+          superseded_by: string | null
+        }
+        Insert: {
+          active?: boolean
+          client_id: string
+          confirmed_at?: string
+          confirmed_by?: string | null
+          effective_from?: string | null
+          franchise_label?: string | null
+          function_label?: string | null
+          id?: string
+          is_shared?: boolean
+          pattern: string
+          superseded_by?: string | null
+        }
+        Update: {
+          active?: boolean
+          client_id?: string
+          confirmed_at?: string
+          confirmed_by?: string | null
+          effective_from?: string | null
+          franchise_label?: string | null
+          function_label?: string | null
+          id?: string
+          is_shared?: boolean
+          pattern?: string
+          superseded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "department_rules_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "department_rules_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "department_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exclusions: {
+        Row: {
+          active: boolean
+          category: Database["public"]["Enums"]["exclusion_category"]
+          client_id: string
+          confirmed_at: string
+          confirmed_by: string | null
+          effective_from: string | null
+          id: string
+          match_type: Database["public"]["Enums"]["exclusion_match_type"]
+          match_value: string
+          reason: string | null
+          superseded_by: string | null
+        }
+        Insert: {
+          active?: boolean
+          category: Database["public"]["Enums"]["exclusion_category"]
+          client_id: string
+          confirmed_at?: string
+          confirmed_by?: string | null
+          effective_from?: string | null
+          id?: string
+          match_type: Database["public"]["Enums"]["exclusion_match_type"]
+          match_value: string
+          reason?: string | null
+          superseded_by?: string | null
+        }
+        Update: {
+          active?: boolean
+          category?: Database["public"]["Enums"]["exclusion_category"]
+          client_id?: string
+          confirmed_at?: string
+          confirmed_by?: string | null
+          effective_from?: string | null
+          id?: string
+          match_type?: Database["public"]["Enums"]["exclusion_match_type"]
+          match_value?: string
+          reason?: string | null
+          superseded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exclusions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exclusions_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "exclusions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       raw_imports: {
         Row: {
           client_id: string
@@ -240,6 +354,60 @@ export type Database = {
           },
         ]
       }
+      record_merges: {
+        Row: {
+          active: boolean
+          canonical_email: string
+          client_id: string
+          confirmed_at: string
+          confirmed_by: string | null
+          duplicate_email: string
+          effective_from: string | null
+          id: string
+          reason: string | null
+          superseded_by: string | null
+        }
+        Insert: {
+          active?: boolean
+          canonical_email: string
+          client_id: string
+          confirmed_at?: string
+          confirmed_by?: string | null
+          duplicate_email: string
+          effective_from?: string | null
+          id?: string
+          reason?: string | null
+          superseded_by?: string | null
+        }
+        Update: {
+          active?: boolean
+          canonical_email?: string
+          client_id?: string
+          confirmed_at?: string
+          confirmed_by?: string | null
+          duplicate_email?: string
+          effective_from?: string | null
+          id?: string
+          reason?: string | null
+          superseded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "record_merges_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_merges_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "record_merges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_benchmarks: {
         Row: {
           id: string
@@ -272,6 +440,73 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "canonical_roles"
             referencedColumns: ["code"]
+          },
+        ]
+      }
+      role_mappings: {
+        Row: {
+          active: boolean
+          client_id: string
+          confirmed_at: string
+          confirmed_by: string | null
+          department_pattern: string | null
+          effective_from: string | null
+          id: string
+          precedence: number
+          reason: string | null
+          role_code: string
+          superseded_by: string | null
+          title_pattern: string
+        }
+        Insert: {
+          active?: boolean
+          client_id: string
+          confirmed_at?: string
+          confirmed_by?: string | null
+          department_pattern?: string | null
+          effective_from?: string | null
+          id?: string
+          precedence?: number
+          reason?: string | null
+          role_code: string
+          superseded_by?: string | null
+          title_pattern: string
+        }
+        Update: {
+          active?: boolean
+          client_id?: string
+          confirmed_at?: string
+          confirmed_by?: string | null
+          department_pattern?: string | null
+          effective_from?: string | null
+          id?: string
+          precedence?: number
+          reason?: string | null
+          role_code?: string
+          superseded_by?: string | null
+          title_pattern?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_mappings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_mappings_role_code_fkey"
+            columns: ["role_code"]
+            isOneToOne: false
+            referencedRelation: "canonical_roles"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "role_mappings_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "role_mappings"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -350,6 +585,20 @@ export type Database = {
     }
     Enums: {
       app_role: "analyst" | "coach" | "viewer"
+      exclusion_category:
+        | "test"
+        | "demo"
+        | "vendor"
+        | "platform"
+        | "internal"
+        | "legacy"
+        | "other"
+      exclusion_match_type:
+        | "email"
+        | "name"
+        | "employee_id"
+        | "email_domain"
+        | "keyword"
       import_kind:
         | "roster"
         | "mood_matrix"
@@ -486,6 +735,22 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["analyst", "coach", "viewer"],
+      exclusion_category: [
+        "test",
+        "demo",
+        "vendor",
+        "platform",
+        "internal",
+        "legacy",
+        "other",
+      ],
+      exclusion_match_type: [
+        "email",
+        "name",
+        "employee_id",
+        "email_domain",
+        "keyword",
+      ],
       import_kind: [
         "roster",
         "mood_matrix",
