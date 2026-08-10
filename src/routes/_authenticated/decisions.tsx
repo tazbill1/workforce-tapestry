@@ -646,8 +646,6 @@ function ExclusionCandidateRow({
           disabled={blocked || reason.trim().length < 3 || matchValue.trim().length === 0}
           onClick={() => onConfirm({ matchType, matchValue: matchValue.trim(), category, reason })}
         >
-          onClick={() => onConfirm({ matchType, matchValue: matchValue.trim(), category, reason })}
-        >
           Confirm exclusion
         </Button>
         <Button size="sm" variant="outline" onClick={onDismiss}>
