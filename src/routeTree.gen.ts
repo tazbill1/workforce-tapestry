@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedAssemblyRouteImport } from './routes/_authenticated/assembly'
 import { Route as AuthenticatedImportsRouteImport } from './routes/_authenticated/imports'
 
 const IndexRoute = IndexRouteImport.update({
@@ -28,6 +29,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAssemblyRoute = AuthenticatedAssemblyRouteImport.update({
+  id: '/assembly',
+  path: '/assembly',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedImportsRoute = AuthenticatedImportsRouteImport.update({
   id: '/imports',
   path: '/imports',
@@ -37,11 +43,13 @@ const AuthenticatedImportsRoute = AuthenticatedImportsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/assembly': typeof AuthenticatedAssemblyRoute
   '/imports': typeof AuthenticatedImportsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/assembly': typeof AuthenticatedAssemblyRoute
   '/imports': typeof AuthenticatedImportsRoute
 }
 export interface FileRoutesById {
@@ -49,14 +57,21 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/assembly': typeof AuthenticatedAssemblyRoute
   '/_authenticated/imports': typeof AuthenticatedImportsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/imports'
+  fullPaths: '/' | '/auth' | '/assembly' | '/imports'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/imports'
-  id: '__root__' | '/' | '/_authenticated' | '/auth' | '/_authenticated/imports'
+  to: '/' | '/auth' | '/assembly' | '/imports'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/assembly'
+    | '/_authenticated/imports'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -88,6 +103,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/assembly': {
+      id: '/_authenticated/assembly'
+      path: '/assembly'
+      fullPath: '/assembly'
+      preLoaderRoute: typeof AuthenticatedAssemblyRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/imports': {
       id: '/_authenticated/imports'
       path: '/imports'
@@ -99,10 +121,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAssemblyRoute: typeof AuthenticatedAssemblyRoute
   AuthenticatedImportsRoute: typeof AuthenticatedImportsRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAssemblyRoute: AuthenticatedAssemblyRoute,
   AuthenticatedImportsRoute: AuthenticatedImportsRoute,
 }
 

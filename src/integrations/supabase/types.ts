@@ -285,6 +285,102 @@ export type Database = {
         }
         Relationships: []
       }
+      person_period: {
+        Row: {
+          built_at: string
+          checked_in: boolean | null
+          checkin_count: number | null
+          client_id: string
+          department_raw: string | null
+          departure_date_proxy: string | null
+          employee_id_raw: string | null
+          exclusion_reason: string | null
+          flags: string[]
+          franchise_label: string | null
+          function_label: string | null
+          hire_date: string | null
+          id: string
+          is_excluded: boolean
+          last_login_at: string | null
+          merged_from: string[]
+          mood_avg: number | null
+          name: string | null
+          normalized_email: string
+          period: string
+          role_code: string | null
+          status: string | null
+          tenure_years: number | null
+          title_raw: string | null
+        }
+        Insert: {
+          built_at?: string
+          checked_in?: boolean | null
+          checkin_count?: number | null
+          client_id: string
+          department_raw?: string | null
+          departure_date_proxy?: string | null
+          employee_id_raw?: string | null
+          exclusion_reason?: string | null
+          flags?: string[]
+          franchise_label?: string | null
+          function_label?: string | null
+          hire_date?: string | null
+          id?: string
+          is_excluded?: boolean
+          last_login_at?: string | null
+          merged_from?: string[]
+          mood_avg?: number | null
+          name?: string | null
+          normalized_email: string
+          period: string
+          role_code?: string | null
+          status?: string | null
+          tenure_years?: number | null
+          title_raw?: string | null
+        }
+        Update: {
+          built_at?: string
+          checked_in?: boolean | null
+          checkin_count?: number | null
+          client_id?: string
+          department_raw?: string | null
+          departure_date_proxy?: string | null
+          employee_id_raw?: string | null
+          exclusion_reason?: string | null
+          flags?: string[]
+          franchise_label?: string | null
+          function_label?: string | null
+          hire_date?: string | null
+          id?: string
+          is_excluded?: boolean
+          last_login_at?: string | null
+          merged_from?: string[]
+          mood_avg?: number | null
+          name?: string | null
+          normalized_email?: string
+          period?: string
+          role_code?: string | null
+          status?: string | null
+          tenure_years?: number | null
+          title_raw?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_period_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_period_role_code_fkey"
+            columns: ["role_code"]
+            isOneToOne: false
+            referencedRelation: "canonical_roles"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       published_metrics: {
         Row: {
           client_id: string
