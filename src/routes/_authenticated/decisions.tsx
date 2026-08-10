@@ -229,6 +229,14 @@ function DecisionsScreen() {
                       <ExclusionCandidateRow
                         key={candidate.key}
                         candidate={candidate}
+                        priorDecisions={data.history.exclusions.filter(
+                          (row) =>
+                            row.match_value.toLowerCase() ===
+                            candidate.normalized_email.toLowerCase(),
+                        )}
+                        priorDismissal={data.history.dismissals.find(
+                          (row) => row.kind === "exclusion" && row.candidate_key === candidate.key,
+                        )}
                         onConfirm={(payload) =>
                           run(
                             confirmExclusionFn({ data: { clientId, period, ...payload } }),
