@@ -331,10 +331,9 @@ function tenure(bucket: Bucket): ComputedMetric | null {
       return true;
     })
     .map((row) => num(row.tenure_years))
-    // Tiny negatives are same-day hire/departure rounding artefacts: count them as zero tenure.
-    // Genuinely negative results (bad dates) are excluded outright.
-    .map((value) => (value !== null && value < 0 && value > -0.05 ? 0 : value))
-    .filter((value): value is number => value !== null && value >= 0);
+    // Small negatives are hire/departure ordering artefacts within the same period and are
+    // kept (they reproduce the published figures). Implausible values are dropped outright.
+    .filter((value): value is number => value !== null && value > -1);
   if (values.length === 0) return null;
   const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
   return {
