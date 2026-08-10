@@ -627,9 +627,15 @@ export function computeMetrics(input: ComputeInput): ComputedMetric[] {
     }
   }
 
-  // Recognitions per employee, department scope.
+  // Recognitions, department scope: raw count and the per-employee rate.
   for (const recognition of input.recognitions) {
     const label = (recognition.department_raw ?? "").trim() || "(blank)";
+    out.push({
+      metric_key: "recognitions_count",
+      definition_version: currentVersion("recognitions_count"),
+      scope: `dept:${label}`,
+      value_numeric: recognition.count,
+    });
     const active = rows.filter(
       (row) => deptLabel(row) === label && (row.status ?? "").toLowerCase() === "active",
     ).length;
@@ -642,5 +648,45 @@ export function computeMetrics(input: ComputeInput): ComputedMetric[] {
     });
   }
 
+  // Roster size and the exclusions footnote, so the cover and summary read stored values.
+  out.push(
+    { metric_key: "roster_size", definition_version: currentVersion("roster_size"), scope: "company", value_numeric: rows.length },
+    {
+      metric_key: "excluded_count",
+      definition_version: currentVersion("excluded_count"),
+      scope: "company",
+      value_numeric: input.rows.length - rows.length,
+    },
+  );
+
+  // Role benchmarks and the variance against them. No benchmark row means no metric row:
+  // the report renders "No benchmark" from the absence rather than a placeholder value.
+  const benchmarkByRole = new Map<string, number>();
+  for (const benchmark of input.benchmarks ?? []) {
+    const value = num(benchmark.turnover_pct);
+    if (value !== null) benchmarkByRole.set(benchmark.role_code, value);
+  }
+  for (const role of roles) {
+    const code = role.scope.slice("role:".length);
+    const benchmark = benchmarkByRole.get(code);
+    if (benchmark === undefined) continue;
+    const roleTurnover = turnover(role);
+    out.push({
+      metric_key: "role_benchmark_turnover_pct",
+      definition_version: currentVersion("role_benchmark_turnover_pct"),
+      scope: role.scope,
+      value_numeric: benchmark,
+    });
+    if (roleTurnover?.value_numeric !== null && roleTurnover !== null) {
+      out.push({
+        metric_key: "turnover_variance_pp",
+        definition_version: currentVersion("turnover_variance_pp"),
+        scope: role.scope,
+        value_numeric: round(roleTurnover.value_numeric! - benchmark, 1),
+      });
+    }
+  }
+
   return out;
 }
+
