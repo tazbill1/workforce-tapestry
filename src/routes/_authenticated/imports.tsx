@@ -351,13 +351,28 @@ function ImportScreen() {
             </div>
 
             <div
-              onDragOver={(e) => {
+              role="button"
+              tabIndex={0}
+              onClick={() => fileInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
+              }}
+              onDragEnter={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 setDragging(true);
               }}
-              onDragLeave={() => setDragging(false)}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.dataTransfer.dropEffect = "copy";
+                setDragging(true);
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
+              }}
               onDrop={onDrop}
-              className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors ${
+              className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors ${
                 dragging ? "border-primary bg-primary/5" : "border-muted-foreground/25"
               }`}
             >
@@ -372,16 +387,33 @@ function ImportScreen() {
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Drop an .xlsx or .csv file here, or choose one below.
+                  Drop an .xlsx or .csv file here, or click to browse.
                 </p>
               )}
-              <Input
+              <input
+                ref={fileInputRef}
                 type="file"
                 accept=".xlsx,.xls,.csv"
-                className="mt-4 max-w-xs"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                className="sr-only"
+                onChange={(e) => {
+                  acceptFile(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
               />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fileInputRef.current?.click();
+                }}
+              >
+                Choose file
+              </Button>
             </div>
+
 
             {step ? (
               <div className="space-y-2">
