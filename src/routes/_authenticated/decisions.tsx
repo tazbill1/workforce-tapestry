@@ -67,6 +67,13 @@ function DecisionsScreen() {
   const [clientId, setClientId] = useState("");
   const [period, setPeriod] = useState("");
   const [tab, setTab] = useState("exclusions");
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const jumpToSection = useCallback((section: string) => {
+    setTab(section);
+    requestAnimationFrame(() => {
+      tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
 
   const clientsFn = useServerFn(listMyClients);
   const periodsFn = useServerFn(listAssemblyPeriods);
