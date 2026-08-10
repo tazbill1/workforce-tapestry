@@ -1,0 +1,412 @@
+/*
+ * Paged-media rules for the culture report.
+ *
+ * Landscape letter is the only format wired up today, but every page dimension is read from
+ * --rp-page-w / --rp-page-h so the remaining formats become a variable swap plus a few column
+ * proportions, not a second template.
+ */
+
+.rp {
+  --rp-page-w: 11in;
+  --rp-page-h: 8.5in;
+  --rp-margin-x: 0.8in;
+  --rp-margin-top: 0.8in;
+  --rp-margin-bottom: 0.75in;
+  --rp-content-w: 9.4in;
+
+  --rp-navy: #1d224b;
+  --rp-blue: #1f5fae;
+  --rp-cyan: #00bfe4;
+  --rp-lime: #c8d914;
+  --rp-body: #2c3143;
+  --rp-muted: #6b7280;
+  --rp-panel: #f4f5f8;
+  --rp-rule: #dde1ea;
+  --rp-highlight: #fbe4e4;
+
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--rp-body);
+  font-size: 9.5pt;
+  line-height: 1.45;
+  counter-reset: rp-page;
+}
+
+@page {
+  size: 11in 8.5in;
+  margin: 0.8in 0.8in 0.75in;
+}
+
+/* ---------- page shell ---------- */
+
+.rp-page {
+  position: relative;
+  box-sizing: border-box;
+  width: var(--rp-page-w);
+  height: var(--rp-page-h);
+  padding: var(--rp-margin-top) var(--rp-margin-x) var(--rp-margin-bottom);
+  background: #fff;
+  overflow: hidden;
+  break-after: page;
+  page-break-after: always;
+  counter-increment: rp-page;
+}
+
+.rp-page:last-child {
+  break-after: auto;
+  page-break-after: auto;
+}
+
+.rp-body {
+  width: var(--rp-content-w);
+}
+
+/* Running header: every page except the cover. */
+.rp-runhead {
+  position: absolute;
+  top: 0.42in;
+  right: var(--rp-margin-x);
+  font-size: 6.5pt;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: #aeb4c4;
+}
+
+.rp-runfoot {
+  position: absolute;
+  left: var(--rp-margin-x);
+  right: var(--rp-margin-x);
+  bottom: 0.36in;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 4pt;
+  border-top: 0.5pt solid var(--rp-rule);
+  font-size: 6.5pt;
+  color: var(--rp-muted);
+}
+
+.rp-runfoot .rp-pageno::after {
+  content: counter(rp-page);
+}
+
+/* ---------- type ---------- */
+
+.rp-eyebrow {
+  font-size: 8.5pt;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--rp-blue);
+  margin: 0 0 3pt;
+}
+
+.rp-title {
+  font-size: 24pt;
+  font-weight: 700;
+  color: var(--rp-navy);
+  line-height: 1.12;
+  margin: 0;
+}
+
+.rp-heading {
+  font-size: 11.5pt;
+  font-weight: 700;
+  color: var(--rp-navy);
+  margin: 0 0 8pt;
+  line-height: 1.25;
+}
+
+.rp-subheading {
+  font-size: 9pt;
+  font-weight: 700;
+  color: var(--rp-navy);
+  margin: 0 0 5pt;
+}
+
+.rp-footnote {
+  font-size: 7pt;
+  font-style: italic;
+  color: var(--rp-muted);
+  margin: 5pt 0 0;
+}
+
+.rp-lede {
+  font-size: 9.5pt;
+  margin: 0 0 10pt;
+  max-width: 7.4in;
+}
+
+.rp-bullets {
+  margin: 0;
+  padding-left: 13pt;
+}
+
+.rp-bullets li {
+  margin-bottom: 5pt;
+}
+
+/* ---------- stat cards ---------- */
+
+.rp-cards {
+  display: grid;
+  gap: 10pt;
+  margin: 0 0 12pt;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.rp-cards[data-cols="3"] {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.rp-cards[data-cols="4"] {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.rp-card {
+  background: var(--rp-panel);
+  padding: 9pt 11pt 10pt;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.rp-card-label {
+  font-size: 7pt;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rp-muted);
+  margin: 0;
+}
+
+/* The value gets its own line box: at 19pt inside a 9.5pt body line height the caption
+   would otherwise print through the digits. */
+.rp-card-value {
+  display: block;
+  font-size: 19pt;
+  line-height: 1.15;
+  font-weight: 700;
+  color: var(--rp-navy);
+  margin: 3pt 0 2pt;
+}
+
+.rp-card-caption {
+  display: block;
+  font-size: 7pt;
+  line-height: 1.35;
+  color: var(--rp-muted);
+  margin: 0;
+  min-height: 9pt;
+}
+
+/* ---------- tables ---------- */
+
+.rp-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 8pt;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.rp-table th {
+  background: var(--rp-navy);
+  color: #fff;
+  font-weight: 700;
+  font-size: 8pt;
+  text-align: left;
+  padding: 5pt 6pt;
+  line-height: 1.2;
+}
+
+.rp-table td {
+  padding: 4.5pt 6pt;
+  border-bottom: 0.5pt solid var(--rp-rule);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.rp-table tbody tr:nth-child(odd) td {
+  background: #fafbfc;
+}
+
+.rp-table tbody tr.rp-row-highlight td {
+  background: var(--rp-highlight);
+}
+
+.rp-table .rp-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.rp-table.rp-tight td {
+  padding: 2.6pt 6pt;
+}
+
+.rp-table.rp-tight th {
+  padding: 3.4pt 6pt;
+}
+
+.rp-table-note {
+  font-size: 7pt;
+  color: var(--rp-muted);
+  margin: 4pt 0 0;
+}
+
+/* ---------- layout blocks ---------- */
+
+.rp-split {
+  display: grid;
+  gap: 14pt;
+  align-items: start;
+}
+
+.rp-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14pt;
+  align-items: start;
+}
+
+.rp-chart {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.rp-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ---------- cover ---------- */
+
+.rp-cover-rule {
+  height: 3pt;
+  background: var(--rp-blue);
+  width: var(--rp-content-w);
+  margin-bottom: 26pt;
+}
+
+.rp-logos {
+  display: flex;
+  align-items: center;
+  gap: 18pt;
+  margin-bottom: 30pt;
+}
+
+.rp-logo {
+  font-size: 13pt;
+  font-weight: 700;
+  color: var(--rp-navy);
+  letter-spacing: -0.01em;
+}
+
+.rp-logo-sep {
+  width: 0.5pt;
+  height: 22pt;
+  background: var(--rp-rule);
+}
+
+.rp-cover-sub {
+  font-size: 11pt;
+  color: var(--rp-muted);
+  margin: 10pt 0 0;
+}
+
+.rp-meta {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14pt;
+  margin-top: 42pt;
+  padding-top: 12pt;
+  border-top: 0.5pt solid var(--rp-rule);
+}
+
+.rp-meta-label {
+  font-size: 7pt;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--rp-muted);
+  margin: 0 0 3pt;
+}
+
+.rp-meta-value {
+  font-size: 10.5pt;
+  font-weight: 700;
+  color: var(--rp-navy);
+  margin: 0;
+}
+
+/* ---------- action plan ---------- */
+
+.rp-action-block {
+  background: var(--rp-panel);
+  padding: 12pt 14pt;
+  margin-top: 10pt;
+  min-height: 1.55in;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.rp-action-label {
+  font-size: 7pt;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--rp-muted);
+  margin: 0 0 5pt;
+}
+
+.rp-action-number {
+  font-size: 8.5pt;
+  font-weight: 700;
+  color: var(--rp-blue);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ---------- screen-only preview chrome ---------- */
+
+@media screen {
+  .rp-page {
+    margin: 0 auto 24px;
+    box-shadow: 0 2px 14px rgb(29 34 75 / 12%);
+    border: 1px solid var(--rp-rule);
+  }
+}
+
+@media print {
+  .rp-no-print {
+    display: none !important;
+  }
+
+  .rp-page {
+    width: auto;
+    height: auto;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .rp-runhead,
+  .rp-runfoot {
+    position: fixed;
+  }
+
+  .rp-runhead {
+    top: 0.3in;
+    right: 0.8in;
+  }
+
+  .rp-runfoot {
+    left: 0.8in;
+    right: 0.8in;
+    bottom: 0.3in;
+  }
+}
