@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      action_plan_items: {
+        Row: {
+          authored_at: string
+          authored_by: string | null
+          client_id: string
+          headline: string
+          id: string
+          period: string
+          position: number
+          problem: string | null
+          solution: string | null
+        }
+        Insert: {
+          authored_at?: string
+          authored_by?: string | null
+          client_id: string
+          headline: string
+          id?: string
+          period: string
+          position?: number
+          problem?: string | null
+          solution?: string | null
+        }
+        Update: {
+          authored_at?: string
+          authored_by?: string | null
+          client_id?: string
+          headline?: string
+          id?: string
+          period?: string
+          position?: number
+          problem?: string | null
+          solution?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "action_plan_items_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       canonical_roles: {
         Row: {
           code: string
@@ -113,6 +157,53 @@ export type Database = {
           },
         ]
       }
+      engagement_totals: {
+        Row: {
+          client_id: string
+          comments: number | null
+          entered_at: string
+          entered_by: string | null
+          id: string
+          likes: number | null
+          logins: number | null
+          period: string
+          recognitions: number | null
+          source_note: string | null
+        }
+        Insert: {
+          client_id: string
+          comments?: number | null
+          entered_at?: string
+          entered_by?: string | null
+          id?: string
+          likes?: number | null
+          logins?: number | null
+          period: string
+          recognitions?: number | null
+          source_note?: string | null
+        }
+        Update: {
+          client_id?: string
+          comments?: number | null
+          entered_at?: string
+          entered_by?: string | null
+          id?: string
+          likes?: number | null
+          logins?: number | null
+          period?: string
+          recognitions?: number | null
+          source_note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engagement_totals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exclusions: {
         Row: {
           active: boolean
@@ -166,6 +257,91 @@ export type Database = {
             columns: ["superseded_by"]
             isOneToOne: false
             referencedRelation: "exclusions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      metric_definitions: {
+        Row: {
+          description: string | null
+          effective_from: string | null
+          formula_note: string | null
+          key: string
+          version: number
+        }
+        Insert: {
+          description?: string | null
+          effective_from?: string | null
+          formula_note?: string | null
+          key: string
+          version: number
+        }
+        Update: {
+          description?: string | null
+          effective_from?: string | null
+          formula_note?: string | null
+          key?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      published_metrics: {
+        Row: {
+          client_id: string
+          computed_at: string
+          definition_version: number
+          id: string
+          metric_key: string
+          period: string
+          report_run_id: string | null
+          scope: string
+          value_numeric: number | null
+          value_text: string | null
+        }
+        Insert: {
+          client_id: string
+          computed_at?: string
+          definition_version: number
+          id?: string
+          metric_key: string
+          period: string
+          report_run_id?: string | null
+          scope?: string
+          value_numeric?: number | null
+          value_text?: string | null
+        }
+        Update: {
+          client_id?: string
+          computed_at?: string
+          definition_version?: number
+          id?: string
+          metric_key?: string
+          period?: string
+          report_run_id?: string | null
+          scope?: string
+          value_numeric?: number | null
+          value_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "published_metrics_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "published_metrics_metric_key_definition_version_fkey"
+            columns: ["metric_key", "definition_version"]
+            isOneToOne: false
+            referencedRelation: "metric_definitions"
+            referencedColumns: ["key", "version"]
+          },
+          {
+            foreignKeyName: "published_metrics_report_run_id_fkey"
+            columns: ["report_run_id"]
+            isOneToOne: false
+            referencedRelation: "report_runs"
             referencedColumns: ["id"]
           },
         ]
@@ -354,6 +530,44 @@ export type Database = {
           },
         ]
       }
+      recognition_counts: {
+        Row: {
+          client_id: string
+          count: number
+          department_raw: string
+          entered_at: string
+          entered_by: string | null
+          id: string
+          period: string
+        }
+        Insert: {
+          client_id: string
+          count: number
+          department_raw: string
+          entered_at?: string
+          entered_by?: string | null
+          id?: string
+          period: string
+        }
+        Update: {
+          client_id?: string
+          count?: number
+          department_raw?: string
+          entered_at?: string
+          entered_by?: string | null
+          id?: string
+          period?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recognition_counts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       record_merges: {
         Row: {
           active: boolean
@@ -404,6 +618,44 @@ export type Database = {
             columns: ["superseded_by"]
             isOneToOne: false
             referencedRelation: "record_merges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      report_runs: {
+        Row: {
+          client_id: string
+          created_at: string
+          created_by: string | null
+          format: Database["public"]["Enums"]["report_format"]
+          id: string
+          period: string
+          storage_path: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          format: Database["public"]["Enums"]["report_format"]
+          id?: string
+          period: string
+          storage_path?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          format?: Database["public"]["Enums"]["report_format"]
+          id?: string
+          period?: string
+          storage_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_runs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
@@ -607,6 +859,7 @@ export type Database = {
         | "recognition_counts"
         | "screenshot"
       import_state: "uploaded" | "parsed" | "failed" | "superseded"
+      report_format: "portrait" | "landscape" | "wide" | "exec"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -760,6 +1013,7 @@ export const Constants = {
         "screenshot",
       ],
       import_state: ["uploaded", "parsed", "failed", "superseded"],
+      report_format: ["portrait", "landscape", "wide", "exec"],
     },
   },
 } as const
