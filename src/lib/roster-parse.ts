@@ -29,7 +29,20 @@ const normalizeHeader = (header: string) =>
   header.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 // Ordered synonym lists. First match wins, so put the most specific first.
-const FIELD_SYNONYMS: Record<string, string[]> = {
+type FieldKey =
+  | "name"
+  | "email"
+  | "employee_id"
+  | "title"
+  | "department"
+  | "status"
+  | "user_type"
+  | "hire_date"
+  | "created"
+  | "modified"
+  | "last_login";
+
+const FIELD_SYNONYMS: Record<FieldKey, string[]> = {
   name: ["fullname", "employeename", "username", "name", "displayname", "lastfirst"],
   email: ["emailaddress", "email", "workemail", "useremail", "primaryemail"],
   employee_id: ["employeeid", "empid", "employeenumber", "empno", "personnelid", "badgeid", "id"],
@@ -43,7 +56,7 @@ const FIELD_SYNONYMS: Record<string, string[]> = {
   last_login: ["lastlogin", "lastlogindate", "lastloginat", "lastsignin", "lastaccess", "lastactivity"],
 };
 
-export type HeaderMap = Partial<Record<keyof typeof FIELD_SYNONYMS, string>>;
+export type HeaderMap = Partial<Record<FieldKey, string>>;
 
 /** Map logical field -> actual column name present in this file. Absent fields are simply omitted. */
 export function buildHeaderMap(columns: string[]): HeaderMap {
@@ -51,21 +64,21 @@ export function buildHeaderMap(columns: string[]): HeaderMap {
   const map: HeaderMap = {};
   const taken = new Set<string>();
 
-  for (const [field, synonyms] of Object.entries(FIELD_SYNONYMS)) {
+  for (const [field, synonyms] of Object.entries(FIELD_SYNONYMS) as [FieldKey, string[]][]) {
     for (const synonym of synonyms) {
       const exact = normalized.find((c) => c.key === synonym && !taken.has(c.original));
       if (exact) {
-        map[field as keyof HeaderMap] = exact.original;
+        map[field] = exact.original;
         taken.add(exact.original);
         break;
       }
     }
-    if (map[field as keyof HeaderMap]) continue;
+    if (map[field]) continue;
     // Fall back to a contains match so "Employee Job Title (current)" still resolves.
     for (const synonym of synonyms) {
       const partial = normalized.find((c) => c.key.includes(synonym) && !taken.has(c.original));
       if (partial) {
-        map[field as keyof HeaderMap] = partial.original;
+        map[field] = partial.original;
         taken.add(partial.original);
         break;
       }
@@ -147,12 +160,12 @@ function jsonSafe(row: SourceRow): Record<string, unknown> {
  */
 export function extractRow(row: SourceRow, headers: HeaderMap, rowNumber: number): ExtractedRow {
   const flags: string[] = [];
-  const get = (field: keyof HeaderMap): RawCell => {
+  const get = (field: FieldKey): RawCell => {
     const column = headers[field];
     return column === undefined ? null : row[column];
   };
 
-  const dateField = (field: keyof HeaderMap, flag: string) => {
+  const dateField = (field: FieldKey, flag: string) => {
     const value = get(field);
     const raw = cellToText(value);
     const parsed = parseDateValue(value);
