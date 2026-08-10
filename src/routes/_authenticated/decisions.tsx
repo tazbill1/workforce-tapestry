@@ -777,7 +777,7 @@ function MergeCandidateRow({
         {duplicates.length > 0 ? (
           <Button
             size="sm"
-            disabled={reason.trim().length < 3}
+            disabled={blocked || reason.trim().length < 3}
             onClick={() => onConfirm(canonical, duplicates, reason)}
           >
             Merge {duplicates.length} into {canonical}
