@@ -509,10 +509,14 @@ function HistoryCard({ title, children }: { title: string; children: React.React
 
 function ExclusionCandidateRow({
   candidate,
+  priorDecisions,
+  priorDismissal,
   onConfirm,
   onDismiss,
 }: {
   candidate: Review["candidates"][number];
+  priorDecisions: Review["history"]["exclusions"];
+  priorDismissal: Review["history"]["dismissals"][number] | undefined;
   onConfirm: (payload: {
     matchType: (typeof MATCH_TYPES)[number];
     matchValue: string;
@@ -525,6 +529,25 @@ function ExclusionCandidateRow({
   const [matchValue, setMatchValue] = useState(candidate.normalized_email);
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("other");
   const [reason, setReason] = useState("");
+  const [acknowledged, setAcknowledged] = useState(false);
+
+  // A new exclusion sometimes contradicts a decision already on the record: this person was
+  // reviewed and deliberately kept, or an earlier exclusion was reversed as an error. Surface
+  // that before the row is written rather than silently layering one decision on the other.
+  const conflicts: string[] = [];
+  if (priorDismissal) {
+    conflicts.push(
+      `Reviewed and kept on ${new Date(priorDismissal.reviewed_at).toLocaleDateString()}${
+        priorDismissal.note ? ` — "${priorDismissal.note}"` : ""
+      }`,
+    );
+  }
+  for (const row of priorDecisions) {
+    if (!row.active && (row.reason ?? "").toLowerCase().startsWith("reversed")) {
+      conflicts.push(`A prior exclusion was reversed — "${row.reason}"`);
+    }
+  }
+  const blocked = conflicts.length > 0 && !acknowledged;
 
   return (
     <div className="rounded-lg border p-4">
