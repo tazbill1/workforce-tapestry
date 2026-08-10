@@ -337,6 +337,8 @@ export function mergeCandidates(
         name: p.name,
         statuses: p.statuses,
         title_raw: p.title_raw,
+        department_raw: p.department_raw,
+        hire_date: p.hire_date,
       })),
     });
   }
