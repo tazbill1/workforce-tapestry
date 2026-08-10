@@ -1053,7 +1053,7 @@ function EngagementSection({
                 comments: num(comments),
                 logins: num(logins),
                 recognitions: num(recognitions),
-                sourceNote: note || undefined,
+                ...(note.trim() ? { sourceNote: note.trim() } : {}),
               })
             }
           >
