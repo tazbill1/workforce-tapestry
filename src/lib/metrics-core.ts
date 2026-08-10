@@ -70,10 +70,40 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
   {
     key: "avg_tenure_years",
     version: 1,
-    description: "Mean tenure in years across Active and Inactive people.",
+    description: "Mean tenure in years across Active and Inactive people — as published.",
     formula_note:
-      "Active: period end minus hire_date. Inactive: departure_date_proxy minus hire_date. Rows flagged no_usable_departure_date are excluded (no reliable end date). Negative results excluded. Invited excluded.",
+      "Rows flagged no_usable_departure_date excluded, but negative tenures were left in the average. Published 2.95 for July 2026. Superseded: the definition always excluded negatives; the published figure did not.",
     effective_from: "2026-06-01",
+    superseded: true,
+  },
+  {
+    key: "avg_tenure_years",
+    version: 2,
+    description: "Mean tenure in years across Active and Inactive people — restated to the definition.",
+    formula_note:
+      "Active: period end minus hire_date. Inactive: departure_date_proxy minus hire_date. Excluded: rows flagged no_usable_departure_date (no reliable end date), rows flagged negative_tenure (departure precedes hire — impossible), and Invited. tenure_rows_included, tenure_dropped_negative and tenure_dropped_undated are stored alongside so the population is always visible.",
+    effective_from: "2026-07-01",
+  },
+  {
+    key: "tenure_rows_included",
+    version: 1,
+    description: "Rows entering avg_tenure_years.",
+    formula_note: "Active or Inactive, not excluded, with a tenure value, after dropping undated and negative rows.",
+    effective_from: "2026-07-01",
+  },
+  {
+    key: "tenure_dropped_negative",
+    version: 1,
+    description: "Rows dropped from avg_tenure_years for a negative result.",
+    formula_note: "departure_date_proxy earlier than hire_date. Also flagged negative_tenure on person_period.",
+    effective_from: "2026-07-01",
+  },
+  {
+    key: "tenure_dropped_undated",
+    version: 1,
+    description: "Rows dropped from avg_tenure_years for having no usable departure date.",
+    formula_note: "Active or Inactive rows flagged no_usable_departure_date.",
+    effective_from: "2026-07-01",
   },
   {
     key: "departures_count",
