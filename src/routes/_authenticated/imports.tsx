@@ -285,6 +285,9 @@ function ImportScreen() {
             <Button asChild variant="outline" size="sm">
               <Link to="/assembly">Assembly layer</Link>
             </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/metrics">Metrics layer</Link>
+            </Button>
             <Button variant="ghost" size="sm" onClick={signOut}>
               <LogOut className="mr-2 h-4 w-4" /> Sign out
             </Button>
