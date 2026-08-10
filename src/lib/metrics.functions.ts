@@ -74,13 +74,19 @@ export const rebuildMetrics = createServerFn({ method: "POST" })
       data.clientId,
       data.period,
     );
+    const { data: benchmarkRows, error: benchmarkError } = await context.supabase
+      .from("role_benchmarks")
+      .select("role_code, turnover_pct");
+    if (benchmarkError) throw new Error(benchmarkError.message);
     const metrics = computeMetrics({
       period: data.period,
       rows,
       priorRows,
       engagement,
       recognitions,
+      benchmarks: benchmarkRows ?? [],
     });
+
     const written = await persistMetrics(context.supabase, data.clientId, data.period, metrics);
     return {
       written,

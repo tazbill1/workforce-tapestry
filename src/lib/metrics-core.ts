@@ -276,7 +276,52 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     formula_note: "recognition_counts.count / headcount_active for the same department.",
     effective_from: "2026-06-01",
   },
+  {
+    key: "recognitions_count",
+    version: 1,
+    description: "Recognitions given in the department during the period.",
+    formula_note: "Read from recognition_counts; stored so the report never re-reads manual entry.",
+    effective_from: "2026-06-01",
+  },
+  {
+    key: "not_checked_in_count",
+    version: 1,
+    description: "Active people with no check-in in the period.",
+    formula_note:
+      "headcount_active minus the active people with at least one check-in. Stored rather than derived so the report performs no arithmetic.",
+    effective_from: "2026-06-01",
+  },
+  {
+    key: "roster_size",
+    version: 1,
+    description: "People on the resolved roster for the period, after exclusions.",
+    formula_note: "Non-excluded person_period rows of any status, including Invited.",
+    effective_from: "2026-06-01",
+  },
+  {
+    key: "excluded_count",
+    version: 1,
+    description: "Roster rows removed by a confirmed exclusion.",
+    formula_note: "person_period rows with is_excluded true. Reported as the exclusions footnote.",
+    effective_from: "2026-06-01",
+  },
+  {
+    key: "role_benchmark_turnover_pct",
+    version: 1,
+    description: "External turnover benchmark for the role.",
+    formula_note:
+      "Read from role_benchmarks for the role code. Absent where no benchmark row exists — the report renders 'No benchmark' from the absence, never a hardcoded value.",
+    effective_from: "2026-06-01",
+  },
+  {
+    key: "turnover_variance_pp",
+    version: 1,
+    description: "Role turnover minus its benchmark, in percentage points.",
+    formula_note: "turnover_pct - role_benchmark_turnover_pct. Only stored where a benchmark exists.",
+    effective_from: "2026-06-01",
+  },
 ];
+
 
 /** Current (non-superseded) version for a metric key. */
 export function currentVersion(key: string): number {
@@ -425,10 +470,18 @@ function mood(bucket: Bucket): ComputedMetric[] {
 
 function participation(bucket: Bucket): ComputedMetric[] {
   const rows = bucket.rows.filter((row) => (row.status ?? "").toLowerCase() !== "invited");
-  const checkedIn = rows.filter((row) => (row.checkin_count ?? 0) > 0 || row.checked_in === true).length;
-  const active = rows.filter((row) => (row.status ?? "").toLowerCase() === "active").length;
+  const isCheckedIn = (row: PersonRow) => (row.checkin_count ?? 0) > 0 || row.checked_in === true;
+  const checkedIn = rows.filter(isCheckedIn).length;
+  const activeRows = rows.filter((row) => (row.status ?? "").toLowerCase() === "active");
+  const active = activeRows.length;
   const out: ComputedMetric[] = [
     { metric_key: "checked_in_count", definition_version: currentVersion("checked_in_count"), scope: bucket.scope, value_numeric: checkedIn },
+    {
+      metric_key: "not_checked_in_count",
+      definition_version: currentVersion("not_checked_in_count"),
+      scope: bucket.scope,
+      value_numeric: activeRows.filter((row) => !isCheckedIn(row)).length,
+    },
   ];
   if (active > 0) {
     out.push({
@@ -441,13 +494,17 @@ function participation(bucket: Bucket): ComputedMetric[] {
   return out;
 }
 
+export type BenchmarkRow = { role_code: string; turnover_pct: number | string | null };
+
 export type ComputeInput = {
   period: string;
   rows: PersonRow[];
   priorRows: PersonRow[];
   engagement: EngagementRow | null;
   recognitions: RecognitionRow[];
+  benchmarks?: BenchmarkRow[];
 };
+
 
 export function computeMetrics(input: ComputeInput): ComputedMetric[] {
   // Population rule: excluded rows never enter any metric.
@@ -464,7 +521,8 @@ export function computeMetrics(input: ComputeInput): ComputedMetric[] {
     const value = turnover(bucket);
     if (value) out.push(value);
   }
-  for (const bucket of [company, ...franchises]) {
+  // Tenure is published at role scope as well so the report can table it by role.
+  for (const bucket of [company, ...franchises, ...roles]) {
     out.push(...tenure(bucket));
   }
   for (const bucket of [company, ...franchises, ...departments]) {
@@ -570,9 +628,15 @@ export function computeMetrics(input: ComputeInput): ComputedMetric[] {
     }
   }
 
-  // Recognitions per employee, department scope.
+  // Recognitions, department scope: raw count and the per-employee rate.
   for (const recognition of input.recognitions) {
     const label = (recognition.department_raw ?? "").trim() || "(blank)";
+    out.push({
+      metric_key: "recognitions_count",
+      definition_version: currentVersion("recognitions_count"),
+      scope: `dept:${label}`,
+      value_numeric: recognition.count,
+    });
     const active = rows.filter(
       (row) => deptLabel(row) === label && (row.status ?? "").toLowerCase() === "active",
     ).length;
@@ -585,5 +649,45 @@ export function computeMetrics(input: ComputeInput): ComputedMetric[] {
     });
   }
 
+  // Roster size and the exclusions footnote, so the cover and summary read stored values.
+  out.push(
+    { metric_key: "roster_size", definition_version: currentVersion("roster_size"), scope: "company", value_numeric: rows.length },
+    {
+      metric_key: "excluded_count",
+      definition_version: currentVersion("excluded_count"),
+      scope: "company",
+      value_numeric: input.rows.length - rows.length,
+    },
+  );
+
+  // Role benchmarks and the variance against them. No benchmark row means no metric row:
+  // the report renders "No benchmark" from the absence rather than a placeholder value.
+  const benchmarkByRole = new Map<string, number>();
+  for (const benchmark of input.benchmarks ?? []) {
+    const value = num(benchmark.turnover_pct);
+    if (value !== null) benchmarkByRole.set(benchmark.role_code, value);
+  }
+  for (const role of roles) {
+    const code = role.scope.slice("role:".length);
+    const benchmark = benchmarkByRole.get(code);
+    if (benchmark === undefined) continue;
+    const roleTurnover = turnover(role);
+    out.push({
+      metric_key: "role_benchmark_turnover_pct",
+      definition_version: currentVersion("role_benchmark_turnover_pct"),
+      scope: role.scope,
+      value_numeric: benchmark,
+    });
+    if (roleTurnover?.value_numeric !== null && roleTurnover !== null) {
+      out.push({
+        metric_key: "turnover_variance_pp",
+        definition_version: currentVersion("turnover_variance_pp"),
+        scope: role.scope,
+        value_numeric: round(roleTurnover.value_numeric! - benchmark, 1),
+      });
+    }
+  }
+
   return out;
 }
+
