@@ -668,7 +668,23 @@ function MergeCandidateRow({
   const emails = candidate.members.map((member) => member.normalized_email);
   const [canonical, setCanonical] = useState(emails[0] ?? "");
   const [reason, setReason] = useState("same person, duplicate record");
+  const [acknowledged, setAcknowledged] = useState(false);
   const duplicates = emails.filter((email) => email !== canonical);
+
+  // Same person is necessary but not sufficient. Two records with different hire dates and
+  // different departments are a rehire: two separate periods of employment. Merging them
+  // collapses both into one Active record and erases a real departure from turnover.
+  const hireDates = new Set(
+    candidate.members.map((member) => member.hire_date).filter((value): value is string => Boolean(value)),
+  );
+  const departments = new Set(
+    candidate.members
+      .map((member) => (member.department_raw ?? "").trim().toLowerCase())
+      .filter((value) => value.length > 0),
+  );
+  const rehireRisk =
+    candidate.members.length > 1 && hireDates.size > 1 && departments.size > 1;
+  const blocked = rehireRisk && !acknowledged;
 
   return (
     <div className="rounded-lg border p-4">
@@ -686,6 +702,8 @@ function MergeCandidateRow({
             <TableHead>Email</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Title</TableHead>
+            <TableHead>Department</TableHead>
+            <TableHead>Hire date</TableHead>
             <TableHead>Statuses</TableHead>
           </TableRow>
         </TableHeader>
@@ -695,6 +713,8 @@ function MergeCandidateRow({
               <TableCell className="font-mono text-xs">{member.normalized_email}</TableCell>
               <TableCell>{member.name ?? "—"}</TableCell>
               <TableCell className="text-xs">{member.title_raw ?? "—"}</TableCell>
+              <TableCell className="text-xs">{member.department_raw ?? "—"}</TableCell>
+              <TableCell className="text-xs">{member.hire_date ?? "—"}</TableCell>
               <TableCell className="text-xs">{member.statuses.join(", ")}</TableCell>
             </TableRow>
           ))}
