@@ -465,8 +465,7 @@ export function computeMetrics(input: ComputeInput): ComputedMetric[] {
     if (value) out.push(value);
   }
   for (const bucket of [company, ...franchises]) {
-    const value = tenure(bucket);
-    if (value) out.push(value);
+    out.push(...tenure(bucket));
   }
   for (const bucket of [company, ...franchises, ...departments]) {
     out.push(...mood(bucket));
