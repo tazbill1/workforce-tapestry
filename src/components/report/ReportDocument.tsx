@@ -770,6 +770,30 @@ export function ReportDocument({ data }: { data: ReportData }) {
               Engagement totals are entered manually from the platform export and stored as
               published metrics; the report reads them without adjustment.
             </p>
+            <p className="rp-subheading" style={{ marginTop: "10pt" }}>
+              Recognitions per active employee
+            </p>
+            <table className="rp-table rp-tight">
+              <thead>
+                <tr>
+                  <th>Department</th>
+                  <th className="rp-num">Recognitions</th>
+                  <th className="rp-num">Per employee</th>
+                </tr>
+              </thead>
+              <tbody>
+                {depts.map((scope) => (
+                  <tr key={scope}>
+                    <td>{scopeLabel(scope)}</td>
+                    <td className="rp-num">{fmtInt(m.get("recognitions_count", scope))}</td>
+                    <td className="rp-num">
+                      {fmtNum(m.get("recognitions_per_employee", scope), 2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
           </div>
         </div>
       </Page>
