@@ -52,7 +52,7 @@ function ReportPreview() {
   const [period, setPeriod] = useState<string>("");
   const [activeSection, setActiveSection] = useState<string>("cover");
 
-  const clients = useQuery({ queryKey: ["my-clients"], queryFn: () => clientsFn({ data: {} }) });
+  const clients = useQuery({ queryKey: ["my-clients"], queryFn: () => clientsFn() });
 
   useEffect(() => {
     if (!clientId && clients.data?.[0]) setClientId(clients.data[0].id);
