@@ -370,30 +370,39 @@ function turnover(bucket: Bucket): ComputedMetric | null {
   };
 }
 
-function tenure(bucket: Bucket): ComputedMetric | null {
-  const values = bucket.rows
-    .filter((row) => {
-      const status = (row.status ?? "").toLowerCase();
-      if (status !== "active" && status !== "inactive") return false;
-      if (isUndated(row)) return false;
-      return true;
-    })
+function tenure(bucket: Bucket): ComputedMetric[] {
+  // Population trace: A+I in, then the two documented exclusions, so the denominator is auditable.
+  const population = bucket.rows.filter((row) => {
+    const status = (row.status ?? "").toLowerCase();
+    return status === "active" || status === "inactive";
+  });
+  const undated = population.filter(isUndated);
+  const dated = population.filter((row) => !isUndated(row));
+  const withValue = dated
     .map((row) => num(row.tenure_years))
-    // Small negatives are hire/departure ordering artefacts within the same period and are
-    // kept (they reproduce the published figures). Implausible values are dropped outright.
-    .filter((value): value is number => value !== null && value > -1);
-  if (values.length === 0) return null;
+    .filter((value): value is number => value !== null);
+  const negative = withValue.filter((value) => value < 0);
+  const values = withValue.filter((value) => value >= 0);
+  const out: ComputedMetric[] = [
+    { metric_key: "tenure_rows_included", definition_version: currentVersion("tenure_rows_included"), scope: bucket.scope, value_numeric: values.length },
+    { metric_key: "tenure_dropped_negative", definition_version: currentVersion("tenure_dropped_negative"), scope: bucket.scope, value_numeric: negative.length },
+    { metric_key: "tenure_dropped_undated", definition_version: currentVersion("tenure_dropped_undated"), scope: bucket.scope, value_numeric: undated.length },
+  ];
+  if (values.length === 0) return out;
   const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-  return {
+  out.push({
     metric_key: "avg_tenure_years",
     definition_version: currentVersion("avg_tenure_years"),
     scope: bucket.scope,
     value_numeric: round(mean, 2),
-  };
+  });
+  return out;
 }
 
 function mood(bucket: Bucket): ComputedMetric[] {
-  const rows = bucket.rows.filter((row) => (row.status ?? "").toLowerCase() !== "invited");
+  // Mood sits on the same denominator as headcount and checked_in_pct: Active at period end.
+  // Someone who checked in during the period but was deactivated before close is excluded.
+  const rows = bucket.rows.filter((row) => (row.status ?? "").toLowerCase() === "active");
   const withMood = rows
     .map((row) => ({ avg: num(row.mood_avg), count: row.checkin_count ?? 0 }))
     .filter((entry): entry is { avg: number; count: number } => entry.avg !== null);
