@@ -643,7 +643,9 @@ function ExclusionCandidateRow({
       <div className="mt-3 flex gap-2">
         <Button
           size="sm"
-          disabled={reason.trim().length < 3 || matchValue.trim().length === 0}
+          disabled={blocked || reason.trim().length < 3 || matchValue.trim().length === 0}
+          onClick={() => onConfirm({ matchType, matchValue: matchValue.trim(), category, reason })}
+        >
           onClick={() => onConfirm({ matchType, matchValue: matchValue.trim(), category, reason })}
         >
           Confirm exclusion
