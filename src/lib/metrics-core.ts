@@ -470,10 +470,18 @@ function mood(bucket: Bucket): ComputedMetric[] {
 
 function participation(bucket: Bucket): ComputedMetric[] {
   const rows = bucket.rows.filter((row) => (row.status ?? "").toLowerCase() !== "invited");
-  const checkedIn = rows.filter((row) => (row.checkin_count ?? 0) > 0 || row.checked_in === true).length;
-  const active = rows.filter((row) => (row.status ?? "").toLowerCase() === "active").length;
+  const isCheckedIn = (row: PersonRow) => (row.checkin_count ?? 0) > 0 || row.checked_in === true;
+  const checkedIn = rows.filter(isCheckedIn).length;
+  const activeRows = rows.filter((row) => (row.status ?? "").toLowerCase() === "active");
+  const active = activeRows.length;
   const out: ComputedMetric[] = [
     { metric_key: "checked_in_count", definition_version: currentVersion("checked_in_count"), scope: bucket.scope, value_numeric: checkedIn },
+    {
+      metric_key: "not_checked_in_count",
+      definition_version: currentVersion("not_checked_in_count"),
+      scope: bucket.scope,
+      value_numeric: activeRows.filter((row) => !isCheckedIn(row)).length,
+    },
   ];
   if (active > 0) {
     out.push({
@@ -486,13 +494,17 @@ function participation(bucket: Bucket): ComputedMetric[] {
   return out;
 }
 
+export type BenchmarkRow = { role_code: string; turnover_pct: number | string | null };
+
 export type ComputeInput = {
   period: string;
   rows: PersonRow[];
   priorRows: PersonRow[];
   engagement: EngagementRow | null;
   recognitions: RecognitionRow[];
+  benchmarks?: BenchmarkRow[];
 };
+
 
 export function computeMetrics(input: ComputeInput): ComputedMetric[] {
   // Population rule: excluded rows never enter any metric.
