@@ -14,6 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
+      canonical_roles: {
+        Row: {
+          code: string
+          label: string
+          sort_order: number | null
+        }
+        Insert: {
+          code: string
+          label: string
+          sort_order?: number | null
+        }
+        Update: {
+          code?: string
+          label?: string
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
+      clients: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      role_benchmarks: {
+        Row: {
+          id: string
+          notes: string | null
+          role_code: string
+          source: string | null
+          source_year: number | null
+          turnover_pct: number | null
+        }
+        Insert: {
+          id?: string
+          notes?: string | null
+          role_code: string
+          source?: string | null
+          source_year?: number | null
+          turnover_pct?: number | null
+        }
+        Update: {
+          id?: string
+          notes?: string | null
+          role_code?: string
+          source?: string | null
+          source_year?: number | null
+          turnover_pct?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_benchmarks_role_code_fkey"
+            columns: ["role_code"]
+            isOneToOne: false
+            referencedRelation: "canonical_roles"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       user_clients: {
         Row: {
           client_id: string
@@ -33,7 +110,15 @@ export type Database = {
           id?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_clients_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
