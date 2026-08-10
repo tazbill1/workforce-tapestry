@@ -217,12 +217,48 @@ function ImportScreen() {
     },
   });
 
-  const onDrop = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-    setDragging(false);
-    const dropped = event.dataTransfer.files?.[0];
-    if (dropped) setFile(dropped);
+  const acceptFile = useCallback((candidate: File | null | undefined) => {
+    if (!candidate) return;
+    const ok = /\.(xlsx|xls|csv)$/i.test(candidate.name);
+    if (!ok) {
+      toast.error("Only .xlsx, .xls or .csv files can be imported.");
+      return;
+    }
+    setFile(candidate);
+    setFlagSummary(null);
+    setDiff(null);
   }, []);
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setDragging(false);
+      const dt = event.dataTransfer;
+      const dropped =
+        dt.files?.[0] ??
+        Array.from(dt.items ?? [])
+          .filter((i) => i.kind === "file")
+          .map((i) => i.getAsFile())
+          .find(Boolean) ??
+        null;
+      acceptFile(dropped);
+    },
+    [acceptFile],
+  );
+
+  const preventNav = useCallback((event: DragEvent) => {
+    event.preventDefault();
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("dragover", preventNav);
+    window.addEventListener("drop", preventNav);
+    return () => {
+      window.removeEventListener("dragover", preventNav);
+      window.removeEventListener("drop", preventNav);
+    };
+  }, [preventNav]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
