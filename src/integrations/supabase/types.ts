@@ -350,7 +350,7 @@ export type Database = {
         Row: {
           client_id: string
           column_names: string[] | null
-          content_sha256: string | null
+          content_sha256: string
           covers_from: string | null
           covers_to: string | null
           exported_at: string | null
@@ -371,7 +371,7 @@ export type Database = {
         Insert: {
           client_id: string
           column_names?: string[] | null
-          content_sha256?: string | null
+          content_sha256: string
           covers_from?: string | null
           covers_to?: string | null
           exported_at?: string | null
@@ -392,7 +392,7 @@ export type Database = {
         Update: {
           client_id?: string
           column_names?: string[] | null
-          content_sha256?: string | null
+          content_sha256?: string
           covers_from?: string | null
           covers_to?: string | null
           exported_at?: string | null
@@ -817,6 +817,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      bootstrap_analyst: { Args: { _email: string }; Returns: string }
       can_write_client: {
         Args: { _client_id: string; _user_id: string }
         Returns: boolean
@@ -834,6 +835,7 @@ export type Database = {
       }
       is_analyst: { Args: { _user_id: string }; Returns: boolean }
       is_known_user: { Args: { _user_id: string }; Returns: boolean }
+      storage_path_client_id: { Args: { _name: string }; Returns: string }
     }
     Enums: {
       app_role: "analyst" | "coach" | "viewer"
