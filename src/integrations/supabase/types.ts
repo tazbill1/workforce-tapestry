@@ -56,6 +56,190 @@ export type Database = {
         }
         Relationships: []
       }
+      raw_imports: {
+        Row: {
+          client_id: string
+          column_names: string[] | null
+          content_sha256: string | null
+          covers_from: string | null
+          covers_to: string | null
+          exported_at: string | null
+          id: string
+          kind: Database["public"]["Enums"]["import_kind"]
+          notes: string | null
+          original_filename: string | null
+          parse_error: string | null
+          period: string
+          row_count: number | null
+          state: Database["public"]["Enums"]["import_state"]
+          storage_path: string | null
+          superseded_by: string | null
+          supersedes: string | null
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          client_id: string
+          column_names?: string[] | null
+          content_sha256?: string | null
+          covers_from?: string | null
+          covers_to?: string | null
+          exported_at?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["import_kind"]
+          notes?: string | null
+          original_filename?: string | null
+          parse_error?: string | null
+          period: string
+          row_count?: number | null
+          state?: Database["public"]["Enums"]["import_state"]
+          storage_path?: string | null
+          superseded_by?: string | null
+          supersedes?: string | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          client_id?: string
+          column_names?: string[] | null
+          content_sha256?: string | null
+          covers_from?: string | null
+          covers_to?: string | null
+          exported_at?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["import_kind"]
+          notes?: string | null
+          original_filename?: string | null
+          parse_error?: string | null
+          period?: string
+          row_count?: number | null
+          state?: Database["public"]["Enums"]["import_state"]
+          storage_path?: string | null
+          superseded_by?: string | null
+          supersedes?: string | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raw_imports_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "raw_imports_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "raw_imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "raw_imports_supersedes_fkey"
+            columns: ["supersedes"]
+            isOneToOne: false
+            referencedRelation: "raw_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      raw_records: {
+        Row: {
+          client_id: string
+          created_at_src: string | null
+          created_raw: string | null
+          department_raw: string | null
+          email_raw: string | null
+          employee_id_raw: string | null
+          hire_date: string | null
+          hire_date_raw: string | null
+          id: string
+          import_id: string
+          inserted_at: string
+          last_login_at: string | null
+          last_login_raw: string | null
+          modified_at_src: string | null
+          modified_raw: string | null
+          name_raw: string | null
+          normalized_email: string | null
+          parse_flags: string[]
+          payload: Json
+          period: string
+          row_number: number | null
+          status_raw: string | null
+          title_raw: string | null
+          user_type_raw: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at_src?: string | null
+          created_raw?: string | null
+          department_raw?: string | null
+          email_raw?: string | null
+          employee_id_raw?: string | null
+          hire_date?: string | null
+          hire_date_raw?: string | null
+          id?: string
+          import_id: string
+          inserted_at?: string
+          last_login_at?: string | null
+          last_login_raw?: string | null
+          modified_at_src?: string | null
+          modified_raw?: string | null
+          name_raw?: string | null
+          normalized_email?: string | null
+          parse_flags?: string[]
+          payload: Json
+          period: string
+          row_number?: number | null
+          status_raw?: string | null
+          title_raw?: string | null
+          user_type_raw?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at_src?: string | null
+          created_raw?: string | null
+          department_raw?: string | null
+          email_raw?: string | null
+          employee_id_raw?: string | null
+          hire_date?: string | null
+          hire_date_raw?: string | null
+          id?: string
+          import_id?: string
+          inserted_at?: string
+          last_login_at?: string | null
+          last_login_raw?: string | null
+          modified_at_src?: string | null
+          modified_raw?: string | null
+          name_raw?: string | null
+          normalized_email?: string | null
+          parse_flags?: string[]
+          payload?: Json
+          period?: string
+          row_number?: number | null
+          status_raw?: string | null
+          title_raw?: string | null
+          user_type_raw?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raw_records_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "raw_records_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "raw_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_benchmarks: {
         Row: {
           id: string
@@ -166,6 +350,14 @@ export type Database = {
     }
     Enums: {
       app_role: "analyst" | "coach" | "viewer"
+      import_kind:
+        | "roster"
+        | "mood_matrix"
+        | "login_report"
+        | "engagement_totals"
+        | "recognition_counts"
+        | "screenshot"
+      import_state: "uploaded" | "parsed" | "failed" | "superseded"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -294,6 +486,15 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["analyst", "coach", "viewer"],
+      import_kind: [
+        "roster",
+        "mood_matrix",
+        "login_report",
+        "engagement_totals",
+        "recognition_counts",
+        "screenshot",
+      ],
+      import_state: ["uploaded", "parsed", "failed", "superseded"],
     },
   },
 } as const
