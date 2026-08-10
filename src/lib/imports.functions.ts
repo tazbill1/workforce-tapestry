@@ -148,6 +148,7 @@ export const insertRawRecords = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const payload = data.rows.map((row) => ({
       ...row,
+      payload: row.payload as never,
       import_id: data.importId,
       client_id: data.clientId,
       period: data.period,
