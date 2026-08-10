@@ -721,7 +721,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
           cols={4}
           items={[
             { label: "Recognitions", value: fmtInt(m.get("engagement_recognitions")), caption: `${fmtDeltaInt(m.get("engagement_recognitions"), m.prior("engagement_recognitions"))} vs ${prior}` },
-            { label: "Recognitions per employee", value: mNum(m.get("recognitions_per_employee"), 2) },
+            { label: "Logins", value: fmtInt(m.get("engagement_logins")) },
             { label: "Likes", value: fmtInt(m.get("engagement_likes")) },
             { label: "Comments", value: fmtInt(m.get("engagement_comments")) },
           ]}
@@ -729,7 +729,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
         <div className="rp-two-col">
           <div className="rp-chart">
             <RankedBarChart
-              height={250}
+              height={400}
               data={depts.map((scope) => ({
                 label: scopeLabel(scope),
                 value: m.get("recognitions_count", scope),
@@ -739,6 +739,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
             />
             <p className="rp-footnote">Recognitions by department, as entered for this period.</p>
           </div>
+
           <div>
             <table className="rp-table">
               <thead>
