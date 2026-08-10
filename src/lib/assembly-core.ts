@@ -409,6 +409,7 @@ export function summarize(rows: PersonPeriodRow[]) {
     checkedIn: rows.filter((r) => r.checked_in === true).length,
     noMoodRow: rows.filter((r) => r.checked_in === null).length,
     noUsableDepartureDate: rows.filter((r) => r.flags.includes("no_usable_departure_date")).length,
+    negativeTenure: rows.filter((r) => r.flags.includes("negative_tenure")).length,
     builtAt: rows[0]?.built_at ?? null,
   };
 }
