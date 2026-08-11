@@ -100,11 +100,17 @@ function ReportPreview() {
     enabled: Boolean(clientId),
   });
 
+  const rendererConfigured = useQuery({
+    queryKey: ["report-renderer-configured"],
+    queryFn: () => rendererConfiguredFn(),
+  });
+
   const runs = useQuery({
     queryKey: ["report-runs", clientId, period],
     queryFn: () => runsFn({ data: { clientId, period } }),
-    enabled: Boolean(clientId && period),
+    enabled: Boolean(clientId && period) && Boolean(rendererConfigured.data),
   });
+
 
   const generate = useMutation({
     mutationFn: (target: ReportFormat) =>
