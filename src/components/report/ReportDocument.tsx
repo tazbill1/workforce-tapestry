@@ -646,74 +646,99 @@ export function ReportDocument({ data }: { data: ReportData }) {
       </Page>
 
       {/* 10 — Watch list */}
-      <Page id="watchlist" title="Watch list" {...page}>
-        <h2 className="rp-heading">Watch list</h2>
+      <Page id="watchlist" title="Didn't check in" {...page}>
+        <h2 className="rp-heading">Didn&apos;t check in ({fmtInt(notCheckedIn)})</h2>
         <p className="rp-lede">
-          Active people with no check-in this period, and active people whose average mood sits
-          below {data.lists.moodThreshold}. Shaded rows are below the mood threshold.
+          Active people with no check-in this period. Shaded rows sat below the mood threshold of{" "}
+          {data.lists.moodThreshold} last period.
         </p>
         <div className="rp-two-col">
-          <div>
-            <p className="rp-subheading">No check-in ({fmtInt(notCheckedIn)})</p>
-            <table className="rp-table rp-tight">
-              <thead>
-                <tr>
-                  <th style={{ width: "42%" }}>Name</th>
-                  <th>Department</th>
-                  <th className="rp-num" style={{ width: "22%" }}>{prior} mood</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.lists.notCheckedIn.slice(0, 16).map((row) => (
-                  <tr key={row.email} className={row.highlight ? "rp-row-highlight" : undefined}>
-                    <td>{row.name}</td>
-                    <td>{row.department ?? DASH}</td>
-                    <td className="rp-num">{fmtNum(row.mood, 1)}</td>
-                  </tr>
-                ))}
-                {data.lists.notCheckedIn.length === 0 ? (
+          {[0, 1].map((col) => {
+            const half = Math.ceil(data.lists.notCheckedIn.length / 2);
+            const rows = data.lists.notCheckedIn.slice(col * half, col * half + half);
+            return (
+              <table className="rp-table rp-tight" key={col}>
+                <thead>
                   <tr>
-                    <td colSpan={3}>Everyone active checked in this period.</td>
+                    <th style={{ width: "44%" }}>Name</th>
+                    <th>Department</th>
+                    <th className="rp-num" style={{ width: "24%" }}>
+                      {prior} mood
+                    </th>
                   </tr>
-                ) : null}
-              </tbody>
-            </table>
-            <Overflow shown={Math.min(16, data.lists.notCheckedIn.length)} total={data.lists.notCheckedIn.length} noun="people" />
-          </div>
-          <div>
-            <p className="rp-subheading">Mood below {data.lists.moodThreshold} ({data.lists.lowMood.length})</p>
-            <table className="rp-table rp-tight">
-              <thead>
-                <tr>
-                  <th style={{ width: "42%" }}>Name</th>
-                  <th>Department</th>
-                  <th className="rp-num" style={{ width: "16%" }}>Mood</th>
-                  <th className="rp-num" style={{ width: "16%" }}>Check-ins</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.lists.lowMood.slice(0, 16).map((row) => (
-                  <tr key={row.email} className="rp-row-highlight">
-                    <td>{row.name}</td>
-                    <td>{row.department ?? DASH}</td>
-                    <td className="rp-num">{fmtNum(row.mood, 1)}</td>
-                    <td className="rp-num">{fmtInt(row.checkins)}</td>
-                  </tr>
-                ))}
-                {data.lists.lowMood.length === 0 ? (
-                  <tr>
-                    <td colSpan={4}>No active person recorded an average mood below the threshold.</td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-            <Overflow shown={Math.min(16, data.lists.lowMood.length)} total={data.lists.lowMood.length} noun="people" />
-          </div>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={row.email} className={row.highlight ? "rp-row-highlight" : undefined}>
+                      <td>{row.name}</td>
+                      <td>{row.department ?? DASH}</td>
+                      <td className="rp-num">{fmtNum(row.mood, 1)}</td>
+                    </tr>
+                  ))}
+                  {rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={3}>Everyone active checked in this period.</td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            );
+          })}
         </div>
         <p className="rp-footnote">
           People with no check-in have no mood this period; the mood column shows last
           period&apos;s figure where one exists.
         </p>
+      </Page>
+
+      {/* 11 — Checked in, mood below threshold */}
+      <Page id="lowmood" title="Checked in, mood below threshold" {...page}>
+        <h2 className="rp-heading">
+          Checked in, mood below {data.lists.moodThreshold} ({data.lists.lowMood.length})
+        </h2>
+        <p className="rp-lede">
+          Active people who checked in but whose average mood for the period sits below the
+          threshold.
+        </p>
+        <div className="rp-two-col">
+          {[0, 1].map((col) => {
+            const half = Math.ceil(data.lists.lowMood.length / 2);
+            const rows = data.lists.lowMood.slice(col * half, col * half + half);
+            return (
+              <table className="rp-table rp-tight" key={col}>
+                <thead>
+                  <tr>
+                    <th style={{ width: "42%" }}>Name</th>
+                    <th>Department</th>
+                    <th className="rp-num" style={{ width: "16%" }}>
+                      Mood
+                    </th>
+                    <th className="rp-num" style={{ width: "18%" }}>
+                      Check-ins
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={row.email} className="rp-row-highlight">
+                      <td>{row.name}</td>
+                      <td>{row.department ?? DASH}</td>
+                      <td className="rp-num">{fmtNum(row.mood, 1)}</td>
+                      <td className="rp-num">{fmtInt(row.checkins)}</td>
+                    </tr>
+                  ))}
+                  {rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={4}>
+                        No active person recorded an average mood below the threshold.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            );
+          })}
+        </div>
       </Page>
 
       {/* 11 — Recognition and engagement */}
