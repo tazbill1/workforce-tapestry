@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { FileText, Loader2, Printer } from "lucide-react";
+import { Download, FileText, Loader2, Printer, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -16,9 +17,17 @@ import {
 
 import { listMyClients } from "@/lib/imports.functions";
 import { listMetricPeriods } from "@/lib/metrics.functions";
-import { getReport } from "@/lib/report.functions";
+import {
+  generateReport,
+  getFormatSections,
+  getReport,
+  getReportDownloadUrl,
+  listReportRuns,
+} from "@/lib/report.functions";
+import { FORMAT_SPECS, REPORT_FORMATS, type ReportFormat } from "@/lib/report-formats";
 import { ReportDocument, SECTIONS } from "@/components/report/ReportDocument";
 import "@/styles/report.css";
+
 
 export const Route = createFileRoute("/_authenticated/report")({
   head: () => ({
@@ -44,12 +53,18 @@ export const Route = createFileRoute("/_authenticated/report")({
 });
 
 function ReportPreview() {
+  const queryClient = useQueryClient();
   const clientsFn = useServerFn(listMyClients);
   const periodsFn = useServerFn(listMetricPeriods);
   const reportFn = useServerFn(getReport);
+  const sectionsFn = useServerFn(getFormatSections);
+  const runsFn = useServerFn(listReportRuns);
+  const generateFn = useServerFn(generateReport);
+  const downloadFn = useServerFn(getReportDownloadUrl);
 
   const [clientId, setClientId] = useState<string>("");
   const [period, setPeriod] = useState<string>("");
+  const [format, setFormat] = useState<ReportFormat>("landscape");
   const [activeSection, setActiveSection] = useState<string>("cover");
 
   const clients = useQuery({ queryKey: ["my-clients"], queryFn: () => clientsFn() });
@@ -75,7 +90,55 @@ function ReportPreview() {
     enabled: Boolean(clientId && period),
   });
 
-  const sections = useMemo(() => SECTIONS, []);
+  const formatSections = useQuery({
+    queryKey: ["report-format-sections", clientId],
+    queryFn: () => sectionsFn({ data: { clientId } }),
+    enabled: Boolean(clientId),
+  });
+
+  const runs = useQuery({
+    queryKey: ["report-runs", clientId, period],
+    queryFn: () => runsFn({ data: { clientId, period } }),
+    enabled: Boolean(clientId && period),
+  });
+
+  const generate = useMutation({
+    mutationFn: (target: ReportFormat) =>
+      generateFn({ data: { clientId, period, format: target } }),
+    onSuccess: (result) => {
+      toast.success(
+        `Rendered ${result.pageCount ?? "?"} pages · ${(result.byteSize / 1024).toFixed(0)} KB`,
+      );
+      void queryClient.invalidateQueries({ queryKey: ["report-runs", clientId, period] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const download = useMutation({
+    mutationFn: (runId: string) => downloadFn({ data: { runId } }),
+    onSuccess: ({ url }) => window.open(url, "_blank", "noopener"),
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const activeSections = formatSections.data?.[format];
+  const sections = useMemo(
+    () =>
+      activeSections && activeSections.length > 0
+        ? SECTIONS.filter((section) => activeSections.includes(section.id))
+        : SECTIONS.slice(),
+    [activeSections],
+  );
+
+  const runsByFormat = useMemo(() => {
+    const map = new Map<string, NonNullable<typeof runs.data>>();
+    for (const run of runs.data ?? []) {
+      const list = map.get(run.format) ?? [];
+      list.push(run);
+      map.set(run.format, list);
+    }
+    return map;
+  }, [runs.data]);
+
 
   return (
     <div className="min-h-screen bg-muted/40">
@@ -84,8 +147,9 @@ function ReportPreview() {
           <div className="flex items-center gap-2 pb-1">
             <FileText className="h-5 w-5 text-primary" />
             <span className="font-semibold">Culture report</span>
-            <span className="text-xs text-muted-foreground">Landscape letter</span>
+            <span className="text-xs text-muted-foreground">{FORMAT_SPECS[format].label}</span>
           </div>
+
           <div className="grid gap-1">
             <Label className="text-xs">Client</Label>
             <Select value={clientId} onValueChange={setClientId}>
@@ -116,6 +180,33 @@ function ReportPreview() {
               </SelectContent>
             </Select>
           </div>
+          <div className="grid gap-1">
+            <Label className="text-xs">Format</Label>
+            <Select value={format} onValueChange={(value) => setFormat(value as ReportFormat)}>
+              <SelectTrigger className="w-52">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {REPORT_FORMATS.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {FORMAT_SPECS[value].label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            className="mb-0.5"
+            onClick={() => generate.mutate(format)}
+            disabled={!report.data || generate.isPending}
+          >
+            {generate.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            Generate PDF
+          </Button>
           <Button
             variant="outline"
             className="mb-0.5"
@@ -123,10 +214,57 @@ function ReportPreview() {
             disabled={!report.data}
           >
             <Printer className="mr-2 h-4 w-4" />
-            Print / save as PDF
+            Print
           </Button>
         </div>
+
+        <div className="grid gap-2 border-t px-6 py-3 md:grid-cols-4">
+          {REPORT_FORMATS.map((value) => {
+            const list = runsByFormat.get(value) ?? [];
+            const latest = list[0];
+            return (
+              <div key={value} className="rounded border bg-background p-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold">{FORMAT_SPECS[value].label}</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => generate.mutate(value)}
+                    disabled={!report.data || generate.isPending}
+                  >
+                    {latest ? "Regenerate" : "Generate"}
+                  </Button>
+                </div>
+                {list.length === 0 ? (
+                  <p className="mt-1 text-xs text-muted-foreground">Not generated yet.</p>
+                ) : (
+                  <ul className="mt-1 space-y-0.5">
+                    {list.map((run) => (
+                      <li key={run.id} className="flex items-center justify-between gap-2">
+                        <span className="truncate text-xs text-muted-foreground">
+                          {new Date(run.created_at).toLocaleString("en-US")}
+                          {run.page_count ? ` · ${run.page_count}p` : ""}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-1"
+                          onClick={() => download.mutate(run.id)}
+                          disabled={download.isPending}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </header>
+
 
       <div className="flex gap-6 px-6 py-6">
         <nav className="rp-no-print sticky top-24 hidden h-fit w-56 shrink-0 lg:block">
@@ -167,7 +305,12 @@ function ReportPreview() {
               className="origin-top"
               style={{ zoom: "var(--rp-zoom, 0.82)" } as React.CSSProperties}
             >
-              <ReportDocument data={report.data} />
+              <ReportDocument
+                data={report.data}
+                format={format}
+                {...(activeSections ? { sections: activeSections } : {})}
+              />
+
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">

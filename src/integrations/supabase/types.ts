@@ -753,31 +753,105 @@ export type Database = {
           },
         ]
       }
+      report_format_sections: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          format: Database["public"]["Enums"]["report_format"]
+          id: string
+          position: number
+          section_id: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          format: Database["public"]["Enums"]["report_format"]
+          id?: string
+          position: number
+          section_id: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          format?: Database["public"]["Enums"]["report_format"]
+          id?: string
+          position?: number
+          section_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_format_sections_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      report_run_metrics: {
+        Row: {
+          published_metric_id: string
+          report_run_id: string
+        }
+        Insert: {
+          published_metric_id: string
+          report_run_id: string
+        }
+        Update: {
+          published_metric_id?: string
+          report_run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_run_metrics_published_metric_id_fkey"
+            columns: ["published_metric_id"]
+            isOneToOne: false
+            referencedRelation: "published_metrics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "report_run_metrics_report_run_id_fkey"
+            columns: ["report_run_id"]
+            isOneToOne: false
+            referencedRelation: "report_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       report_runs: {
         Row: {
+          byte_size: number | null
           client_id: string
           created_at: string
           created_by: string | null
           format: Database["public"]["Enums"]["report_format"]
           id: string
+          note: string | null
+          page_count: number | null
           period: string
           storage_path: string | null
         }
         Insert: {
+          byte_size?: number | null
           client_id: string
           created_at?: string
           created_by?: string | null
           format: Database["public"]["Enums"]["report_format"]
           id?: string
+          note?: string | null
+          page_count?: number | null
           period: string
           storage_path?: string | null
         }
         Update: {
+          byte_size?: number | null
           client_id?: string
           created_at?: string
           created_by?: string | null
           format?: Database["public"]["Enums"]["report_format"]
           id?: string
+          note?: string | null
+          page_count?: number | null
           period?: string
           storage_path?: string | null
         }

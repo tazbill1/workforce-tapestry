@@ -36,6 +36,77 @@
   margin: 0.8in 0.8in 0.75in;
 }
 
+/* ---------- format variants ----------
+   The page box itself arrives as inline custom properties from report-formats.ts. What lives
+   here is the density that a shorter or narrower page needs: wide (16:9) is a full inch
+   shorter than landscape letter, so anything tuned to fill a landscape page has to give back
+   vertical space, and portrait is narrow enough that side-by-side blocks have to stack. */
+
+.rp[data-format="portrait"] .rp-two-col,
+.rp[data-format="portrait"] .rp-split {
+  grid-template-columns: 1fr;
+}
+
+.rp[data-format="portrait"] .rp-cards[data-cols="4"] {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.rp[data-format="portrait"] .rp-meta {
+  grid-template-columns: 1fr;
+  gap: 8pt;
+}
+
+.rp[data-format="wide"],
+.rp[data-format="exec"] {
+  font-size: 9pt;
+  line-height: 1.38;
+}
+
+.rp[data-format="wide"] .rp-card,
+.rp[data-format="exec"] .rp-card {
+  padding: 6pt 9pt 7pt;
+}
+
+.rp[data-format="wide"] .rp-card-value,
+.rp[data-format="exec"] .rp-card-value {
+  font-size: 15.5pt;
+  margin: 2pt 0 1pt;
+}
+
+.rp[data-format="wide"] .rp-cards,
+.rp[data-format="exec"] .rp-cards {
+  gap: 8pt;
+  margin-bottom: 8pt;
+}
+
+.rp[data-format="wide"] .rp-heading,
+.rp[data-format="exec"] .rp-heading {
+  font-size: 10.5pt;
+  margin-bottom: 6pt;
+}
+
+.rp[data-format="wide"] .rp-table,
+.rp[data-format="exec"] .rp-table {
+  font-size: 7.5pt;
+}
+
+.rp[data-format="wide"] .rp-table td,
+.rp[data-format="exec"] .rp-table td {
+  padding: 3.2pt 5pt;
+}
+
+.rp[data-format="wide"] .rp-table.rp-tight td,
+.rp[data-format="exec"] .rp-table.rp-tight td {
+  padding: 2pt 5pt;
+}
+
+.rp[data-format="wide"] .rp-action-block,
+.rp[data-format="exec"] .rp-action-block {
+  min-height: 1.15in;
+  padding: 9pt 12pt;
+}
+
+
 /* ---------- page shell ---------- */
 
 .rp-page {

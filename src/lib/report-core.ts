@@ -8,12 +8,15 @@
  */
 
 export type MetricRow = {
+  /** Present when the row was loaded for a report run, so the run can record its provenance. */
+  id?: string;
   metric_key: string;
   definition_version: number;
   scope: string;
   value_numeric: number | string | null;
   period: string;
 };
+
 
 export type MetricBook = {
   /** Current-period value at the highest stored definition version. */
