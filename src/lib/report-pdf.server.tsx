@@ -106,12 +106,15 @@ async function renderPdfWithGotenberg(html: string, format: ReportFormat): Promi
   form.append("marginRight", "0");
   form.append("emulatedMediaType", "print");
 
+  // Cloud Run runs the renderer with Gotenberg's built-in basic auth enabled, so every request
+  // carries credentials. They live in backend secrets only and never reach the client bundle.
   const headers: Record<string, string> = {};
-  const token = process.env["GOTENBERG_TOKEN"];
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-    headers["Gotenberg-Api-Key"] = token;
+  const user = process.env["GOTENBERG_USERNAME"];
+  const pass = process.env["GOTENBERG_PASSWORD"];
+  if (user && pass) {
+    headers["Authorization"] = `Basic ${btoa(`${user}:${pass}`)}`;
   }
+
 
   const response = await fetch(`${base.replace(/\/$/, "")}/forms/chromium/convert/html`, {
     method: "POST",
