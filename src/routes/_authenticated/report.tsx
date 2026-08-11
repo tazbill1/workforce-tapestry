@@ -231,51 +231,54 @@ function ReportPreview() {
 
         </div>
 
-        <div className="grid gap-2 border-t px-6 py-3 md:grid-cols-4">
-          {REPORT_FORMATS.map((value) => {
-            const list = runsByFormat.get(value) ?? [];
-            const latest = list[0];
-            return (
-              <div key={value} className="rounded border bg-background p-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold">{FORMAT_SPECS[value].label}</span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 px-2 text-xs"
-                    onClick={() => generate.mutate(value)}
-                    disabled={!report.data || generate.isPending}
-                  >
-                    {latest ? "Regenerate" : "Generate"}
-                  </Button>
+        {rendererConfigured.data && (
+          <div className="grid gap-2 border-t px-6 py-3 md:grid-cols-4">
+            {REPORT_FORMATS.map((value) => {
+              const list = runsByFormat.get(value) ?? [];
+              const latest = list[0];
+              return (
+                <div key={value} className="rounded border bg-background p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold">{FORMAT_SPECS[value].label}</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => generate.mutate(value)}
+                      disabled={!report.data || generate.isPending}
+                    >
+                      {latest ? "Regenerate" : "Generate"}
+                    </Button>
+                  </div>
+                  {list.length === 0 ? (
+                    <p className="mt-1 text-xs text-muted-foreground">Not generated yet.</p>
+                  ) : (
+                    <ul className="mt-1 space-y-0.5">
+                      {list.map((run) => (
+                        <li key={run.id} className="flex items-center justify-between gap-2">
+                          <span className="truncate text-xs text-muted-foreground">
+                            {new Date(run.created_at).toLocaleString("en-US")}
+                            {run.page_count ? ` · ${run.page_count}p` : ""}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-1"
+                            onClick={() => download.mutate(run.id)}
+                            disabled={download.isPending}
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
-                {list.length === 0 ? (
-                  <p className="mt-1 text-xs text-muted-foreground">Not generated yet.</p>
-                ) : (
-                  <ul className="mt-1 space-y-0.5">
-                    {list.map((run) => (
-                      <li key={run.id} className="flex items-center justify-between gap-2">
-                        <span className="truncate text-xs text-muted-foreground">
-                          {new Date(run.created_at).toLocaleString("en-US")}
-                          {run.page_count ? ` · ${run.page_count}p` : ""}
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 px-1"
-                          onClick={() => download.mutate(run.id)}
-                          disabled={download.isPending}
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
+
       </header>
 
 
