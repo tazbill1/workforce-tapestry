@@ -77,9 +77,10 @@ function Page({
   cover?: boolean;
 }) {
   const { enabled } = useContext(DocCtx);
-  // Action plan renders one page per item under ids like `action-2`; gating keys off the base id.
-  const baseId = id.startsWith("action") ? "action" : id;
+  // Continuation pages render under ids like `watchlist-2`; gating keys off the base id.
+  const baseId = id.replace(/-\d+$/, "");
   if (!enabled(baseId)) return null;
+
   return (
     <section className="rp-page" id={`rp-${id}`} data-section={id}>
       {!cover ? (
