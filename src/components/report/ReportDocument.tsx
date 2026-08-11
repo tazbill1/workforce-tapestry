@@ -61,13 +61,15 @@ function Page({
 }) {
   return (
     <section className="rp-page" id={`rp-${id}`} data-section={id}>
-      {!cover ? <div className="rp-runhead">{`${client} · ${period}`}</div> : null}
+      {!cover ? (
+        <div className="rp-runhead">WerkandMe · Team Culture &amp; Tenure Report</div>
+      ) : null}
       <div className="rp-body">{children}</div>
       {!cover ? (
         <div className="rp-runfoot">
-          <span>{title}</span>
+          <span>WerkandMe · Culture Report</span>
           <span>
-            Werk&amp;Me Culture Report · <span className="rp-pageno" />
+            Page <span className="rp-pageno" />
           </span>
         </div>
       ) : null}
