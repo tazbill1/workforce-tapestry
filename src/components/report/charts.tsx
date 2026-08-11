@@ -268,6 +268,12 @@ export function BenchmarkBarChart({
       {data.map((row, i) => {
         const cx = padLeft + i * slotW + slotW / 2;
         const barX = cx - barW / 2;
+        // When the bar top sits within a label height of its benchmark line the two collide;
+        // drop the bar's own label inside the bar instead.
+        const inside =
+          row.value !== null &&
+          row.benchmark !== null &&
+          Math.abs(y(row.value) - y(row.benchmark)) < 22;
         return (
           <g key={row.label}>
             {row.value !== null ? (
@@ -277,14 +283,14 @@ export function BenchmarkBarChart({
                   y={y(row.value)}
                   width={barW}
                   height={Math.max(padTop + plotH - y(row.value), 1)}
-                  fill={TOKENS.blue}
+                  fill={row.benchmark !== null ? TOKENS.cyan : TOKENS.blue}
                 />
                 <text
                   x={cx}
-                  y={y(row.value) - 7}
+                  y={inside ? y(row.value) + 18 : y(row.value) - 7}
                   fontSize={13}
                   fontWeight={700}
-                  fill={TOKENS.navy}
+                  fill={inside ? "#FFFFFF" : TOKENS.navy}
                   textAnchor="middle"
                 >
                   {format(row.value)}
