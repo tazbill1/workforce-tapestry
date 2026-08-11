@@ -4,6 +4,11 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildReport } from "./report-load";
 import { REPORT_FORMATS } from "./report-formats";
 
+export const isRendererConfigured = createServerFn({ method: "GET" }).handler(
+  () => Boolean(process.env["GOTENBERG_URL"]),
+);
+
+
 export const getReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { clientId: string; period: string }) =>
