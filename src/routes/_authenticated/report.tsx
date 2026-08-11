@@ -205,18 +205,20 @@ function ReportPreview() {
               </SelectContent>
             </Select>
           </div>
-          <Button
-            className="mb-0.5"
-            onClick={() => generate.mutate(format)}
-            disabled={!report.data || generate.isPending}
-          >
-            {generate.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
-            )}
-            Generate PDF
-          </Button>
+          {rendererConfigured.data && (
+            <Button
+              className="mb-0.5"
+              onClick={() => generate.mutate(format)}
+              disabled={!report.data || generate.isPending}
+            >
+              {generate.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Generate PDF
+            </Button>
+          )}
           <Button
             variant="outline"
             className="mb-0.5"
@@ -224,8 +226,9 @@ function ReportPreview() {
             disabled={!report.data}
           >
             <Printer className="mr-2 h-4 w-4" />
-            Print
+            Save as PDF
           </Button>
+
         </div>
 
         <div className="grid gap-2 border-t px-6 py-3 md:grid-cols-4">
