@@ -329,8 +329,6 @@ export function BenchmarkBarChart({
         <text x={18} y={0} fontSize={13} fill={TOKENS.body}>
           This period
         </text>
-          This period
-        </text>
         <line x1={170} x2={200} y1={-4} y2={-4} stroke={TOKENS.navy} strokeWidth={2} strokeDasharray="6 4" />
         <text x={208} y={0} fontSize={13} fill={TOKENS.body}>
           Industry benchmark (no benchmark published for unmarked roles)
