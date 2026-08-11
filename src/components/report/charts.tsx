@@ -325,8 +325,10 @@ export function BenchmarkBarChart({
         );
       })}
       <g transform={`translate(${padLeft}, ${height - 10})`}>
-        <rect x={0} y={-10} width={12} height={12} fill={TOKENS.blue} />
+        <rect x={0} y={-10} width={12} height={12} fill={TOKENS.cyan} />
         <text x={18} y={0} fontSize={13} fill={TOKENS.body}>
+          This period
+        </text>
           This period
         </text>
         <line x1={170} x2={200} y1={-4} y2={-4} stroke={TOKENS.navy} strokeWidth={2} strokeDasharray="6 4" />
