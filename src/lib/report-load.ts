@@ -110,7 +110,7 @@ export async function buildReport(supabase: Client, clientId: string, period: st
     supabase.from("clients").select("id, name, code").eq("id", clientId).maybeSingle(),
     supabase
       .from("published_metrics")
-      .select("metric_key, definition_version, scope, value_numeric, period")
+      .select("id, metric_key, definition_version, scope, value_numeric, period")
       .eq("client_id", clientId)
       .in("period", [period, priorPeriod])
       .limit(20000),

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { createContext, useContext, type CSSProperties, type ReactNode } from "react";
 import {
   BenchmarkBarChart,
   GroupedBarChart,
@@ -19,12 +19,22 @@ import {
   periodShort,
   scopeLabel,
 } from "@/lib/report-core";
+import {
+  FORMAT_SPECS,
+  formatVariables,
+  pageRule,
+  type ReportFormat,
+} from "@/lib/report-formats";
 import type { ReportData } from "@/lib/report-load";
 
 /**
  * The report template. Every number below is a lookup against `published_metrics`; the only
  * arithmetic performed here is the period-over-period delta in comparison columns, which is a
  * presentation of two stored values rather than a metric. Missing values render as an em dash.
+ *
+ * One template serves every page format. Formats differ only in the page box, chart scale and
+ * list column count declared in `report-formats.ts`, and in which sections are included — that
+ * list is stored configuration passed in as `sections`, never a filter hardcoded here.
  */
 
 export const SECTIONS = [
@@ -45,9 +55,15 @@ export const SECTIONS = [
   { id: "method", label: "Method and definitions" },
 ] as const;
 
+type DocContext = {
+  enabled: (id: string) => boolean;
+  pageOf: (id: string) => number | null;
+};
+
+const DocCtx = createContext<DocContext>({ enabled: () => true, pageOf: () => null });
+
 function Page({
   id,
-  title,
   client,
   period,
   children,
@@ -60,6 +76,10 @@ function Page({
   children: ReactNode;
   cover?: boolean;
 }) {
+  const { enabled } = useContext(DocCtx);
+  // Action plan renders one page per item under ids like `action-2`; gating keys off the base id.
+  const baseId = id.startsWith("action") ? "action" : id;
+  if (!enabled(baseId)) return null;
   return (
     <section className="rp-page" id={`rp-${id}`} data-section={id}>
       {!cover ? (
@@ -75,6 +95,21 @@ function Page({
         </div>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * Cross-reference to another section. Resolves to the page number that section occupies in the
+ * format being rendered, and disappears entirely when the target is not part of that cut.
+ */
+function Ref({ to, label }: { to: string; label: string }) {
+  const { enabled, pageOf } = useContext(DocCtx);
+  const page = pageOf(to);
+  if (!enabled(to) || page === null) return null;
+  return (
+    <li>
+      {label} — see page {page}.
+    </li>
   );
 }
 
@@ -108,7 +143,34 @@ function Overflow({ shown, total, noun }: { shown: number; total: number; noun: 
   );
 }
 
-export function ReportDocument({ data }: { data: ReportData }) {
+export function ReportDocument({
+  data,
+  format = "landscape",
+  sections,
+}: {
+  data: ReportData;
+  format?: ReportFormat;
+  sections?: string[];
+}) {
+  const spec = FORMAT_SPECS[format];
+  const enabledIds = sections && sections.length > 0 ? new Set(sections) : null;
+  const isEnabled = (id: string) => (enabledIds ? enabledIds.has(id) : true);
+
+  const actionPageCount = Math.max(1, data.actionPlan.length);
+  const pageNumbers = new Map<string, number>();
+  let cursor = 0;
+  for (const section of SECTIONS) {
+    if (!isEnabled(section.id)) continue;
+    cursor += 1;
+    pageNumbers.set(section.id, cursor);
+    if (section.id === "action") cursor += actionPageCount - 1;
+  }
+
+  /** Chart heights are declared at landscape scale and shrunk for the shorter formats. */
+  const ch = (height: number) => Math.round(height * spec.chartScale);
+  const listCols = spec.listColumns;
+  const listCap = listCols * spec.listRowsPerColumn;
+
   const m = buildMetricBook(data.metrics, data.period, data.priorPeriod);
   const clientName = data.client.name;
   const period = periodLabel(data.period);
@@ -128,7 +190,16 @@ export function ReportDocument({ data }: { data: ReportData }) {
   const notCheckedIn = m.get("not_checked_in_count");
 
   return (
-    <div className="rp">
+    <DocCtx.Provider
+      value={{ enabled: isEnabled, pageOf: (id) => pageNumbers.get(id) ?? null }}
+    >
+      <div
+        className="rp"
+        data-format={format}
+        style={formatVariables(spec) as CSSProperties}
+      >
+        <style dangerouslySetInnerHTML={{ __html: pageRule(spec) }} />
+
       {/* 1 — Cover */}
       <Page id="cover" title="Cover" client={clientName} period={period} cover>
         <div className="rp-cover-rule" />
@@ -237,7 +308,17 @@ export function ReportDocument({ data }: { data: ReportData }) {
                 period end.
               </li>
             </ul>
+            <p className="rp-subheading" style={{ marginTop: "8pt" }}>
+              Where to read further
+            </p>
+            <ul className="rp-bullets">
+              <Ref to="turnover" label="Turnover by role and cohort" />
+              <Ref to="departures" label="Who left and when" />
+              <Ref to="mood" label="Mood by franchise" />
+              <Ref to="action" label="Action plan" />
+            </ul>
           </div>
+
           <div>
             <p className="rp-subheading">Scope of this report</p>
             <ul className="rp-bullets">
@@ -263,7 +344,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
         <h2 className="rp-heading">Headcount and composition</h2>
         <div className="rp-chart">
           <GroupedBarChart
-            height={300}
+            height={ch(300)}
             categories={franchises.map(scopeLabel)}
             series={[
               { name: prior, color: TOKENS.priorBar },
@@ -320,7 +401,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
         <h2 className="rp-heading">Turnover by role</h2>
         <div className="rp-chart">
           <GroupedBarChart
-            height={288}
+            height={ch(288)}
             categories={roles.map(scopeLabel)}
             series={[
               { name: prior, color: TOKENS.priorBar },
@@ -396,7 +477,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
         <h2 className="rp-heading">Turnover against industry benchmark</h2>
         <div className="rp-chart">
           <BenchmarkBarChart
-            height={300}
+            height={ch(300)}
             data={roles.map((scope) => ({
               label: scopeLabel(scope),
               value: m.get("turnover_pct", scope),
@@ -471,7 +552,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
             </tr>
           </thead>
           <tbody>
-            {data.lists.departures.slice(0, 14).map((row) => (
+            {data.lists.departures.slice(0, spec.tableRows).map((row) => (
               <tr key={row.email} className={row.on_watch_list ? "rp-row-highlight" : undefined}>
                 <td>{row.name}</td>
                 <td>{row.department ?? DASH}</td>
@@ -489,7 +570,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
             ) : null}
           </tbody>
         </table>
-        <Overflow shown={Math.min(14, data.lists.departures.length)} total={data.lists.departures.length} noun="departures" />
+        <Overflow shown={Math.min(spec.tableRows, data.lists.departures.length)} total={data.lists.departures.length} noun="departures" />
         <p className="rp-footnote">
           Shaded rows were on last month&apos;s watch list. Departure dates are a proxy taken from
           the last modification of an inactive record.
@@ -510,7 +591,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
         />
         <div className="rp-chart">
           <RankedBarChart
-            height={230}
+            height={ch(230)}
             data={franchises.map((scope) => ({
               label: scopeLabel(scope),
               value: m.get("avg_tenure_years", scope),
@@ -574,7 +655,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
         />
         <div className="rp-chart">
           <RankedBarChart
-            height={220}
+            height={ch(220)}
             data={franchises.map((scope) => ({
               label: scopeLabel(scope),
               value: m.get("checked_in_pct", scope),
@@ -604,7 +685,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
         />
         <div className="rp-chart">
           <RankedBarChart
-            height={230}
+            height={ch(230)}
             data={moodScopes.map((scope) => ({
               label: scopeLabel(scope),
               value: m.get("mood_per_employee", scope),
@@ -654,9 +735,10 @@ export function ReportDocument({ data }: { data: ReportData }) {
           {data.lists.moodThreshold} last period.
         </p>
         <div className="rp-two-col">
-          {[0, 1].map((col) => {
-            const half = Math.ceil(data.lists.notCheckedIn.length / 2);
-            const rows = data.lists.notCheckedIn.slice(col * half, col * half + half);
+          {Array.from({ length: listCols }, (_, col) => {
+            const shown = data.lists.notCheckedIn.slice(0, listCap);
+            const per = Math.ceil(shown.length / listCols);
+            const rows = shown.slice(col * per, col * per + per);
             return (
               <table className="rp-table rp-tight" key={col}>
                 <thead>
@@ -686,7 +768,13 @@ export function ReportDocument({ data }: { data: ReportData }) {
             );
           })}
         </div>
+        <Overflow
+          shown={Math.min(listCap, data.lists.notCheckedIn.length)}
+          total={data.lists.notCheckedIn.length}
+          noun="people"
+        />
         <p className="rp-footnote">
+
           People with no check-in have no mood this period; the mood column shows last
           period&apos;s figure where one exists.
         </p>
@@ -702,9 +790,10 @@ export function ReportDocument({ data }: { data: ReportData }) {
           threshold.
         </p>
         <div className="rp-two-col">
-          {[0, 1].map((col) => {
-            const half = Math.ceil(data.lists.lowMood.length / 2);
-            const rows = data.lists.lowMood.slice(col * half, col * half + half);
+          {Array.from({ length: listCols }, (_, col) => {
+            const shown = data.lists.lowMood.slice(0, listCap);
+            const per = Math.ceil(shown.length / listCols);
+            const rows = shown.slice(col * per, col * per + per);
             return (
               <table className="rp-table rp-tight" key={col}>
                 <thead>
@@ -740,7 +829,13 @@ export function ReportDocument({ data }: { data: ReportData }) {
             );
           })}
         </div>
+        <Overflow
+          shown={Math.min(listCap, data.lists.lowMood.length)}
+          total={data.lists.lowMood.length}
+          noun="people"
+        />
       </Page>
+
 
       {/* 11 — Recognition and engagement */}
       <Page id="recognition" title="Recognition and engagement" {...page}>
@@ -757,7 +852,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
         <div className="rp-two-col">
           <div className="rp-chart">
             <RankedBarChart
-              height={400}
+              height={ch(400)}
               data={depts.map((scope) => ({
                 label: scopeLabel(scope),
                 value: m.get("recognitions_count", scope),
@@ -841,7 +936,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
                 </tr>
               </thead>
               <tbody>
-                {data.lists.anniversaries.slice(0, 18).map((row) => (
+                {data.lists.anniversaries.slice(0, spec.tableRows + 4).map((row) => (
                   <tr key={`${row.name}-${row.hire_date}`} className={row.milestone ? "rp-row-highlight" : undefined}>
                     <td>{row.name}</td>
                     <td>{row.department ?? DASH}</td>
@@ -855,7 +950,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
                 ) : null}
               </tbody>
             </table>
-            <Overflow shown={Math.min(18, data.lists.anniversaries.length)} total={data.lists.anniversaries.length} noun="anniversaries" />
+            <Overflow shown={Math.min(spec.tableRows + 4, data.lists.anniversaries.length)} total={data.lists.anniversaries.length} noun="anniversaries" />
           </div>
           <div>
             <p className="rp-subheading">New starters ({data.lists.newStarters.length})</p>
@@ -868,7 +963,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
                 </tr>
               </thead>
               <tbody>
-                {data.lists.newStarters.slice(0, 18).map((row) => (
+                {data.lists.newStarters.slice(0, spec.tableRows + 4).map((row) => (
                   <tr key={`${row.name}-${row.hire_date}`}>
                     <td>{row.name}</td>
                     <td>{row.department ?? DASH}</td>
@@ -882,7 +977,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
                 ) : null}
               </tbody>
             </table>
-            <Overflow shown={Math.min(18, data.lists.newStarters.length)} total={data.lists.newStarters.length} noun="starters" />
+            <Overflow shown={Math.min(spec.tableRows + 4, data.lists.newStarters.length)} total={data.lists.newStarters.length} noun="starters" />
           </div>
         </div>
         <p className="rp-footnote">
@@ -966,8 +1061,10 @@ export function ReportDocument({ data }: { data: ReportData }) {
           than a substitute.
         </p>
       </Page>
-    </div>
+      </div>
+    </DocCtx.Provider>
   );
 }
+
 
 const mNum = (value: number | null, digits = 2) => fmtNum(value, digits);
