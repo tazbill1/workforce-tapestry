@@ -63,6 +63,8 @@ function ReportPreview() {
   const runsFn = useServerFn(listReportRuns);
   const generateFn = useServerFn(generateReport);
   const downloadFn = useServerFn(getReportDownloadUrl);
+  const rendererConfiguredFn = useServerFn(isRendererConfigured);
+
 
   const [clientId, setClientId] = useState<string>("");
   const [period, setPeriod] = useState<string>("");
