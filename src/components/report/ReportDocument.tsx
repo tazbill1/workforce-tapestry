@@ -809,60 +809,64 @@ export function ReportDocument({
 
 
       {/* 11 — Checked in, mood below threshold */}
-      <Page id="lowmood" title="Checked in, mood below threshold" {...page}>
-        <h2 className="rp-heading">
-          Checked in, mood below {data.lists.moodThreshold} ({data.lists.lowMood.length})
-        </h2>
-        <p className="rp-lede">
-          Active people who checked in but whose average mood for the period sits below the
-          threshold.
-        </p>
-        <div className="rp-two-col">
-          {Array.from({ length: listCols }, (_, col) => {
-            const shown = data.lists.lowMood.slice(0, listCap);
-            const per = Math.ceil(shown.length / listCols);
-            const rows = shown.slice(col * per, col * per + per);
-            return (
-              <table className="rp-table rp-tight" key={col}>
-                <thead>
-                  <tr>
-                    <th style={{ width: "42%" }}>Name</th>
-                    <th>Department</th>
-                    <th className="rp-num" style={{ width: "16%" }}>
-                      Mood
-                    </th>
-                    <th className="rp-num" style={{ width: "18%" }}>
-                      Check-ins
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.email} className="rp-row-highlight">
-                      <td>{row.name}</td>
-                      <td>{row.department ?? DASH}</td>
-                      <td className="rp-num">{fmtNum(row.mood, 1)}</td>
-                      <td className="rp-num">{fmtInt(row.checkins)}</td>
-                    </tr>
-                  ))}
-                  {rows.length === 0 ? (
+      {lowMoodChunks.map((chunk, chunkIndex) => (
+        <Page
+          key={chunkIndex}
+          id={chunkIndex === 0 ? "lowmood" : `lowmood-${chunkIndex + 1}`}
+          title="Checked in, mood below threshold"
+          {...page}
+        >
+          <h2 className="rp-heading">
+            Checked in, mood below {data.lists.moodThreshold} ({data.lists.lowMood.length})
+            {lowMoodChunks.length > 1 ? ` — ${chunkIndex + 1} of ${lowMoodChunks.length}` : ""}
+          </h2>
+          <p className="rp-lede">
+            Active people who checked in but whose average mood for the period sits below the
+            threshold.
+          </p>
+          <div className="rp-two-col">
+            {Array.from({ length: listCols }, (_, col) => {
+              const per = Math.ceil(chunk.length / listCols);
+              const rows = chunk.slice(col * per, col * per + per);
+              if (col > 0 && rows.length === 0) return null;
+              return (
+                <table className="rp-table rp-tight" key={col}>
+                  <thead>
                     <tr>
-                      <td colSpan={4}>
-                        No active person recorded an average mood below the threshold.
-                      </td>
+                      <th style={{ width: "42%" }}>Name</th>
+                      <th>Department</th>
+                      <th className="rp-num" style={{ width: "16%" }}>
+                        Mood
+                      </th>
+                      <th className="rp-num" style={{ width: "18%" }}>
+                        Check-ins
+                      </th>
                     </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            );
-          })}
-        </div>
-        <Overflow
-          shown={Math.min(listCap, data.lists.lowMood.length)}
-          total={data.lists.lowMood.length}
-          noun="people"
-        />
-      </Page>
+                  </thead>
+                  <tbody>
+                    {rows.map((row) => (
+                      <tr key={row.email} className="rp-row-highlight">
+                        <td>{row.name}</td>
+                        <td>{row.department ?? DASH}</td>
+                        <td className="rp-num">{fmtNum(row.mood, 1)}</td>
+                        <td className="rp-num">{fmtInt(row.checkins)}</td>
+                      </tr>
+                    ))}
+                    {rows.length === 0 ? (
+                      <tr>
+                        <td colSpan={4}>
+                          No active person recorded an average mood below the threshold.
+                        </td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              );
+            })}
+          </div>
+        </Page>
+      ))}
+
 
 
       {/* 11 — Recognition and engagement */}
