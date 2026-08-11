@@ -746,57 +746,67 @@ export function ReportDocument({
       </Page>
 
       {/* 10 — Watch list */}
-      <Page id="watchlist" title="Didn't check in" {...page}>
-        <h2 className="rp-heading">Didn&apos;t check in ({fmtInt(notCheckedIn)})</h2>
-        <p className="rp-lede">
-          Active people with no check-in this period. Shaded rows sat below the mood threshold of{" "}
-          {data.lists.moodThreshold} last period.
-        </p>
-        <div className="rp-two-col">
-          {Array.from({ length: listCols }, (_, col) => {
-            const shown = data.lists.notCheckedIn.slice(0, listCap);
-            const per = Math.ceil(shown.length / listCols);
-            const rows = shown.slice(col * per, col * per + per);
-            return (
-              <table className="rp-table rp-tight" key={col}>
-                <thead>
-                  <tr>
-                    <th style={{ width: "44%" }}>Name</th>
-                    <th>Department</th>
-                    <th className="rp-num" style={{ width: "24%" }}>
-                      {prior} mood
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.email} className={row.highlight ? "rp-row-highlight" : undefined}>
-                      <td>{row.name}</td>
-                      <td>{row.department ?? DASH}</td>
-                      <td className="rp-num">{fmtNum(row.mood, 1)}</td>
-                    </tr>
-                  ))}
-                  {rows.length === 0 ? (
+      {watchlistChunks.map((chunk, chunkIndex) => (
+        <Page
+          key={chunkIndex}
+          id={chunkIndex === 0 ? "watchlist" : `watchlist-${chunkIndex + 1}`}
+          title="Didn't check in"
+          {...page}
+        >
+          <h2 className="rp-heading">
+            Didn&apos;t check in ({fmtInt(notCheckedIn)})
+            {watchlistChunks.length > 1
+              ? ` — ${chunkIndex + 1} of ${watchlistChunks.length}`
+              : ""}
+          </h2>
+          <p className="rp-lede">
+            Active people with no check-in this period. Shaded rows sat below the mood threshold of{" "}
+            {data.lists.moodThreshold} last period.
+          </p>
+          <div className="rp-two-col">
+            {Array.from({ length: listCols }, (_, col) => {
+              const per = Math.ceil(chunk.length / listCols);
+              const rows = chunk.slice(col * per, col * per + per);
+              if (col > 0 && rows.length === 0) return null;
+              return (
+                <table className="rp-table rp-tight" key={col}>
+                  <thead>
                     <tr>
-                      <td colSpan={3}>Everyone active checked in this period.</td>
+                      <th style={{ width: "44%" }}>Name</th>
+                      <th>Department</th>
+                      <th className="rp-num" style={{ width: "24%" }}>
+                        {prior} mood
+                      </th>
                     </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            );
-          })}
-        </div>
-        <Overflow
-          shown={Math.min(listCap, data.lists.notCheckedIn.length)}
-          total={data.lists.notCheckedIn.length}
-          noun="people"
-        />
-        <p className="rp-footnote">
+                  </thead>
+                  <tbody>
+                    {rows.map((row) => (
+                      <tr
+                        key={row.email}
+                        className={row.highlight ? "rp-row-highlight" : undefined}
+                      >
+                        <td>{row.name}</td>
+                        <td>{row.department ?? DASH}</td>
+                        <td className="rp-num">{fmtNum(row.mood, 1)}</td>
+                      </tr>
+                    ))}
+                    {rows.length === 0 ? (
+                      <tr>
+                        <td colSpan={3}>Everyone active checked in this period.</td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              );
+            })}
+          </div>
+          <p className="rp-footnote">
+            People with no check-in have no mood this period; the mood column shows last
+            period&apos;s figure where one exists.
+          </p>
+        </Page>
+      ))}
 
-          People with no check-in have no mood this period; the mood column shows last
-          period&apos;s figure where one exists.
-        </p>
-      </Page>
 
       {/* 11 — Checked in, mood below threshold */}
       <Page id="lowmood" title="Checked in, mood below threshold" {...page}>
