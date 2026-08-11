@@ -157,20 +157,37 @@ export function ReportDocument({
   const enabledIds = sections && sections.length > 0 ? new Set(sections) : null;
   const isEnabled = (id: string) => (enabledIds ? enabledIds.has(id) : true);
 
+  /** Chart heights are declared at landscape scale and shrunk for the shorter formats. */
+  const ch = (height: number) => Math.round(height * spec.chartScale);
+  const listCols = spec.listColumns;
+  const listCap = listCols * spec.listRowsPerColumn;
+
+  /** Long lists spill onto continuation pages rather than being clipped. */
+  const chunkList = <T,>(items: T[]): T[][] =>
+    items.length === 0
+      ? [[]]
+      : Array.from({ length: Math.ceil(items.length / listCap) }, (_, i) =>
+          items.slice(i * listCap, (i + 1) * listCap),
+        );
+
   const actionPageCount = Math.max(1, data.actionPlan.length);
+  const watchlistChunks = chunkList(data.lists.notCheckedIn);
+  const lowMoodChunks = chunkList(data.lists.lowMood);
+  const extraPages: Record<string, number> = {
+    action: actionPageCount - 1,
+    watchlist: watchlistChunks.length - 1,
+    lowmood: lowMoodChunks.length - 1,
+  };
+
   const pageNumbers = new Map<string, number>();
   let cursor = 0;
   for (const section of SECTIONS) {
     if (!isEnabled(section.id)) continue;
     cursor += 1;
     pageNumbers.set(section.id, cursor);
-    if (section.id === "action") cursor += actionPageCount - 1;
+    cursor += extraPages[section.id] ?? 0;
   }
 
-  /** Chart heights are declared at landscape scale and shrunk for the shorter formats. */
-  const ch = (height: number) => Math.round(height * spec.chartScale);
-  const listCols = spec.listColumns;
-  const listCap = listCols * spec.listRowsPerColumn;
 
   const m = buildMetricBook(data.metrics, data.period, data.priorPeriod);
   const clientName = data.client.name;
