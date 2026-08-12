@@ -1,0 +1,119 @@
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from "zod";
+
+async function assertAnalyst(context: { supabase: any; userId: string }) {
+  const { data, error } = await context.supabase.rpc("is_analyst", { _user_id: context.userId });
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Analyst role required");
+}
+
+export const listClientsAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: isAnalyst } = await context.supabase.rpc("is_analyst", {
+      _user_id: context.userId,
+    });
+    const { data: clients, error } = await context.supabase
+      .from("clients")
+      .select("id, name, code, active, created_at")
+      .order("name");
+    if (error) throw new Error(error.message);
+
+    const { data: grants, error: grantError } = await context.supabase
+      .from("user_clients")
+      .select("id, user_id, client_id, granted_at");
+    if (grantError) throw new Error(grantError.message);
+
+    let emails: Record<string, string> = {};
+    if (isAnalyst) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: users } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
+      emails = Object.fromEntries((users?.users ?? []).map((u) => [u.id, u.email ?? u.id]));
+    }
+
+    return {
+      isAnalyst: Boolean(isAnalyst),
+      clients: clients ?? [],
+      grants: (grants ?? []).map((g) => ({ ...g, email: emails[g.user_id] ?? g.user_id })),
+      users: Object.entries(emails).map(([id, email]) => ({ id, email })),
+    };
+  });
+
+export const createClient = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { name: string; code: string }) =>
+    z
+      .object({
+        name: z.string().trim().min(1).max(120),
+        code: z
+          .string()
+          .trim()
+          .min(2)
+          .max(40)
+          .regex(/^[A-Za-z0-9_-]+$/, "Code may contain letters, numbers, _ and - only"),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnalyst(context);
+    const { data: row, error } = await context.supabase
+      .from("clients")
+      .insert({ name: data.name, code: data.code.toUpperCase(), active: true })
+      .select("id, name, code, active")
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+export const setClientActive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { clientId: string; active: boolean }) =>
+    z.object({ clientId: z.string().uuid(), active: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnalyst(context);
+    const { error } = await context.supabase
+      .from("clients")
+      .update({ active: data.active })
+      .eq("id", data.clientId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const grantClientAccess = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { clientId: string; email: string }) =>
+    z.object({ clientId: z.string().uuid(), email: z.string().trim().email() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnalyst(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: users, error: userError } = await supabaseAdmin.auth.admin.listUsers({
+      perPage: 200,
+    });
+    if (userError) throw new Error(userError.message);
+    const target = (users?.users ?? []).find(
+      (u) => (u.email ?? "").toLowerCase() === data.email.toLowerCase(),
+    );
+    if (!target) throw new Error(`No account found for ${data.email}. They must sign in once first.`);
+
+    const { error } = await context.supabase
+      .from("user_clients")
+      .insert({ user_id: target.id, client_id: data.clientId });
+    if (error && !error.message.includes("duplicate")) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const revokeClientAccess = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { grantId: string }) =>
+    z.object({ grantId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnalyst(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("user_clients").delete().eq("id", data.grantId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
