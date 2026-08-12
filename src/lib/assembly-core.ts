@@ -29,6 +29,8 @@ export type LoginRow = {
 };
 
 export type Merge = { canonical_email: string; duplicate_email: string; reason: string | null };
+/** One shared mailbox that actually belongs to several different people. */
+export type Split = { normalized_email: string; discriminator: "name" | "employee_id" };
 export type Exclusion = {
   match_type: string;
   match_value: string;
