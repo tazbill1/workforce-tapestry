@@ -771,6 +771,17 @@ function MergeCandidateRow({
     candidate.members.length > 1 && hireDates.size > 1 && departments.size > 1;
   const blocked = rehireRisk && !acknowledged;
 
+  // One mailbox, several rows. Either they are the same person twice (collapse) or the mailbox
+  // is reused by different people (split) — the second case cannot be fixed with a merge.
+  const rows = candidate.rows ?? [];
+  const sharedEmail = candidate.sharedEmail ?? null;
+  const canSplit = Boolean(sharedEmail) && rows.length > 1;
+  const namesDiffer = (candidate.distinctNames ?? 0) > 1;
+  const idsUsable = (candidate.distinctEmployeeIds ?? 0) > 1;
+  const [splitReason, setSplitReason] = useState(
+    "one mailbox reused by different people",
+  );
+
   return (
     <div className="rounded-lg border p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -781,30 +792,59 @@ function MergeCandidateRow({
           <p className="text-sm">{candidate.detail}</p>
         </div>
       </div>
-      <Table className="mt-2">
-        <TableHeader>
-          <TableRow>
-            <TableHead>Email</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Title</TableHead>
-            <TableHead>Department</TableHead>
-            <TableHead>Hire date</TableHead>
-            <TableHead>Statuses</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {candidate.members.map((member) => (
-            <TableRow key={member.normalized_email}>
-              <TableCell className="font-mono text-xs">{member.normalized_email}</TableCell>
-              <TableCell>{member.name ?? "—"}</TableCell>
-              <TableCell className="text-xs">{member.title_raw ?? "—"}</TableCell>
-              <TableCell className="text-xs">{member.department_raw ?? "—"}</TableCell>
-              <TableCell className="text-xs">{member.hire_date ?? "—"}</TableCell>
-              <TableCell className="text-xs">{member.statuses.join(", ")}</TableCell>
+      {canSplit ? (
+        <Table className="mt-2">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Row</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Title</TableHead>
+              <TableHead>Department</TableHead>
+              <TableHead>Hire date</TableHead>
+              <TableHead>Employee ID</TableHead>
+              <TableHead>Status</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, index) => (
+              <TableRow key={`${row.name ?? "row"}-${index}`}>
+                <TableCell className="text-xs text-muted-foreground">{index + 1}</TableCell>
+                <TableCell>{row.name ?? "—"}</TableCell>
+                <TableCell className="text-xs">{row.title_raw ?? "—"}</TableCell>
+                <TableCell className="text-xs">{row.department_raw ?? "—"}</TableCell>
+                <TableCell className="text-xs">{row.hire_date ?? "—"}</TableCell>
+                <TableCell className="font-mono text-xs">{row.employee_id_raw ?? "—"}</TableCell>
+                <TableCell className="text-xs">{row.status ?? "—"}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : (
+        <Table className="mt-2">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Email</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Title</TableHead>
+              <TableHead>Department</TableHead>
+              <TableHead>Hire date</TableHead>
+              <TableHead>Statuses</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {candidate.members.map((member) => (
+              <TableRow key={member.normalized_email}>
+                <TableCell className="font-mono text-xs">{member.normalized_email}</TableCell>
+                <TableCell>{member.name ?? "—"}</TableCell>
+                <TableCell className="text-xs">{member.title_raw ?? "—"}</TableCell>
+                <TableCell className="text-xs">{member.department_raw ?? "—"}</TableCell>
+                <TableCell className="text-xs">{member.hire_date ?? "—"}</TableCell>
+                <TableCell className="text-xs">{member.statuses.join(", ")}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
 
       {rehireRisk ? (
         <div className="mt-3 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs">
@@ -852,10 +892,48 @@ function MergeCandidateRow({
           </div>
         </div>
       ) : (
-        <p className="mt-3 text-xs text-muted-foreground">
-          Single email appearing more than once — already collapsed by the same-email rule (Active
-          beats Invited beats Inactive). Dismiss once you have checked it.
-        </p>
+        <div className="mt-3 space-y-3">
+          <div className="rounded-md border bg-muted/40 p-3 text-xs">
+            <p className="font-medium">
+              {namesDiffer
+                ? "These rows carry different names — this is not one person twice."
+                : "One email, several rows."}
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              Left alone, the same-email rule collapses them into a single person (Active beats
+              Invited beats Inactive), so everyone else on this mailbox disappears from headcount
+              and from turnover. Split it to keep each row as its own person, or dismiss if it
+              really is the same person recorded twice.
+            </p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Reason (required to split)</Label>
+            <Input value={splitReason} onChange={(event) => setSplitReason(event.target.value)} />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              disabled={!namesDiffer || splitReason.trim().length < 3}
+              onClick={() => onSplit("name", splitReason)}
+            >
+              Split into {candidate.distinctNames ?? rows.length} people — tell apart by name
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!idsUsable || splitReason.trim().length < 3}
+              onClick={() => onSplit("employee_id", splitReason)}
+            >
+              Split by employee ID
+            </Button>
+          </div>
+          {!namesDiffer ? (
+            <p className="text-xs text-muted-foreground">
+              Every row shows the same name, so splitting by name would change nothing. Use
+              employee ID if the IDs differ, otherwise dismiss.
+            </p>
+          ) : null}
+        </div>
       )}
 
       <div className="mt-3 flex gap-2">
