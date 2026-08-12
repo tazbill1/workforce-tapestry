@@ -407,7 +407,10 @@ export function buildPersonPeriod(input: BuildInput): BuildResult {
     if (exclusion) flags.push("excluded");
 
     // Mood matrix — absent row means null, not zero.
-    const moodPayload = moodByEmail.has(email) ? moodByEmail.get(email)! : undefined;
+    // Mood and login rows key on the mailbox, so a split branch other than the primary has no
+    // attributable activity: it reads as no row rather than borrowing someone else's.
+    const moodPayload =
+      unit.isPrimary && moodByEmail.has(email) ? moodByEmail.get(email)! : undefined;
     let checkinCount: number | null = null;
     let moodAvg: number | null = null;
     let checkedIn: boolean | null = null;
