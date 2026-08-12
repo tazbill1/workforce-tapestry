@@ -753,6 +753,60 @@ export type Database = {
           },
         ]
       }
+      record_splits: {
+        Row: {
+          active: boolean
+          client_id: string
+          confirmed_at: string
+          confirmed_by: string | null
+          discriminator: string
+          effective_from: string | null
+          id: string
+          normalized_email: string
+          reason: string | null
+          superseded_by: string | null
+        }
+        Insert: {
+          active?: boolean
+          client_id: string
+          confirmed_at?: string
+          confirmed_by?: string | null
+          discriminator: string
+          effective_from?: string | null
+          id?: string
+          normalized_email: string
+          reason?: string | null
+          superseded_by?: string | null
+        }
+        Update: {
+          active?: boolean
+          client_id?: string
+          confirmed_at?: string
+          confirmed_by?: string | null
+          discriminator?: string
+          effective_from?: string | null
+          id?: string
+          normalized_email?: string
+          reason?: string | null
+          superseded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "record_splits_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_splits_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "record_splits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       report_format_sections: {
         Row: {
           client_id: string | null
