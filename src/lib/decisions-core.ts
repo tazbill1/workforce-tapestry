@@ -393,7 +393,7 @@ export function mergeCandidates(
   for (const [name, group] of byName) {
     if (group.length < 2) continue;
     const emails = group.map((p) => p.normalized_email).sort();
-    if (emails.every((email) => handled.has(email))) continue;
+    if (emails.every((email) => handled.has(email)) || fullyMerged(emails)) continue;
     const key = `name:${emails.join("|")}`;
     if (dismissed.has(key)) continue;
     out.push({
@@ -424,7 +424,7 @@ export function mergeCandidates(
   for (const [id, group] of byEmployeeId) {
     if (group.length < 2) continue;
     const emails = group.map((p) => p.normalized_email).sort();
-    if (emails.every((email) => handled.has(email))) continue;
+    if (emails.every((email) => handled.has(email)) || fullyMerged(emails)) continue;
     // Already surfaced by the name flag — do not raise the same pair twice.
     const nameKeys = new Set(group.map((p) => nameKey(p.name)).filter(Boolean));
     if (nameKeys.size === 1) continue;
