@@ -363,6 +363,27 @@ export function mergeCandidates(
     });
   }
 
+  // Resolve an email to the canonical it merges into (following chains), so a
+  // pair that has already been merged stops being offered for review.
+  const canonicalOf = new Map<string, string>();
+  for (const merge of merges) {
+    if (!merge.active) continue;
+    const dup = norm(merge.duplicate_email);
+    const canon = norm(merge.canonical_email);
+    if (dup && canon) canonicalOf.set(dup, canon);
+  }
+  const resolveEmail = (email: string) => {
+    let current = email;
+    for (let hops = 0; hops < 10; hops++) {
+      const next = canonicalOf.get(current);
+      if (!next || next === current) break;
+      current = next;
+    }
+    return current;
+  };
+  /** True once every email in the group collapses to the same person. */
+  const fullyMerged = (emails: string[]) => new Set(emails.map(resolveEmail)).size < 2;
+
   const byName = new Map<string, Person[]>();
   for (const person of people) {
     const key = nameKey(person.name);
