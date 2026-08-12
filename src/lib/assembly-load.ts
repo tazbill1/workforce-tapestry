@@ -87,11 +87,21 @@ export async function loadAssemblyInputs(
     ),
   ]);
 
-  const [{ data: merges }, { data: exclusions }, { data: departmentRules }, { data: roleMappings }] =
-    await Promise.all([
+  const [
+    { data: merges },
+    { data: splits },
+    { data: exclusions },
+    { data: departmentRules },
+    { data: roleMappings },
+  ] = await Promise.all([
       supabase
         .from("record_merges")
         .select("canonical_email, duplicate_email, reason")
+        .eq("client_id", clientId)
+        .eq("active", true),
+      supabase
+        .from("record_splits")
+        .select("normalized_email, discriminator")
         .eq("client_id", clientId)
         .eq("active", true),
       supabase
@@ -120,6 +130,7 @@ export async function loadAssemblyInputs(
       moodRows: moodRaw as unknown as MoodRow[],
       loginRows: loginRaw as unknown as LoginRow[],
       merges: merges ?? [],
+      splits: (splits ?? []) as { normalized_email: string; discriminator: "name" | "employee_id" }[],
       exclusions: exclusions ?? [],
       departmentRules: departmentRules ?? [],
       roleMappings: roleMappings ?? [],
