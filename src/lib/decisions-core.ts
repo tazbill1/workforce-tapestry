@@ -243,9 +243,22 @@ export function exclusionCandidates(
   return out.sort((a, b) => b.reasons.length - a.reasons.length);
 }
 
+export type CandidateRow = {
+  name: string | null;
+  title_raw: string | null;
+  department_raw: string | null;
+  status: string | null;
+  hire_date: string | null;
+  employee_id_raw: string | null;
+};
+
 export type MergeCandidate = {
   key: string;
-  kind: "same_email_conflicting_status" | "identical_rows" | "similar_name";
+  kind:
+    | "same_email_conflicting_status"
+    | "identical_rows"
+    | "similar_name"
+    | "shared_mailbox";
   detail: string;
   members: Array<{
     normalized_email: string;
@@ -255,6 +268,14 @@ export type MergeCandidate = {
     department_raw: string | null;
     hire_date: string | null;
   }>;
+  /** Present for same-email candidates: the individual roster rows behind the mailbox. */
+  rows?: CandidateRow[];
+  /** The mailbox itself, when the candidate is one email appearing several times. */
+  sharedEmail?: string;
+  /** How many distinct people names sit on that mailbox. More than one means split, not merge. */
+  distinctNames?: number;
+  /** How many distinct non-placeholder employee IDs sit on it. */
+  distinctEmployeeIds?: number;
 };
 
 function nameKey(name: string | null): string | null {
