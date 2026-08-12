@@ -431,7 +431,7 @@ export function buildPersonPeriod(input: BuildInput): BuildResult {
     rows.push({
       client_id: clientId,
       period,
-      normalized_email: email,
+      normalized_email: unit.key,
       name: winner.name_raw,
       employee_id_raw: winner.employee_id_raw,
       title_raw: winner.title_raw,
