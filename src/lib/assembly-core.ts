@@ -256,10 +256,74 @@ export function buildPersonPeriod(input: BuildInput): BuildResult {
   );
   const sortedMappings = [...input.roleMappings].sort((a, b) => a.precedence - b.precedence);
 
+  // 2b. Splits — one shared mailbox reused by several people. The group is cut by name or
+  // employee ID; the strongest-status branch keeps the plain email (and the mood/login rows,
+  // which cannot be attributed any further), every other branch gets a suffixed key.
+  const splitBy = new Map<string, "name" | "employee_id">();
+  for (const split of input.splits ?? []) {
+    const email = norm(split.normalized_email);
+    if (email) splitBy.set(email, split.discriminator);
+  }
+  const slug = (value: string) =>
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "unknown";
+
+  type Unit = {
+    key: string;
+    email: string;
+    rows: RosterRow[];
+    mergedFrom: Set<string>;
+    isPrimary: boolean;
+    splitLabel: string | null;
+  };
+  const units: Unit[] = [];
+  for (const [email, group] of groups) {
+    const discriminator = splitBy.get(email);
+    if (!discriminator) {
+      units.push({ key: email, email, rows: group.rows, mergedFrom: group.mergedFrom, isPrimary: true, splitLabel: null });
+      continue;
+    }
+    const branches = new Map<string, RosterRow[]>();
+    for (const row of group.rows) {
+      const raw = discriminator === "name" ? row.name_raw : row.employee_id_raw;
+      const label = (raw ?? "").trim() || "unknown";
+      branches.set(label.toLowerCase(), [...(branches.get(label.toLowerCase()) ?? []), row]);
+    }
+    if (branches.size < 2) {
+      units.push({ key: email, email, rows: group.rows, mergedFrom: group.mergedFrom, isPrimary: true, splitLabel: null });
+      continue;
+    }
+    // Strongest status first, then most rows, so the primary branch is deterministic.
+    const ordered = [...branches.entries()].sort((a, b) => {
+      const rank = (rows: RosterRow[]) =>
+        Math.min(...rows.map((r) => canonicalStatus(r.status_raw).rank));
+      const diff = rank(a[1]) - rank(b[1]);
+      if (diff !== 0) return diff;
+      if (b[1].length !== a[1].length) return b[1].length - a[1].length;
+      return a[0].localeCompare(b[0]);
+    });
+    ordered.forEach(([label, branchRows], index) => {
+      units.push({
+        key: index === 0 ? email : `${slug(label)}+${email}`,
+        email,
+        rows: branchRows,
+        mergedFrom: index === 0 ? group.mergedFrom : new Set<string>(),
+        isPrimary: index === 0,
+        splitLabel: label,
+      });
+    });
+  }
+
   const rows: PersonPeriodRow[] = [];
 
-  for (const [email, group] of groups) {
+  for (const unit of units) {
+    const email = unit.email;
+    const group = { rows: unit.rows, mergedFrom: unit.mergedFrom };
     const flags: string[] = [];
+    if (unit.splitLabel) flags.push("split_shared_email");
 
     // Winning roster row by status precedence, then by most recent modified date.
     const ranked = [...group.rows].sort((a, b) => {
