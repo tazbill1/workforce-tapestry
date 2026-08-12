@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import type { RosterRow } from "./assembly-core";
 import { listPartImports } from "./assembly-load";
+import { withClockSkewRetry } from "./clock-skew";
 
 type Client = SupabaseClient<Database>;
 
@@ -31,6 +32,10 @@ async function fetchRecords(supabase: Client, importIds: string[], select: strin
 
 /** The logical roster for a period: the union of every parsed, non-superseded part. */
 export async function loadRosterUnion(supabase: Client, clientId: string, period: string) {
+  return withClockSkewRetry(() => loadRosterUnionOnce(supabase, clientId, period));
+}
+
+async function loadRosterUnionOnce(supabase: Client, clientId: string, period: string) {
   const parts = await listPartImports(supabase, clientId, period, "roster");
   const rows = await fetchRecords(
     supabase,
@@ -38,23 +43,6 @@ export async function loadRosterUnion(supabase: Client, clientId: string, period
     "import_id, normalized_email, email_raw, name_raw, employee_id_raw, title_raw, department_raw, status_raw, hire_date, created_at_src, modified_at_src",
   );
   return { parts, rosterRows: rows as unknown as RosterRow[] };
-}
-
-/**
- * Postgres/PostgREST rejects a freshly minted token with "JWT issued at future"
- * when the auth server clock is a second or two ahead of the database clock.
- * It is transient, so retry briefly instead of surfacing a blank screen.
- */
-async function withClockSkewRetry<T>(run: () => Promise<T>): Promise<T> {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await run();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (attempt >= 3 || !/issued at future/i.test(message)) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-  }
 }
 
 export async function loadDecisionState(supabase: Client, clientId: string, period: string) {
