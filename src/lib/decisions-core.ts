@@ -258,6 +258,7 @@ export type MergeCandidate = {
     | "same_email_conflicting_status"
     | "identical_rows"
     | "similar_name"
+    | "shared_employee_id"
     | "shared_mailbox";
   detail: string;
   members: Array<{
@@ -267,6 +268,7 @@ export type MergeCandidate = {
     title_raw: string | null;
     department_raw: string | null;
     hire_date: string | null;
+    employee_id_raw?: string | null;
   }>;
   /** Present for same-email candidates: the individual roster rows behind the mailbox. */
   rows?: CandidateRow[];
@@ -285,9 +287,10 @@ function nameKey(name: string | null): string | null {
 }
 
 /**
- * Merge candidates are keyed on normalized_email and name only. Employee ID is
- * deliberately never used or shown as evidence: shared placeholder IDs would
- * silently delete unrelated employees from headcount.
+ * Identity is email. Nothing else groups or merges people automatically.
+ * Name and employee ID only ever raise a flag for a human to look at: names repeat
+ * legitimately, and employee IDs are reused or left as placeholders, so acting on
+ * either without review would delete real employees from headcount.
  */
 export function mergeCandidates(
   people: Person[],
@@ -383,6 +386,41 @@ export function mergeCandidates(
         title_raw: p.title_raw,
         department_raw: p.department_raw,
         hire_date: p.hire_date,
+        employee_id_raw: p.employee_id_raw,
+      })),
+    });
+  }
+
+  // Same employee ID on different emails. Flag only — IDs get recycled between a leaver
+  // and a new hire, and placeholder IDs are shared outright, so this is never evidence
+  // on its own that two records are one person.
+  const byEmployeeId = new Map<string, Person[]>();
+  for (const person of people) {
+    const id = norm(person.employee_id_raw) ?? "";
+    if (!id || PLACEHOLDER_IDS.has(id)) continue;
+    byEmployeeId.set(id, [...(byEmployeeId.get(id) ?? []), person]);
+  }
+  for (const [id, group] of byEmployeeId) {
+    if (group.length < 2) continue;
+    const emails = group.map((p) => p.normalized_email).sort();
+    if (emails.every((email) => handled.has(email))) continue;
+    // Already surfaced by the name flag — do not raise the same pair twice.
+    const nameKeys = new Set(group.map((p) => nameKey(p.name)).filter(Boolean));
+    if (nameKeys.size === 1) continue;
+    const key = `empid:${emails.join("|")}`;
+    if (dismissed.has(key)) continue;
+    out.push({
+      key,
+      kind: "shared_employee_id",
+      detail: `employee ID ${group[0]?.employee_id_raw ?? id} appears on ${emails.length} different emails under different names — check before doing anything; a recycled or placeholder ID looks exactly like this`,
+      members: group.map((p) => ({
+        normalized_email: p.normalized_email,
+        name: p.name,
+        statuses: p.statuses,
+        title_raw: p.title_raw,
+        department_raw: p.department_raw,
+        hire_date: p.hire_date,
+        employee_id_raw: p.employee_id_raw,
       })),
     });
   }

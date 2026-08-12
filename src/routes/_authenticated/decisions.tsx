@@ -769,7 +769,10 @@ function MergeCandidateRow({
   );
   const rehireRisk =
     candidate.members.length > 1 && hireDates.size > 1 && departments.size > 1;
-  const blocked = rehireRisk && !acknowledged;
+  // An employee-ID collision is a flag, never evidence. Merging on it requires an explicit
+  // confirmation that the two records were checked by email and name.
+  const idFlag = candidate.kind === "shared_employee_id";
+  const blocked = (rehireRisk || idFlag) && !acknowledged;
 
   // One mailbox, several rows. Either they are the same person twice (collapse) or the mailbox
   // is reused by different people (split) — the second case cannot be fixed with a merge.
@@ -828,6 +831,7 @@ function MergeCandidateRow({
               <TableHead>Title</TableHead>
               <TableHead>Department</TableHead>
               <TableHead>Hire date</TableHead>
+              <TableHead>Employee ID</TableHead>
               <TableHead>Statuses</TableHead>
             </TableRow>
           </TableHeader>
@@ -839,12 +843,38 @@ function MergeCandidateRow({
                 <TableCell className="text-xs">{member.title_raw ?? "—"}</TableCell>
                 <TableCell className="text-xs">{member.department_raw ?? "—"}</TableCell>
                 <TableCell className="text-xs">{member.hire_date ?? "—"}</TableCell>
+                <TableCell className="font-mono text-xs">{member.employee_id_raw ?? "—"}</TableCell>
                 <TableCell className="text-xs">{member.statuses.join(", ")}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       )}
+
+      {idFlag ? (
+        <div className="mt-3 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs">
+          <p className="flex items-center gap-2 font-medium">
+            <ShieldAlert className="h-4 w-4 text-amber-600" /> Same employee ID, different emails —
+            flag only
+          </p>
+          <p className="mt-1">
+            People are matched by email. This ID showing up twice does not make these one person:
+            IDs get recycled when someone leaves and a new hire takes the number, and placeholder
+            IDs are shared outright. Confirm by email and name before merging anything.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-2"
+            onClick={() => setAcknowledged(true)}
+            disabled={acknowledged}
+          >
+            {acknowledged
+              ? "Checked — same person"
+              : "I have checked by name and email — same person"}
+          </Button>
+        </div>
+      ) : null}
 
       {rehireRisk ? (
         <div className="mt-3 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs">
