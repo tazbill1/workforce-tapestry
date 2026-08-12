@@ -243,9 +243,22 @@ export function exclusionCandidates(
   return out.sort((a, b) => b.reasons.length - a.reasons.length);
 }
 
+export type CandidateRow = {
+  name: string | null;
+  title_raw: string | null;
+  department_raw: string | null;
+  status: string | null;
+  hire_date: string | null;
+  employee_id_raw: string | null;
+};
+
 export type MergeCandidate = {
   key: string;
-  kind: "same_email_conflicting_status" | "identical_rows" | "similar_name";
+  kind:
+    | "same_email_conflicting_status"
+    | "identical_rows"
+    | "similar_name"
+    | "shared_mailbox";
   detail: string;
   members: Array<{
     normalized_email: string;
@@ -255,6 +268,14 @@ export type MergeCandidate = {
     department_raw: string | null;
     hire_date: string | null;
   }>;
+  /** Present for same-email candidates: the individual roster rows behind the mailbox. */
+  rows?: CandidateRow[];
+  /** The mailbox itself, when the candidate is one email appearing several times. */
+  sharedEmail?: string;
+  /** How many distinct people names sit on that mailbox. More than one means split, not merge. */
+  distinctNames?: number;
+  /** How many distinct non-placeholder employee IDs sit on it. */
+  distinctEmployeeIds?: number;
 };
 
 function nameKey(name: string | null): string | null {
@@ -272,6 +293,7 @@ export function mergeCandidates(
   people: Person[],
   merges: MergeRow[],
   dismissed: Set<string>,
+  splitEmails: Set<string> = new Set(),
 ): MergeCandidate[] {
   const handled = new Set<string>();
   for (const merge of merges) {
@@ -282,27 +304,49 @@ export function mergeCandidates(
 
   for (const person of people) {
     if (person.rows.length < 2) continue;
-    const identical = person.rows.every(
-      (row) =>
-        JSON.stringify([row.name_raw, row.title_raw, row.department_raw, row.status_raw, row.hire_date]) ===
-        JSON.stringify([
-          person.rows[0]!.name_raw,
-          person.rows[0]!.title_raw,
-          person.rows[0]!.department_raw,
-          person.rows[0]!.status_raw,
-          person.rows[0]!.hire_date,
-        ]),
-    );
-    const kind = person.statuses.length > 1 ? "same_email_conflicting_status" : identical ? "identical_rows" : "identical_rows";
+    // Already resolved by a split decision: the mailbox is knowingly shared.
+    if (splitEmails.has(person.normalized_email)) continue;
     const key = `dupe:${person.normalized_email}`;
     if (dismissed.has(key)) continue;
+
+    const rows: CandidateRow[] = person.rows.map((row) => ({
+      name: row.name_raw,
+      title_raw: row.title_raw,
+      department_raw: row.department_raw,
+      status: canonicalStatus(row.status_raw).label,
+      hire_date: row.hire_date,
+      employee_id_raw: row.employee_id_raw,
+    }));
+    const names = new Set(
+      rows.map((row) => nameKey(row.name)).filter((value): value is string => Boolean(value)),
+    );
+    const employeeIds = new Set(
+      rows
+        .map((row) => norm(row.employee_id_raw))
+        .filter((value): value is string => Boolean(value) && !PLACEHOLDER_IDS.has(value!)),
+    );
+    const sharedMailbox = names.size > 1;
+
+    const kind: MergeCandidate["kind"] = sharedMailbox
+      ? "shared_mailbox"
+      : person.statuses.length > 1
+        ? "same_email_conflicting_status"
+        : "identical_rows";
+
+    const detail = sharedMailbox
+      ? `${person.normalized_email} carries ${names.size} different names across ${person.rows.length} rows — one mailbox reused by several people, not a duplicate`
+      : person.statuses.length > 1
+        ? `${person.normalized_email} appears ${person.rows.length} times with conflicting statuses (${person.statuses.join(", ")}) — collapses to ${person.statuses.includes("Active") ? "Active" : person.statuses[0]}`
+        : `${person.normalized_email} appears ${person.rows.length} times with matching fields`;
+
     out.push({
       key,
       kind,
-      detail:
-        person.statuses.length > 1
-          ? `${person.normalized_email} appears ${person.rows.length} times with conflicting statuses (${person.statuses.join(", ")}) — collapses to ${person.statuses.includes("Active") ? "Active" : person.statuses[0]}`
-          : `${person.normalized_email} appears ${person.rows.length} times with matching fields`,
+      detail,
+      sharedEmail: person.normalized_email,
+      rows,
+      distinctNames: names.size,
+      distinctEmployeeIds: employeeIds.size,
       members: [
         {
           normalized_email: person.normalized_email,

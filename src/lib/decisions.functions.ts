@@ -44,12 +44,16 @@ export const getDecisionsReview = createServerFn({ method: "POST" })
           .map((key) => key.slice("exclusion:".length)),
       ),
     );
+    const splitEmails = new Set(
+      state.splits.filter((row) => row.active).map((row) => row.normalized_email),
+    );
     const merges = mergeCandidates(
       people,
       state.merges as MergeRow[],
       new Set(
         [...dismissed].filter((key) => key.startsWith("merge:")).map((key) => key.slice("merge:".length)),
       ),
+      splitEmails,
     );
     const combos = roleCombos(people, state.roleMappings as RoleMappingRow[]);
     const departments = departmentEntries(people, state.departmentRules as DeptRuleRow[]);
@@ -101,6 +105,7 @@ export const getDecisionsReview = createServerFn({ method: "POST" })
       history: {
         exclusions: state.exclusions,
         merges: state.merges,
+        splits: state.splits,
         departmentRules: state.departmentRules,
         roleMappings: state.roleMappings,
         dismissals: state.dismissals,
@@ -439,6 +444,7 @@ export const markPeriodReady = createServerFn({ method: "POST" })
         new Set(
           [...dismissed].filter((key) => key.startsWith("merge:")).map((key) => key.slice("merge:".length)),
         ),
+        new Set(state.splits.filter((row) => row.active).map((row) => row.normalized_email)),
       ),
       hasEngagementTotals: Boolean(state.engagement),
     });
@@ -454,6 +460,92 @@ export const markPeriodReady = createServerFn({ method: "POST" })
       { client_id: data.clientId, period: data.period, marked_ready_by: context.userId },
       { onConflict: "client_id,period" },
     );
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+
+/**
+ * The mirror image of a merge: one mailbox that several different people share.
+ * Recording it keeps every person in headcount instead of collapsing them into one row.
+ */
+export const confirmSplit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (input: {
+      clientId: string;
+      period: string;
+      email: string;
+      discriminator: "name" | "employee_id";
+      reason: string;
+    }) =>
+      scope
+        .extend({
+          email: z.string().email(),
+          discriminator: z.enum(["name", "employee_id"]),
+          reason: z.string().min(3, "A reason is required"),
+        })
+        .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const email = data.email.trim().toLowerCase();
+    const { data: existing, error: existingError } = await context.supabase
+      .from("record_splits")
+      .select("id, discriminator")
+      .eq("client_id", data.clientId)
+      .eq("normalized_email", email)
+      .eq("active", true)
+      .maybeSingle();
+    if (existingError) throw new Error(existingError.message);
+    if (existing && existing.discriminator === data.discriminator) {
+      return { id: existing.id, unchanged: true };
+    }
+
+    // The unique index allows one active split per mailbox, so retire the old one first.
+    if (existing) {
+      const { error: retireError } = await context.supabase
+        .from("record_splits")
+        .update({ active: false })
+        .eq("id", existing.id);
+      if (retireError) throw new Error(retireError.message);
+    }
+
+    const { data: inserted, error } = await context.supabase
+      .from("record_splits")
+      .insert({
+        client_id: data.clientId,
+        normalized_email: email,
+        discriminator: data.discriminator,
+        reason: data.reason,
+        effective_from: data.period,
+        confirmed_by: context.userId,
+        active: true,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+
+    if (existing) {
+      const { error: linkError } = await context.supabase
+        .from("record_splits")
+        .update({ superseded_by: inserted.id, active: false })
+        .eq("id", existing.id);
+      if (linkError) throw new Error(linkError.message);
+    }
+    return { id: inserted.id, unchanged: false };
+  });
+
+export const undoSplit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { clientId: string; period: string; id: string }) =>
+    scope.extend({ id: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("record_splits")
+      .update({ active: false })
+      .eq("id", data.id)
+      .eq("client_id", data.clientId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

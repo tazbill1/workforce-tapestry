@@ -41,7 +41,7 @@ export async function loadRosterUnion(supabase: Client, clientId: string, period
 }
 
 export async function loadDecisionState(supabase: Client, clientId: string, period: string) {
-  const [exclusions, merges, departmentRules, roleMappings, dismissals, engagement, readiness] =
+  const [exclusions, merges, splits, departmentRules, roleMappings, dismissals, engagement, readiness] =
     await Promise.all([
       supabase
         .from("exclusions")
@@ -53,6 +53,11 @@ export async function loadDecisionState(supabase: Client, clientId: string, peri
       supabase
         .from("record_merges")
         .select("id, canonical_email, duplicate_email, reason, active, superseded_by, confirmed_at")
+        .eq("client_id", clientId)
+        .order("confirmed_at", { ascending: false }),
+      supabase
+        .from("record_splits")
+        .select("id, normalized_email, discriminator, reason, active, superseded_by, confirmed_at")
         .eq("client_id", clientId)
         .order("confirmed_at", { ascending: false }),
       supabase
@@ -82,13 +87,14 @@ export async function loadDecisionState(supabase: Client, clientId: string, peri
         .maybeSingle(),
     ]);
 
-  for (const result of [exclusions, merges, departmentRules, roleMappings, dismissals]) {
+  for (const result of [exclusions, merges, splits, departmentRules, roleMappings, dismissals]) {
     if (result.error) throw new Error(result.error.message);
   }
 
   return {
     exclusions: exclusions.data ?? [],
     merges: merges.data ?? [],
+    splits: splits.data ?? [],
     departmentRules: departmentRules.data ?? [],
     roleMappings: roleMappings.data ?? [],
     dismissals: dismissals.data ?? [],
