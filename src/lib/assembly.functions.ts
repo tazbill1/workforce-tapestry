@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { buildPersonPeriod, summarize } from "./assembly-core";
+import { withClockSkewRetry } from "./clock-skew";
 import { loadAssemblyInputs, listPartImports, persistPersonPeriod } from "./assembly-load";
 
 const scope = z.object({
@@ -14,7 +15,8 @@ export const listAssemblyPeriods = createServerFn({ method: "POST" })
   .inputValidator((input: { clientId: string }) =>
     z.object({ clientId: z.string().uuid() }).parse(input),
   )
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }) =>
+    withClockSkewRetry(async () => {
     const { data: rows, error } = await context.supabase
       .from("raw_imports")
       .select("period, kind, state, superseded_by")
@@ -24,7 +26,8 @@ export const listAssemblyPeriods = createServerFn({ method: "POST" })
       .order("period", { ascending: false });
     if (error) throw new Error(error.message);
     return [...new Set((rows ?? []).map((row) => row.period))];
-  });
+    }),
+  );
 
 export const rebuildPersonPeriod = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
