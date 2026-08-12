@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAssemblyRouteImport } from './routes/_authenticated/assembly'
+import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated/clients'
 import { Route as AuthenticatedDecisionsRouteImport } from './routes/_authenticated/decisions'
 import { Route as AuthenticatedImportsRouteImport } from './routes/_authenticated/imports'
 import { Route as AuthenticatedMetricsRouteImport } from './routes/_authenticated/metrics'
@@ -35,6 +36,11 @@ const AuthRoute = AuthRouteImport.update({
 const AuthenticatedAssemblyRoute = AuthenticatedAssemblyRouteImport.update({
   id: '/assembly',
   path: '/assembly',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedClientsRoute = AuthenticatedClientsRouteImport.update({
+  id: '/clients',
+  path: '/clients',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDecisionsRoute = AuthenticatedDecisionsRouteImport.update({
@@ -62,6 +68,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/assembly': typeof AuthenticatedAssemblyRoute
+  '/clients': typeof AuthenticatedClientsRoute
   '/decisions': typeof AuthenticatedDecisionsRoute
   '/imports': typeof AuthenticatedImportsRoute
   '/metrics': typeof AuthenticatedMetricsRoute
@@ -71,6 +78,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/assembly': typeof AuthenticatedAssemblyRoute
+  '/clients': typeof AuthenticatedClientsRoute
   '/decisions': typeof AuthenticatedDecisionsRoute
   '/imports': typeof AuthenticatedImportsRoute
   '/metrics': typeof AuthenticatedMetricsRoute
@@ -82,6 +90,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/assembly': typeof AuthenticatedAssemblyRoute
+  '/_authenticated/clients': typeof AuthenticatedClientsRoute
   '/_authenticated/decisions': typeof AuthenticatedDecisionsRoute
   '/_authenticated/imports': typeof AuthenticatedImportsRoute
   '/_authenticated/metrics': typeof AuthenticatedMetricsRoute
@@ -93,6 +102,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/assembly'
+    | '/clients'
     | '/decisions'
     | '/imports'
     | '/metrics'
@@ -102,6 +112,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/assembly'
+    | '/clients'
     | '/decisions'
     | '/imports'
     | '/metrics'
@@ -112,6 +123,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/assembly'
+    | '/_authenticated/clients'
     | '/_authenticated/decisions'
     | '/_authenticated/imports'
     | '/_authenticated/metrics'
@@ -154,6 +166,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAssemblyRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/clients': {
+      id: '/_authenticated/clients'
+      path: '/clients'
+      fullPath: '/clients'
+      preLoaderRoute: typeof AuthenticatedClientsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/decisions': {
       id: '/_authenticated/decisions'
       path: '/decisions'
@@ -187,6 +206,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAssemblyRoute: typeof AuthenticatedAssemblyRoute
+  AuthenticatedClientsRoute: typeof AuthenticatedClientsRoute
   AuthenticatedDecisionsRoute: typeof AuthenticatedDecisionsRoute
   AuthenticatedImportsRoute: typeof AuthenticatedImportsRoute
   AuthenticatedMetricsRoute: typeof AuthenticatedMetricsRoute
@@ -195,6 +215,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAssemblyRoute: AuthenticatedAssemblyRoute,
+  AuthenticatedClientsRoute: AuthenticatedClientsRoute,
   AuthenticatedDecisionsRoute: AuthenticatedDecisionsRoute,
   AuthenticatedImportsRoute: AuthenticatedImportsRoute,
   AuthenticatedMetricsRoute: AuthenticatedMetricsRoute,
