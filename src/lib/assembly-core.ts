@@ -425,7 +425,7 @@ export function buildPersonPeriod(input: BuildInput): BuildResult {
       flags.push("no_mood_import");
     }
 
-    const lastLogin = loginByEmail.get(email) ?? null;
+    const lastLogin = unit.isPrimary ? (loginByEmail.get(email) ?? null) : null;
     if (input.hasLoginImport) flags.push("last_login_as_of_export_date");
 
     rows.push({
