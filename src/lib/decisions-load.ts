@@ -40,7 +40,28 @@ export async function loadRosterUnion(supabase: Client, clientId: string, period
   return { parts, rosterRows: rows as unknown as RosterRow[] };
 }
 
+/**
+ * Postgres/PostgREST rejects a freshly minted token with "JWT issued at future"
+ * when the auth server clock is a second or two ahead of the database clock.
+ * It is transient, so retry briefly instead of surfacing a blank screen.
+ */
+async function withClockSkewRetry<T>(run: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await run();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (attempt >= 3 || !/issued at future/i.test(message)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+}
+
 export async function loadDecisionState(supabase: Client, clientId: string, period: string) {
+  return withClockSkewRetry(() => loadDecisionStateOnce(supabase, clientId, period));
+}
+
+async function loadDecisionStateOnce(supabase: Client, clientId: string, period: string) {
   const [exclusions, merges, splits, departmentRules, roleMappings, dismissals, engagement, readiness] =
     await Promise.all([
       supabase
