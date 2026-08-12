@@ -350,6 +350,20 @@ function DecisionsScreen() {
                       <MergeCandidateRow
                         key={candidate.key}
                         candidate={candidate}
+                        onSplit={(discriminator, reason) =>
+                          run(
+                            confirmSplitFn({
+                              data: {
+                                clientId,
+                                period,
+                                email: candidate.sharedEmail ?? "",
+                                discriminator,
+                                reason,
+                              },
+                            }),
+                            "Split recorded — these rows now count as separate people",
+                          )
+                        }
                         onConfirm={(canonicalEmail, duplicates, reason) =>
                           run(
                             confirmMergeFn({
