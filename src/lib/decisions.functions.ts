@@ -235,9 +235,23 @@ export const confirmMerge = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const canonical = data.canonicalEmail.trim().toLowerCase();
-    const rows = data.duplicates
-      .map((email) => email.trim().toLowerCase())
-      .filter((email) => email !== canonical)
+    const wanted = [...new Set(data.duplicates.map((email) => email.trim().toLowerCase()))].filter(
+      (email) => email !== canonical,
+    );
+    if (wanted.length === 0) throw new Error("Pick a canonical email different from the duplicates.");
+
+    // An active merge already exists for some of these emails — skip them instead of colliding.
+    const { data: existing, error: existingError } = await context.supabase
+      .from("record_merges")
+      .select("duplicate_email, canonical_email")
+      .eq("client_id", data.clientId)
+      .eq("active", true)
+      .in("duplicate_email", wanted);
+    if (existingError) throw new Error(existingError.message);
+
+    const alreadyMerged = new Set((existing ?? []).map((row) => row.duplicate_email));
+    const rows = wanted
+      .filter((email) => !alreadyMerged.has(email))
       .map((email) => ({
         client_id: data.clientId,
         canonical_email: canonical,
@@ -247,11 +261,15 @@ export const confirmMerge = createServerFn({ method: "POST" })
         confirmed_by: context.userId,
         active: true,
       }));
-    if (rows.length === 0) throw new Error("Pick a canonical email different from the duplicates.");
+
+    if (rows.length === 0) {
+      return { inserted: 0, skipped: [...alreadyMerged] };
+    }
     const { error } = await context.supabase.from("record_merges").insert(rows);
     if (error) throw new Error(error.message);
-    return { inserted: rows.length };
+    return { inserted: rows.length, skipped: [...alreadyMerged] };
   });
+
 
 export const saveRoleMapping = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
