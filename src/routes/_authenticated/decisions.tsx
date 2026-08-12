@@ -28,6 +28,8 @@ import { listAssemblyPeriods } from "@/lib/assembly.functions";
 import {
   confirmExclusion,
   confirmMerge,
+  confirmSplit,
+  undoSplit,
   dismissCandidate,
   getDecisionsReview,
   markPeriodReady,
@@ -82,6 +84,8 @@ function DecisionsScreen() {
   const retireExclusionFn = useServerFn(retireExclusion);
   const dismissFn = useServerFn(dismissCandidate);
   const confirmMergeFn = useServerFn(confirmMerge);
+  const confirmSplitFn = useServerFn(confirmSplit);
+  const undoSplitFn = useServerFn(undoSplit);
   const saveRoleFn = useServerFn(saveRoleMapping);
   const saveDeptFn = useServerFn(saveDepartmentRule);
   const saveEngagementFn = useServerFn(saveEngagementTotals);
@@ -422,6 +426,64 @@ function DecisionsScreen() {
                   </TableBody>
                 </Table>
               </HistoryCard>
+
+              <HistoryCard title="Shared mailbox splits">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Told apart by</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Recorded</TableHead>
+                      <TableHead>State</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.history.splits.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-xs text-muted-foreground">
+                          No shared mailboxes recorded.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      data.history.splits.map((row) => (
+                        <TableRow key={row.id} className={row.active ? "" : "opacity-60"}>
+                          <TableCell className="font-mono text-xs">{row.normalized_email}</TableCell>
+                          <TableCell className="text-xs">
+                            {row.discriminator === "name" ? "person name" : "employee ID"}
+                          </TableCell>
+                          <TableCell className="text-xs">{row.reason ?? "\u2014"}</TableCell>
+                          <TableCell className="text-xs">
+                            {new Date(row.confirmed_at).toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={row.active ? "secondary" : "outline"}>
+                              {row.active ? "active" : "retired"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {row.active ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  run(
+                                    undoSplitFn({ data: { clientId, period, id: row.id } }),
+                                    "Split retired \u2014 the mailbox collapses back to one person",
+                                  )
+                                }
+                              >
+                                Undo
+                              </Button>
+                            ) : null}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </HistoryCard>
             </TabsContent>
 
             <TabsContent value="roles" className="space-y-4 pt-4">
@@ -680,10 +742,12 @@ function ExclusionCandidateRow({
 function MergeCandidateRow({
   candidate,
   onConfirm,
+  onSplit,
   onDismiss,
 }: {
   candidate: Review["mergeSuggestions"][number];
   onConfirm: (canonicalEmail: string, duplicates: string[], reason: string) => void;
+  onSplit: (discriminator: "name" | "employee_id", reason: string) => void;
   onDismiss: () => void;
 }) {
   const emails = candidate.members.map((member) => member.normalized_email);
