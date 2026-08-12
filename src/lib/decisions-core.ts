@@ -412,7 +412,7 @@ export function mergeCandidates(
     out.push({
       key,
       kind: "shared_employee_id",
-      detail: `employee ID ${group[0].employee_id_raw} appears on ${emails.length} different emails under different names — check before doing anything; a recycled or placeholder ID looks exactly like this`,
+      detail: `employee ID ${group[0]?.employee_id_raw ?? id} appears on ${emails.length} different emails under different names — check before doing anything; a recycled or placeholder ID looks exactly like this`,
       members: group.map((p) => ({
         normalized_email: p.normalized_email,
         name: p.name,
