@@ -798,6 +798,12 @@ function MergeCandidateRow({
   );
 }
 
+const SPECIFICITY = [
+  { value: "10", label: "Very specific — exact job title (wins over everything)" },
+  { value: "20", label: "Specific — a title plus a department" },
+  { value: "40", label: "General — a broad keyword, used as a fallback" },
+];
+
 function RoleSection({
   combos,
   roles,
@@ -819,34 +825,87 @@ function RoleSection({
   const [departmentPattern, setDepartmentPattern] = useState("");
   const [roleCode, setRoleCode] = useState(roles[0]?.code ?? "");
   const [precedence, setPrecedence] = useState("20");
+  const formRef = useRef<HTMLDivElement | null>(null);
 
-  const unmappedPeople = combos.filter((c) => c.unmapped).reduce((sum, c) => sum + c.headcount, 0);
+  const unmapped = combos.filter((c) => c.unmapped);
+  const unmappedPeople = unmapped.reduce((sum, c) => sum + c.headcount, 0);
+
+  const prefill = (title: string | null, department: string | null) => {
+    setTitlePattern(title ?? "");
+    setDepartmentPattern(department ?? "");
+    setPrecedence(department ? "20" : "10");
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
 
   return (
     <>
-      <Card>
+      {unmapped.length > 0 ? (
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle className="text-destructive">
+              {unmapped.length} job titles still need a role · {unmappedPeople} people
+            </CardTitle>
+            <CardDescription>
+              Pick one and click “Map this” — it fills in the form below for you.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            {unmapped.map((combo) => (
+              <div
+                key={combo.key}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2"
+              >
+                <span className="text-sm">
+                  {combo.title_raw || <em>(no title)</em>}{" "}
+                  <span className="text-muted-foreground">
+                    · {combo.department_raw || "(no department)"}
+                  </span>
+                </span>
+                <span className="flex items-center gap-2">
+                  <Badge variant="outline">{combo.headcount} people</Badge>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => prefill(combo.title_raw, combo.department_raw)}
+                  >
+                    Map this
+                  </Button>
+                </span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <Card ref={formRef}>
         <CardHeader>
-          <CardTitle>Add or change a mapping</CardTitle>
+          <CardTitle>Assign a role to a job title</CardTitle>
           <CardDescription>
-            Case-insensitive substring match on both patterns. Lower precedence wins: "parts manager"
-            at 10 beats "manager" at 20 and "parts" at 40. Saving a rule inserts a new confirmed
-            decision; it never edits an existing one.
+            A rule says: “anyone whose job title contains X (optionally in a department containing
+            Y) counts as this role.” Matching ignores capitalisation and matches on part of the
+            text, so “manager” also matches “Parts Manager”. If two rules match the same person, the
+            more specific one wins. Saving always adds a new rule — nothing is overwritten.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-5">
+        <CardContent className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1">
-            <Label className="text-xs">Title pattern</Label>
-            <Input value={titlePattern} onChange={(event) => setTitlePattern(event.target.value)} />
+            <Label className="text-xs">If the job title contains…</Label>
+            <Input
+              value={titlePattern}
+              placeholder="e.g. service advisor"
+              onChange={(event) => setTitlePattern(event.target.value)}
+            />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Department pattern (optional)</Label>
+            <Label className="text-xs">…and the department contains (optional)</Label>
             <Input
               value={departmentPattern}
+              placeholder="leave blank to match any department"
               onChange={(event) => setDepartmentPattern(event.target.value)}
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Role</Label>
+            <Label className="text-xs">…then count them as</Label>
             <Select value={roleCode} onValueChange={setRoleCode}>
               <SelectTrigger>
                 <SelectValue placeholder="Role" />
@@ -861,14 +920,21 @@ function RoleSection({
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Precedence</Label>
-            <Input
-              type="number"
-              value={precedence}
-              onChange={(event) => setPrecedence(event.target.value)}
-            />
+            <Label className="text-xs">How specific is this rule?</Label>
+            <Select value={precedence} onValueChange={setPrecedence}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SPECIFICITY.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="flex items-end">
+          <div className="md:col-span-2 flex flex-wrap items-center gap-3">
             <Button
               disabled={!titlePattern.trim() || !roleCode}
               onClick={() =>
@@ -880,29 +946,30 @@ function RoleSection({
                 })
               }
             >
-              Save mapping
+              Save rule
             </Button>
+            <p className="text-xs text-muted-foreground">
+              {titlePattern.trim() ? (
+                <>
+                  Anyone with “{titlePattern.trim()}” in their job title
+                  {departmentPattern.trim() ? ` and “${departmentPattern.trim()}” in their department` : ""}{" "}
+                  will count as{" "}
+                  <strong>{roles.find((r) => r.code === roleCode)?.label ?? roleCode}</strong>.
+                </>
+              ) : (
+                "Fill in a job title to see what this rule will do."
+              )}
+            </p>
           </div>
         </CardContent>
       </Card>
 
-      {unmappedPeople > 0 ? (
-        <Card className="border-destructive/50">
-          <CardHeader>
-            <CardTitle className="text-destructive">
-              {combos.filter((c) => c.unmapped).length} unmapped combinations · {unmappedPeople} people
-            </CardTitle>
-            <CardDescription>
-              A catch-all rule counts as unmapped — anything reaching it is still surfaced here.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      ) : null}
-
       <Card>
         <CardHeader>
-          <CardTitle>Title + department combinations</CardTitle>
-          <CardDescription>Expand a row to see the resolution order and which rule won.</CardDescription>
+          <CardTitle>Every job title in this period</CardTitle>
+          <CardDescription>
+            Open a row to see which rules matched and which one decided the role.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Accordion type="multiple">
@@ -919,7 +986,7 @@ function RoleSection({
                     <span className="flex items-center gap-2">
                       <Badge variant="outline">{combo.headcount} people</Badge>
                       {combo.unmapped ? (
-                        <Badge variant="destructive">unmapped</Badge>
+                        <Badge variant="destructive">no role yet</Badge>
                       ) : (
                         <Badge variant="secondary">{combo.role_code}</Badge>
                       )}
@@ -928,11 +995,13 @@ function RoleSection({
                 </AccordionTrigger>
                 <AccordionContent className="space-y-1 text-xs">
                   {combo.order.length === 0 ? (
-                    <p className="text-muted-foreground">No rule matches this combination.</p>
+                    <p className="text-muted-foreground">
+                      No rule matches this job title yet — add one above.
+                    </p>
                   ) : (
                     combo.order.map((rule) => (
                       <p key={rule.id} className={rule.won ? "font-medium" : "text-muted-foreground"}>
-                        {rule.won ? "✓ won" : "  lost"} · precedence {rule.precedence} · {rule.label}
+                        {rule.won ? "✓ used" : "· also matched"} · {rule.label}
                       </p>
                     ))
                   )}
@@ -943,29 +1012,31 @@ function RoleSection({
         </CardContent>
       </Card>
 
-      <HistoryCard title="Role mapping history">
+      <HistoryCard title="Rules you have saved">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Title pattern</TableHead>
-              <TableHead>Department pattern</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Precedence</TableHead>
-              <TableHead>Confirmed</TableHead>
+              <TableHead>Job title contains</TableHead>
+              <TableHead>Department contains</TableHead>
+              <TableHead>Counts as</TableHead>
+              <TableHead>Specificity</TableHead>
+              <TableHead>Saved</TableHead>
               <TableHead>State</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {mappings.map((row) => (
               <TableRow key={row.id} className={row.active ? "" : "opacity-60"}>
-                <TableCell className="font-mono text-xs">{row.title_pattern || "(catch-all)"}</TableCell>
-                <TableCell className="font-mono text-xs">{row.department_pattern ?? "—"}</TableCell>
+                <TableCell className="font-mono text-xs">{row.title_pattern || "(anything)"}</TableCell>
+                <TableCell className="font-mono text-xs">{row.department_pattern ?? "any"}</TableCell>
                 <TableCell>{row.role_code}</TableCell>
-                <TableCell className="tabular-nums">{row.precedence}</TableCell>
+                <TableCell className="text-xs">
+                  {row.precedence <= 10 ? "Very specific" : row.precedence <= 20 ? "Specific" : "General"}
+                </TableCell>
                 <TableCell className="text-xs">{new Date(row.confirmed_at).toLocaleString()}</TableCell>
                 <TableCell>
                   <Badge variant={row.active ? "secondary" : "outline"}>
-                    {row.active ? "active" : "superseded"}
+                    {row.active ? "active" : "replaced"}
                   </Badge>
                 </TableCell>
               </TableRow>
@@ -976,6 +1047,7 @@ function RoleSection({
     </>
   );
 }
+
 
 function DepartmentSection({
   departments,
