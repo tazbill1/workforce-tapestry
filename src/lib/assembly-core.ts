@@ -167,6 +167,7 @@ export type BuildInput = {
   moodRows: MoodRow[];
   loginRows: LoginRow[];
   merges: Merge[];
+  splits?: Split[];
   exclusions: Exclusion[];
   departmentRules: DepartmentRule[];
   roleMappings: RoleMapping[];
