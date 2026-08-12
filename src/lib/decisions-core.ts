@@ -363,24 +363,30 @@ export function mergeCandidates(
     });
   }
 
-  // Resolve an email to the canonical it merges into (following chains), so a
-  // pair that has already been merged stops being offered for review.
-  const canonicalOf = new Map<string, string>();
+  // Group emails joined by active merges into one identity, so a pair that has
+  // already been merged stops being offered for review. Union-find, because
+  // merges can be reciprocal (A->B and B->A) or chained.
+  const parent = new Map<string, string>();
+  const findRoot = (email: string): string => {
+    let current = email;
+    while (parent.get(current) && parent.get(current) !== current) {
+      current = parent.get(current)!;
+    }
+    parent.set(email, current);
+    return current;
+  };
   for (const merge of merges) {
     if (!merge.active) continue;
     const dup = norm(merge.duplicate_email);
     const canon = norm(merge.canonical_email);
-    if (dup && canon) canonicalOf.set(dup, canon);
+    if (!dup || !canon) continue;
+    if (!parent.has(dup)) parent.set(dup, dup);
+    if (!parent.has(canon)) parent.set(canon, canon);
+    const rootA = findRoot(dup);
+    const rootB = findRoot(canon);
+    if (rootA !== rootB) parent.set(rootA, rootB);
   }
-  const resolveEmail = (email: string) => {
-    let current = email;
-    for (let hops = 0; hops < 10; hops++) {
-      const next = canonicalOf.get(current);
-      if (!next || next === current) break;
-      current = next;
-    }
-    return current;
-  };
+  const resolveEmail = (email: string) => (parent.has(email) ? findRoot(email) : email);
   /** True once every email in the group collapses to the same person. */
   const fullyMerged = (emails: string[]) => new Set(emails.map(resolveEmail)).size < 2;
 
