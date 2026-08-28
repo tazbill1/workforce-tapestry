@@ -103,18 +103,27 @@ export const grantClientAccess = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAnalyst(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: users, error: userError } = await supabaseAdmin.auth.admin.listUsers({
-      perPage: 200,
-    });
-    if (userError) throw new Error(userError.message);
-    const target = (users?.users ?? []).find(
-      (u) => (u.email ?? "").toLowerCase() === data.email.toLowerCase(),
-    );
-    if (!target) throw new Error(`No account found for ${data.email}. They must sign in once first.`);
+    const email = data.email.toLowerCase();
+    const users = await listAllUsers(supabaseAdmin);
+    let targetId = users.find((u) => (u.email ?? "").toLowerCase() === email)?.id;
+
+    // Pre-provision the account so access can be granted before their first sign-in.
+    if (!targetId) {
+      const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        email_confirm: true,
+      });
+      if (createError || !created?.user) {
+        throw new Error(
+          createError?.message ?? `Could not create an account for ${data.email}.`,
+        );
+      }
+      targetId = created.user.id;
+    }
 
     const { error } = await context.supabase
       .from("user_clients")
-      .insert({ user_id: target.id, client_id: data.clientId });
+      .insert({ user_id: targetId, client_id: data.clientId });
     if (error && !error.message.includes("duplicate")) throw new Error(error.message);
     return { ok: true };
   });
