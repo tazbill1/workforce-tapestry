@@ -250,6 +250,7 @@ function ReportPreview() {
 
   const exportPdf = async () => {
     if (!report.data || exporting) return;
+    if (!confirmDespiteFindings()) return;
     setExporting(true);
     try {
       if (rendererConfigured.data) {
