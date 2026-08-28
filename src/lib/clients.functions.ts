@@ -16,7 +16,7 @@ export const listClientsAdmin = createServerFn({ method: "GET" })
     });
     const { data: clients, error } = await context.supabase
       .from("clients")
-      .select("id, name, code, active, created_at")
+      .select("id, name, code, active, created_at, logo_url")
       .order("name");
     if (error) throw new Error(error.message);
 
@@ -114,6 +114,34 @@ export const revokeClientAccess = createServerFn({ method: "POST" })
     await assertAnalyst(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("user_clients").delete().eq("id", data.grantId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/**
+ * Store a client's logo. The browser has already scaled the image to report size, so what
+ * arrives here is a small PNG data URL that we validate and persist on the client row.
+ */
+export const setClientLogo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { clientId: string; logoUrl: string | null }) =>
+    z
+      .object({
+        clientId: z.string().uuid(),
+        logoUrl: z
+          .string()
+          .max(1_400_000)
+          .regex(/^data:image\/(png|jpeg|webp);base64,/, "Logo must be an image")
+          .nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnalyst(context);
+    const { error } = await context.supabase
+      .from("clients")
+      .update({ logo_url: data.logoUrl })
+      .eq("id", data.clientId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
