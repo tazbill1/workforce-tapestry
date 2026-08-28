@@ -131,11 +131,87 @@ async function renderPdfWithGotenberg(html: string, format: ReportFormat): Promi
 
 export type GenerateResult = {
   runId: string;
-  storagePath: string;
+  version: number;
+  storagePath: string | null;
   byteSize: number;
   pageCount: number | null;
   metricsLinked: number;
 };
+
+/**
+ * Next version number for a client/period. Versions are per period, not per format, so a
+ * restatement is a single numbered revision of the period regardless of which cuts were rendered.
+ */
+async function nextVersion(supabase: Client, clientId: string, period: string): Promise<number> {
+  const { data, error } = await supabase
+    .from("report_runs")
+    .select("version")
+    .eq("client_id", clientId)
+    .eq("period", period)
+    .order("version", { ascending: false })
+    .limit(1);
+  if (error) throw new Error(error.message);
+  return (data?.[0]?.version ?? 0) + 1;
+}
+
+/** Link every published metric row the run read, so any delivered figure traces back. */
+async function linkMetrics(
+  supabase: Client,
+  runId: string,
+  data: ReportData,
+  period: string,
+): Promise<number> {
+  const metricIds = data.metrics
+    .filter((row) => row.period === period && row.id)
+    .map((row) => row.id as string);
+
+  let metricsLinked = 0;
+  for (let i = 0; i < metricIds.length; i += 500) {
+    const chunk = metricIds.slice(i, i + 500).map((id) => ({
+      report_run_id: runId,
+      published_metric_id: id,
+    }));
+    const { error } = await supabase.from("report_run_metrics").insert(chunk);
+    if (error) throw new Error(error.message);
+    metricsLinked += chunk.length;
+  }
+  return metricsLinked;
+}
+
+/**
+ * Inserts a run row, retrying once on the version unique index in case a concurrent generate
+ * claimed the same number.
+ */
+async function insertRun(
+  supabase: Client,
+  row: {
+    client_id: string;
+    period: string;
+    format: ReportFormat;
+    storage_path: string | null;
+    created_by: string;
+    byte_size: number | null;
+    page_count: number | null;
+    sections: string[];
+    snapshot: unknown;
+    note: string | null;
+  },
+): Promise<{ id: string; version: number }> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const version = await nextVersion(supabase, row.client_id, row.period);
+    const { data, error } = await supabase
+      .from("report_runs")
+      // snapshot is jsonb; the generated type is Json and ReportData is plain serializable data.
+      .insert({ ...row, version, snapshot: row.snapshot as never })
+      .select("id, version")
+      .single();
+    if (!error && data) return { id: data.id, version: data.version };
+    if (error && !error.message.includes("report_runs_client_period_version_key")) {
+      throw new Error(error.message);
+    }
+  }
+  throw new Error("Could not claim a report version number, please retry");
+}
 
 export async function generateReportRun(
   supabase: Client,
@@ -163,43 +239,70 @@ export async function generateReportRun(
 
   const pageCount = countPages(pdf);
 
-  const { data: run, error: runError } = await supabase
-    .from("report_runs")
-    .insert({
-      client_id: clientId,
-      period,
-      format,
-      storage_path: storagePath,
-      created_by: userId,
-      byte_size: pdf.byteLength,
-      page_count: pageCount,
-    })
-    .select("id")
-    .single();
-  if (runError) throw new Error(runError.message);
+  // The snapshot freezes the exact numbers and people the PDF was rendered from, so an older
+  // version stays viewable even after the period is reassembled or metrics are recomputed.
+  const run = await insertRun(supabase, {
+    client_id: clientId,
+    period,
+    format,
+    storage_path: storagePath,
+    created_by: userId,
+    byte_size: pdf.byteLength,
+    page_count: pageCount,
+    sections,
+    snapshot: data,
+    note: null,
+  });
 
-  // Provenance: every published metric row the run read is linked to it, so any figure in a
-  // delivered PDF traces back to the definition version that produced it.
-  const metricIds = data.metrics
-    .filter((row) => row.period === period && row.id)
-    .map((row) => row.id as string);
-
-  let metricsLinked = 0;
-  for (let i = 0; i < metricIds.length; i += 500) {
-    const chunk = metricIds.slice(i, i + 500).map((id) => ({
-      report_run_id: run.id,
-      published_metric_id: id,
-    }));
-    const { error } = await supabase.from("report_run_metrics").insert(chunk);
-    if (error) throw new Error(error.message);
-    metricsLinked += chunk.length;
-  }
+  const metricsLinked = await linkMetrics(supabase, run.id, data, period);
 
   return {
     runId: run.id,
+    version: run.version,
     storagePath,
     byteSize: pdf.byteLength,
     pageCount,
     metricsLinked,
   };
 }
+
+/**
+ * Records a version without a PDF. Used by the browser print-to-PDF path so the delivered numbers
+ * are still snapshotted and retained even when the server renderer is not configured.
+ */
+export async function snapshotReportRun(
+  supabase: Client,
+  input: { clientId: string; period: string; format: ReportFormat; userId: string; note?: string },
+): Promise<GenerateResult> {
+  const { clientId, period, format, userId } = input;
+
+  const [data, sections] = await Promise.all([
+    buildReport(supabase, clientId, period),
+    loadFormatSections(supabase, clientId, format),
+  ]);
+
+  const run = await insertRun(supabase, {
+    client_id: clientId,
+    period,
+    format,
+    storage_path: null,
+    created_by: userId,
+    byte_size: null,
+    page_count: null,
+    sections,
+    snapshot: data,
+    note: input.note ?? "Snapshot only (printed from the browser)",
+  });
+
+  const metricsLinked = await linkMetrics(supabase, run.id, data, period);
+
+  return {
+    runId: run.id,
+    version: run.version,
+    storagePath: null,
+    byteSize: 0,
+    pageCount: null,
+    metricsLinked,
+  };
+}
+
