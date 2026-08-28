@@ -1,10 +1,30 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Users as UsersIcon } from "lucide-react";
+import { Users as UsersIcon, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -14,7 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { listConsoleUsers } from "@/lib/users.functions";
+import { listConsoleUsers, setUserRole, deleteConsoleUser } from "@/lib/users.functions";
 
 export const Route = createFileRoute("/_authenticated/users")({
   head: () => ({
@@ -23,12 +43,12 @@ export const Route = createFileRoute("/_authenticated/users")({
       {
         name: "description",
         content:
-          "See everyone who can sign in to the reporting console, their role and when they last signed in.",
+          "See everyone who can sign in to the reporting console, set their role and remove accounts.",
       },
       { property: "og:title", content: "Users | Client Reporting Console" },
       {
         property: "og:description",
-        content: "Directory of console users with roles and last sign-in times.",
+        content: "Directory of console users with roles, last sign-in times and access controls.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -50,14 +70,47 @@ function relative(iso: string | null) {
   return `${Math.floor(months / 12)}y ago`;
 }
 
+const ROLE_HELP: Record<string, string> = {
+  analyst: "Full access — can import, decide, publish and manage users.",
+  coach: "Can view and enter manual content, but not manage users.",
+  viewer: "Read-only access to reports and metrics.",
+  none: "No role — signed in but cannot write anything.",
+};
+
 function UsersScreen() {
+  const queryClient = useQueryClient();
   const load = useServerFn(listConsoleUsers);
+  const changeRole = useServerFn(setUserRole);
+  const removeUser = useServerFn(deleteConsoleUser);
+
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; email: string } | null>(null);
+
   const { data, isLoading } = useQuery({ queryKey: ["console-users"], queryFn: () => load() });
 
+  const roleMutation = useMutation({
+    mutationFn: (vars: { userId: string; role: string | null }) => changeRole({ data: vars }),
+    onSuccess: () => {
+      toast.success("Role updated");
+      queryClient.invalidateQueries({ queryKey: ["console-users"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (userId: string) => removeUser({ data: { userId } }),
+    onSuccess: () => {
+      toast.success("Account removed");
+      setPendingDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["console-users"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const users = data?.users ?? [];
+  const canManage = data?.isAnalyst === true;
 
   return (
-    <main className="mx-auto max-w-4xl space-y-6 p-6">
+    <main className="mx-auto max-w-5xl space-y-6 p-6">
       <header className="space-y-1">
         <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
           <UsersIcon className="h-6 w-6" />
@@ -75,9 +128,9 @@ function UsersScreen() {
           <CardDescription>
             {isLoading
               ? "Loading…"
-              : data?.isAnalyst === false
+              : !canManage
                 ? "Analyst role required to view the user directory."
-                : `${users.length} account(s)`}
+                : `${users.length} account(s). Changing a role takes effect on their next request.`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -85,52 +138,112 @@ function UsersScreen() {
             <TableHeader>
               <TableRow>
                 <TableHead>Email</TableHead>
-                <TableHead className="w-32">Role</TableHead>
+                <TableHead className="w-44">Role</TableHead>
                 <TableHead className="w-40">Last sign-in</TableHead>
-                <TableHead className="w-32 text-right">Joined</TableHead>
+                <TableHead className="w-28 text-right">Joined</TableHead>
+                <TableHead className="w-16" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {!isLoading && users.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-muted-foreground">
+                  <TableCell colSpan={5} className="text-muted-foreground">
                     No accounts to show.
                   </TableCell>
                 </TableRow>
               )}
-              {users.map((u) => (
-                <TableRow key={u.id}>
-                  <TableCell className="font-medium">{u.email}</TableCell>
-                  <TableCell>
-                    {u.roles.length === 0 ? (
-                      <Badge variant="outline">No role</Badge>
-                    ) : (
-                      u.roles.map((r) => (
-                        <Badge key={r} variant="secondary" className="mr-1 capitalize">
-                          {r}
+              {users.map((u) => {
+                const current = u.roles[0] ?? "none";
+                const isSelf = u.id === data?.currentUserId;
+                return (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-medium">
+                      {u.email}
+                      {isSelf && (
+                        <Badge variant="outline" className="ml-2">
+                          You
                         </Badge>
-                      ))
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <span className={u.lastSignInAt ? "" : "text-muted-foreground"}>
-                      {relative(u.lastSignInAt)}
-                    </span>
-                    {u.lastSignInAt && (
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(u.lastSignInAt).toLocaleString()}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={current}
+                        disabled={!canManage || roleMutation.isPending}
+                        onValueChange={(value) =>
+                          roleMutation.mutate({
+                            userId: u.id,
+                            role: value === "none" ? null : value,
+                          })
+                        }
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="analyst">Analyst</SelectItem>
+                          <SelectItem value="coach">Coach</SelectItem>
+                          <SelectItem value="viewer">Viewer</SelectItem>
+                          <SelectItem value="none">No role</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="mt-1 text-xs text-muted-foreground">{ROLE_HELP[current]}</p>
+                    </TableCell>
+                    <TableCell>
+                      <span className={u.lastSignInAt ? "" : "text-muted-foreground"}>
+                        {relative(u.lastSignInAt)}
+                      </span>
+                      {u.lastSignInAt && (
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(u.lastSignInAt).toLocaleString()}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={!canManage || isSelf}
+                        title={isSelf ? "You cannot remove your own account" : "Remove account"}
+                        onClick={() => setPendingDelete({ id: u.id, email: u.email })}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {pendingDelete?.email}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Their account and role are deleted, and they lose access immediately. Anything they
+              previously imported or published stays in place. If they sign in again with a
+              @werkandme.com Google account, a fresh account is created.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteMutation.isPending}
+              onClick={() => pendingDelete && deleteMutation.mutate(pendingDelete.id)}
+            >
+              Remove account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

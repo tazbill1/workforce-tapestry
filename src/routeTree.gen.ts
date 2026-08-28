@@ -16,6 +16,7 @@ import { Route as AuthenticatedAskRouteImport } from './routes/_authenticated/as
 import { Route as AuthenticatedAssemblyRouteImport } from './routes/_authenticated/assembly'
 import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated/clients'
 import { Route as AuthenticatedDecisionsRouteImport } from './routes/_authenticated/decisions'
+import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
 import { Route as AuthenticatedImportsRouteImport } from './routes/_authenticated/imports'
 import { Route as AuthenticatedMetricsRouteImport } from './routes/_authenticated/metrics'
 import { Route as AuthenticatedReportRouteImport } from './routes/_authenticated/report'
@@ -56,6 +57,11 @@ const AuthenticatedDecisionsRoute = AuthenticatedDecisionsRouteImport.update({
   path: '/decisions',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedHomeRoute = AuthenticatedHomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedImportsRoute = AuthenticatedImportsRouteImport.update({
   id: '/imports',
   path: '/imports',
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/assembly': typeof AuthenticatedAssemblyRoute
   '/clients': typeof AuthenticatedClientsRoute
   '/decisions': typeof AuthenticatedDecisionsRoute
+  '/home': typeof AuthenticatedHomeRoute
   '/imports': typeof AuthenticatedImportsRoute
   '/metrics': typeof AuthenticatedMetricsRoute
   '/report': typeof AuthenticatedReportRoute
@@ -103,6 +110,7 @@ export interface FileRoutesByTo {
   '/assembly': typeof AuthenticatedAssemblyRoute
   '/clients': typeof AuthenticatedClientsRoute
   '/decisions': typeof AuthenticatedDecisionsRoute
+  '/home': typeof AuthenticatedHomeRoute
   '/imports': typeof AuthenticatedImportsRoute
   '/metrics': typeof AuthenticatedMetricsRoute
   '/report': typeof AuthenticatedReportRoute
@@ -118,6 +126,7 @@ export interface FileRoutesById {
   '/_authenticated/assembly': typeof AuthenticatedAssemblyRoute
   '/_authenticated/clients': typeof AuthenticatedClientsRoute
   '/_authenticated/decisions': typeof AuthenticatedDecisionsRoute
+  '/_authenticated/home': typeof AuthenticatedHomeRoute
   '/_authenticated/imports': typeof AuthenticatedImportsRoute
   '/_authenticated/metrics': typeof AuthenticatedMetricsRoute
   '/_authenticated/report': typeof AuthenticatedReportRoute
@@ -133,6 +142,7 @@ export interface FileRouteTypes {
     | '/assembly'
     | '/clients'
     | '/decisions'
+    | '/home'
     | '/imports'
     | '/metrics'
     | '/report'
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/assembly'
     | '/clients'
     | '/decisions'
+    | '/home'
     | '/imports'
     | '/metrics'
     | '/report'
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
     | '/_authenticated/assembly'
     | '/_authenticated/clients'
     | '/_authenticated/decisions'
+    | '/_authenticated/home'
     | '/_authenticated/imports'
     | '/_authenticated/metrics'
     | '/_authenticated/report'
@@ -224,6 +236,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDecisionsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/home': {
+      id: '/_authenticated/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof AuthenticatedHomeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/imports': {
       id: '/_authenticated/imports'
       path: '/imports'
@@ -267,6 +286,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAssemblyRoute: typeof AuthenticatedAssemblyRoute
   AuthenticatedClientsRoute: typeof AuthenticatedClientsRoute
   AuthenticatedDecisionsRoute: typeof AuthenticatedDecisionsRoute
+  AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
   AuthenticatedImportsRoute: typeof AuthenticatedImportsRoute
   AuthenticatedMetricsRoute: typeof AuthenticatedMetricsRoute
   AuthenticatedReportRoute: typeof AuthenticatedReportRoute
@@ -279,6 +299,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAssemblyRoute: AuthenticatedAssemblyRoute,
   AuthenticatedClientsRoute: AuthenticatedClientsRoute,
   AuthenticatedDecisionsRoute: AuthenticatedDecisionsRoute,
+  AuthenticatedHomeRoute: AuthenticatedHomeRoute,
   AuthenticatedImportsRoute: AuthenticatedImportsRoute,
   AuthenticatedMetricsRoute: AuthenticatedMetricsRoute,
   AuthenticatedReportRoute: AuthenticatedReportRoute,
