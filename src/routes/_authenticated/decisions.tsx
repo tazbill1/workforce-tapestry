@@ -951,13 +951,7 @@ function BulkExcludeCard({
           </Button>
           <Button
             size="sm"
-            disabled={
-              busy ||
-              values.length === 0 ||
-              reason.trim().length < 3 ||
-              preview === null ||
-              previewStale
-            }
+            disabled={busy || hardBlocked}
             onClick={async () => {
               setBusy(true);
               try {
@@ -972,14 +966,14 @@ function BulkExcludeCard({
           >
             {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Confirm exclusion
+            {preview && !previewStale && preview.newlyExcluded > 0
+              ? ` (${preview.newlyExcluded} ${preview.newlyExcluded === 1 ? "person" : "people"})`
+              : ""}
           </Button>
-          {preview === null || previewStale ? (
-            <p className="text-xs text-muted-foreground">
-              {previewStale
-                ? "Values changed — preview again before confirming."
-                : "Preview the matches before confirming."}
-            </p>
+          {blockedReason ? (
+            <p className="text-xs text-muted-foreground">{blockedReason}</p>
           ) : null}
+
         </div>
 
         {preview && !previewStale ? (
