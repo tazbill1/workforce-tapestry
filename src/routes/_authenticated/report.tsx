@@ -123,6 +123,49 @@ function ReportPreview() {
     enabled: Boolean(clientId && period),
   });
 
+  const shares = useQuery({
+    queryKey: ["report-shares", clientId, period],
+    queryFn: () => sharesFn({ data: { clientId, period } }),
+    enabled: Boolean(clientId && period),
+  });
+
+  const shareByRun = useMemo(() => {
+    const map = new Map<string, NonNullable<typeof shares.data>[number]>();
+    for (const share of shares.data ?? []) {
+      if (!map.has(share.report_run_id)) map.set(share.report_run_id, share);
+    }
+    return map;
+  }, [shares.data]);
+
+  const copyShareLink = async (token: string) => {
+    const url = `${window.location.origin}/shared/${token}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Share link copied — only people assigned to this client can open it");
+    } catch {
+      toast.message(url);
+    }
+  };
+
+  const share = useMutation({
+    mutationFn: (runId: string) => createShareFn({ data: { runId, expiresInDays: 90 } }),
+    onSuccess: async (result) => {
+      void queryClient.invalidateQueries({ queryKey: ["report-shares", clientId, period] });
+      await copyShareLink(result.token);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const revokeShare = useMutation({
+    mutationFn: (shareId: string) => revokeShareFn({ data: { shareId } }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["report-shares", clientId, period] });
+      toast.success("Link revoked");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+
   // Reopening a stored version renders its frozen snapshot, not today's recomputed numbers.
   const version = useQuery({
     queryKey: ["report-version", viewingRunId],
