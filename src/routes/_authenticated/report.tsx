@@ -3,9 +3,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
+  CheckCircle2,
   Download,
   Eye,
   FileText,
+  Info,
   Link2,
   Link2Off,
   Loader2,
@@ -30,6 +33,7 @@ import {
 import { listMyClients } from "@/lib/imports.functions";
 import { listMetricPeriods } from "@/lib/metrics.functions";
 import {
+  checkReport,
   createReportShare,
   generateReport,
   getFormatSections,
@@ -93,6 +97,7 @@ function ReportPreview() {
   const sharesFn = useServerFn(listReportShares);
   const createShareFn = useServerFn(createReportShare);
   const revokeShareFn = useServerFn(revokeReportShare);
+  const checkFn = useServerFn(checkReport);
 
 
 
@@ -142,6 +147,15 @@ function ReportPreview() {
     queryFn: () => runsFn({ data: { clientId, period } }),
     enabled: Boolean(clientId && period),
   });
+
+  /** Pre-flight: wrong client / wrong date range detection. Advisory, never blocking. */
+  const checks = useQuery({
+    queryKey: ["report-checks", clientId, period],
+    queryFn: () => checkFn({ data: { clientId, period } }),
+    enabled: Boolean(clientId && period),
+  });
+
+
 
   const shares = useQuery({
     queryKey: ["report-shares", clientId, period],
@@ -197,6 +211,22 @@ function ReportPreview() {
     setViewingRunId(null);
   }, [clientId, period]);
 
+  const findings = checks.data ?? [];
+  const dangers = findings.filter((c) => c.level === "danger");
+  const warnings = findings.filter((c) => c.level === "warning");
+
+  const clientLabel =
+    (clients.data ?? []).find((c) => c.id === clientId)?.name ?? "this client";
+
+  /** Ask once before committing a version that our checks think is mis-filed. */
+  const confirmDespiteFindings = () => {
+    if (dangers.length === 0) return true;
+    return window.confirm(
+      `${dangers.length} problem${dangers.length > 1 ? "s" : ""} found with ${clientLabel} · ${period}:\n\n` +
+        dangers.map((d) => `• ${d.title} — ${d.detail}`).join("\n\n") +
+        "\n\nGenerate this report anyway?",
+    );
+  };
 
   const generate = useMutation({
     mutationFn: (target: ReportFormat) =>
@@ -220,6 +250,7 @@ function ReportPreview() {
 
   const exportPdf = async () => {
     if (!report.data || exporting) return;
+    if (!confirmDespiteFindings()) return;
     setExporting(true);
     try {
       if (rendererConfigured.data) {
@@ -328,7 +359,7 @@ function ReportPreview() {
           {rendererConfigured.data && (
             <Button
               className="mb-0.5"
-              onClick={() => generate.mutate(format)}
+              onClick={() => { if (confirmDespiteFindings()) generate.mutate(format); }}
               disabled={!report.data || generate.isPending}
             >
               {generate.isPending ? (
@@ -371,6 +402,61 @@ function ReportPreview() {
           </div>
         )}
 
+        {!viewingRunId && checks.data && (
+          <div className="border-t px-6 py-2">
+            {findings.length === 0 ? (
+              <p className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Pre-flight clear — sources, people and metrics all line up with {clientLabel} ·{" "}
+                {period}.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                <p className="flex items-center gap-2 text-xs font-semibold">
+                  <AlertTriangle
+                    className={
+                      dangers.length > 0
+                        ? "h-3.5 w-3.5 text-destructive"
+                        : "h-3.5 w-3.5 text-amber-600"
+                    }
+                  />
+                  Pre-flight found {dangers.length > 0 ? `${dangers.length} problem${dangers.length > 1 ? "s" : ""}` : ""}
+                  {dangers.length > 0 && warnings.length > 0 ? " and " : ""}
+                  {warnings.length > 0 ? `${warnings.length} warning${warnings.length > 1 ? "s" : ""}` : ""}
+                  {dangers.length === 0 && warnings.length === 0 ? "notes" : ""} for {clientLabel} ·{" "}
+                  {period}
+                </p>
+                <ul className="space-y-1">
+                  {findings.map((finding) => (
+                    <li
+                      key={finding.id}
+                      className={
+                        finding.level === "danger"
+                          ? "flex gap-2 rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-xs text-destructive"
+                          : finding.level === "warning"
+                            ? "flex gap-2 rounded border border-amber-400/50 bg-amber-50 px-2 py-1 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+                            : "flex gap-2 rounded border bg-muted/50 px-2 py-1 text-xs text-muted-foreground"
+                      }
+                    >
+                      {finding.level === "info" ? (
+                        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      ) : (
+                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      )}
+                      <span>
+                        <strong className="font-semibold">{finding.title}.</strong>{" "}
+                        {finding.detail}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+
+
         <div className="grid gap-2 border-t px-6 py-3 md:grid-cols-4">
           {REPORT_FORMATS.map((value) => {
             const list = runsByFormat.get(value) ?? [];
@@ -387,7 +473,7 @@ function ReportPreview() {
                       size="sm"
                       variant="ghost"
                       className="h-6 px-2 text-xs"
-                      onClick={() => generate.mutate(value)}
+                      onClick={() => { if (confirmDespiteFindings()) generate.mutate(value); }}
                       disabled={!report.data || generate.isPending}
                     >
                       {latest ? "New version" : "Generate"}
