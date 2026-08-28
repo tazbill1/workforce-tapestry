@@ -18,6 +18,7 @@ import {
 import { listMyClients } from "@/lib/imports.functions";
 import { listMetricPeriods } from "@/lib/metrics.functions";
 import {
+  createReportShare,
   generateReport,
   getFormatSections,
   getReport,
@@ -25,8 +26,11 @@ import {
   getReportVersion,
   isRendererConfigured,
   listReportRuns,
+  listReportShares,
+  revokeReportShare,
   snapshotReport,
 } from "@/lib/report.functions";
+
 
 
 import { FORMAT_SPECS, REPORT_FORMATS, type ReportFormat } from "@/lib/report-formats";
