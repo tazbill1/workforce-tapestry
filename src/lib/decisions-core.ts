@@ -301,11 +301,17 @@ function nameKey(name: string | null): string | null {
  * either without review would delete real employees from headcount.
  */
 export function mergeCandidates(
-  people: Person[],
+  allPeople: Person[],
   merges: MergeRow[],
   dismissed: Set<string>,
   splitEmails: Set<string> = new Set(),
+  activeExclusions: ActiveExclusion[] = [],
 ): MergeCandidate[] {
+  // An excluded person is out of the dataset entirely: never ask whether they are
+  // a duplicate of anyone, and never surface them inside someone else's group.
+  const people = activeExclusions.length
+    ? allPeople.filter((person) => !matchesActiveExclusion(person, activeExclusions))
+    : allPeople;
   const handled = new Set<string>();
   for (const merge of merges) {
     if (!merge.active) continue;
