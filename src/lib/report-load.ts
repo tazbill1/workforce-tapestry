@@ -102,6 +102,17 @@ export type AnniversaryRow = {
 
 const MILESTONES = new Set([1, 3, 5, 10, 15, 20, 25, 30]);
 
+/** An answer from the Ask screen that an analyst pinned to this client and period. */
+export type InsightBlock = {
+  id: string;
+  title: string;
+  question: string;
+  answer_md: string;
+  table_json: { columns: string[]; rows: Record<string, string | number | null>[] } | null;
+  sources: string[];
+  created_at: string;
+};
+
 export async function buildReport(supabase: Client, clientId: string, period: string) {
   const priorPeriod = priorPeriodOf(period);
   const end = periodEnd(period);
