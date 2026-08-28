@@ -51,10 +51,15 @@ export const Route = createFileRoute("/_authenticated/report")({
       { name: "robots", content: "noindex" },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    client: typeof search.client === "string" ? search.client : undefined,
+    period: typeof search.period === "string" ? search.period : undefined,
+  }),
   component: ReportPreview,
 });
 
 function ReportPreview() {
+  const search = Route.useSearch();
   const queryClient = useQueryClient();
   const clientsFn = useServerFn(listMyClients);
   const periodsFn = useServerFn(listMetricPeriods);
