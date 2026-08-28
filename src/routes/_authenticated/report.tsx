@@ -2,7 +2,19 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { Download, Eye, FileText, Loader2, Printer, RefreshCw, X } from "lucide-react";
+import {
+  Download,
+  Eye,
+  FileText,
+  Link2,
+  Link2Off,
+  Loader2,
+  Printer,
+  RefreshCw,
+  Share2,
+  X,
+} from "lucide-react";
+
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -18,6 +30,7 @@ import {
 import { listMyClients } from "@/lib/imports.functions";
 import { listMetricPeriods } from "@/lib/metrics.functions";
 import {
+  createReportShare,
   generateReport,
   getFormatSections,
   getReport,
@@ -25,8 +38,11 @@ import {
   getReportVersion,
   isRendererConfigured,
   listReportRuns,
+  listReportShares,
+  revokeReportShare,
   snapshotReport,
 } from "@/lib/report.functions";
+
 
 
 import { FORMAT_SPECS, REPORT_FORMATS, type ReportFormat } from "@/lib/report-formats";
@@ -74,6 +90,10 @@ function ReportPreview() {
   const versionFn = useServerFn(getReportVersion);
   const downloadFn = useServerFn(getReportDownloadUrl);
   const rendererConfiguredFn = useServerFn(isRendererConfigured);
+  const sharesFn = useServerFn(listReportShares);
+  const createShareFn = useServerFn(createReportShare);
+  const revokeShareFn = useServerFn(revokeReportShare);
+
 
 
   const [clientId, setClientId] = useState<string>(search.client ?? "");
@@ -122,6 +142,49 @@ function ReportPreview() {
     queryFn: () => runsFn({ data: { clientId, period } }),
     enabled: Boolean(clientId && period),
   });
+
+  const shares = useQuery({
+    queryKey: ["report-shares", clientId, period],
+    queryFn: () => sharesFn({ data: { clientId, period } }),
+    enabled: Boolean(clientId && period),
+  });
+
+  const shareByRun = useMemo(() => {
+    const map = new Map<string, NonNullable<typeof shares.data>[number]>();
+    for (const share of shares.data ?? []) {
+      if (!map.has(share.report_run_id)) map.set(share.report_run_id, share);
+    }
+    return map;
+  }, [shares.data]);
+
+  const copyShareLink = async (token: string) => {
+    const url = `${window.location.origin}/shared/${token}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Share link copied — only people assigned to this client can open it");
+    } catch {
+      toast.message(url);
+    }
+  };
+
+  const share = useMutation({
+    mutationFn: (runId: string) => createShareFn({ data: { runId, expiresInDays: 90 } }),
+    onSuccess: async (result) => {
+      void queryClient.invalidateQueries({ queryKey: ["report-shares", clientId, period] });
+      await copyShareLink(result.token);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const revokeShare = useMutation({
+    mutationFn: (shareId: string) => revokeShareFn({ data: { shareId } }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["report-shares", clientId, period] });
+      toast.success("Link revoked");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
 
   // Reopening a stored version renders its frozen snapshot, not today's recomputed numbers.
   const version = useQuery({
@@ -351,6 +414,42 @@ function ReportPreview() {
                           >
                             <Eye className="h-3.5 w-3.5" />
                           </Button>
+                          {shareByRun.has(run.id) ? (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-1 text-primary"
+                                title="Copy the share link"
+                                onClick={() =>
+                                  void copyShareLink(shareByRun.get(run.id)!.token)
+                                }
+                              >
+                                <Link2 className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-1 text-muted-foreground"
+                                title="Revoke the share link"
+                                onClick={() => revokeShare.mutate(shareByRun.get(run.id)!.id)}
+                                disabled={revokeShare.isPending}
+                              >
+                                <Link2Off className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-1"
+                              title="Create a share link (90 days, client-scoped)"
+                              onClick={() => share.mutate(run.id)}
+                              disabled={share.isPending}
+                            >
+                              <Share2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           {run.storage_path && (
                             <Button
                               size="sm"
@@ -363,6 +462,7 @@ function ReportPreview() {
                               <Download className="h-3.5 w-3.5" />
                             </Button>
                           )}
+
                         </span>
                       </li>
                     ))}
