@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect, Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { FileSpreadsheet, GitMerge, BarChart3, FileText, LogOut, Building2 } from "lucide-react";
+import { FileSpreadsheet, GitMerge, BarChart3, FileText, LogOut, Building2, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -18,6 +18,7 @@ const navItems = [
   { to: "/decisions", label: "Decisions", icon: GitMerge },
   { to: "/metrics", label: "Metrics", icon: BarChart3 },
   { to: "/report", label: "Report", icon: FileText },
+  { to: "/ask", label: "Ask", icon: Sparkles },
   { to: "/clients", label: "Clients", icon: Building2 },
 ];
 

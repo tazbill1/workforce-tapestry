@@ -51,6 +51,7 @@ export const SECTIONS = [
   { id: "lowmood", label: "Checked in, low mood" },
   { id: "recognition", label: "Recognition and engagement" },
   { id: "people", label: "Anniversaries and new starters" },
+  { id: "insights", label: "Analyst insights" },
   { id: "action", label: "Action plan" },
   { id: "method", label: "Method and definitions" },
 ] as const;
@@ -155,7 +156,10 @@ export function ReportDocument({
 }) {
   const spec = FORMAT_SPECS[format];
   const enabledIds = sections && sections.length > 0 ? new Set(sections) : null;
-  const isEnabled = (id: string) => (enabledIds ? enabledIds.has(id) : true);
+  const insights = data.insights ?? [];
+  /** The insights section only exists when an analyst pinned something to this period. */
+  const isEnabled = (id: string) =>
+    (id !== "insights" || insights.length > 0) && (enabledIds ? enabledIds.has(id) : true);
 
   /** Chart heights are declared at landscape scale and shrunk for the shorter formats. */
   const ch = (height: number) => Math.round(height * spec.chartScale);
@@ -177,6 +181,7 @@ export function ReportDocument({
     action: actionPageCount - 1,
     watchlist: watchlistChunks.length - 1,
     lowmood: lowMoodChunks.length - 1,
+    insights: Math.max(0, insights.length - 1),
   };
 
   const pageNumbers = new Map<string, number>();
@@ -1108,6 +1113,53 @@ export function ReportDocument({
           Shaded anniversaries are milestone years. Both lists cover active people only.
         </p>
       </Page>
+
+      {/* 13 — Analyst insights, one page per pinned answer */}
+      {insights.map((insight, index) => (
+        <Page
+          key={insight.id}
+          id={index === 0 ? "insights" : `insights-${index}`}
+          title="Analyst insights"
+          {...page}
+        >
+          <span className="rp-action-number">
+            Analyst insight · {index + 1} of {insights.length}
+          </span>
+          <h2 className="rp-heading" style={{ marginTop: "6pt", fontSize: "16pt" }}>
+            {insight.title}
+          </h2>
+          <p className="rp-lede" style={{ fontStyle: "italic" }}>
+            {insight.question}
+          </p>
+          <div className="rp-action-block">
+            <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{insight.answer_md}</p>
+          </div>
+          {insight.table_json && insight.table_json.rows.length > 0 ? (
+            <table className="rp-table rp-tight">
+              <thead>
+                <tr>
+                  {insight.table_json.columns.map((column) => (
+                    <th key={column}>{column}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {insight.table_json.rows.slice(0, spec.tableRows).map((row, rowIndex) => (
+                  <tr key={rowIndex}>
+                    {insight.table_json!.columns.map((column) => (
+                      <td key={column}>{row[column] ?? DASH}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : null}
+          <p className="rp-footnote">
+            Written in the workspace against published metrics for this period
+            {insight.sources.length > 0 ? ` · source: ${insight.sources.join(", ")}` : ""}.
+          </p>
+        </Page>
+      ))}
 
       {/* 13 — Action plan, one page per item */}
       {(data.actionPlan.length > 0
