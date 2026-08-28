@@ -302,6 +302,38 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     effective_from: "2026-06-01",
   },
   {
+    key: "recognition_participation_pct",
+    version: 1,
+    description: "Share of active people with at least one recognition post, comment or like.",
+    formula_note:
+      "recognition_participants_count / headcount_active. Activity rows are matched to people by name link; unmatched rows are excluded from the numerator.",
+    effective_from: "2026-08-01",
+  },
+  {
+    key: "recognition_participants_count",
+    version: 1,
+    description: "Active people with at least one recognition post, comment or like.",
+    formula_note:
+      "Distinct matched people in recognition_activity with posts + comments + likes > 0, restricted to Active person_period rows.",
+    effective_from: "2026-08-01",
+  },
+  {
+    key: "recognition_activity_matched_pct",
+    version: 1,
+    description: "Share of imported recognition-activity rows matched to a person on the roster.",
+    formula_note: "Rows with a matched_email over all imported activity rows for the period.",
+    effective_from: "2026-08-01",
+  },
+  {
+    key: "top_contributor",
+    version: 1,
+    description:
+      "Named person ranked by total recognition activity for the period; scope carries the rank.",
+    formula_note:
+      "posts + comments + likes per matched person, ranked descending, top 10 stored as rank:1..rank:10. Name in value_text, total in value_numeric.",
+    effective_from: "2026-08-01",
+  },
+  {
     key: "roster_size",
     version: 1,
     description: "People on the resolved roster for the period, after exclusions.",
