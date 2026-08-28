@@ -402,6 +402,42 @@ function ReportPreview() {
                           >
                             <Eye className="h-3.5 w-3.5" />
                           </Button>
+                          {shareByRun.has(run.id) ? (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-1 text-primary"
+                                title="Copy the share link"
+                                onClick={() =>
+                                  void copyShareLink(shareByRun.get(run.id)!.token)
+                                }
+                              >
+                                <Link2 className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-1 text-muted-foreground"
+                                title="Revoke the share link"
+                                onClick={() => revokeShare.mutate(shareByRun.get(run.id)!.id)}
+                                disabled={revokeShare.isPending}
+                              >
+                                <Link2Off className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-1"
+                              title="Create a share link (90 days, client-scoped)"
+                              onClick={() => share.mutate(run.id)}
+                              disabled={share.isPending}
+                            >
+                              <Share2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           {run.storage_path && (
                             <Button
                               size="sm"
@@ -414,6 +450,7 @@ function ReportPreview() {
                               <Download className="h-3.5 w-3.5" />
                             </Button>
                           )}
+
                         </span>
                       </li>
                     ))}
