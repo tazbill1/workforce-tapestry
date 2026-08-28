@@ -361,6 +361,27 @@ function ReportPreview() {
             </p>
           )}
         </main>
+
+        {report.data && (
+          <Button
+            size="lg"
+            className="rp-no-print fixed bottom-6 right-6 z-30 shadow-lg"
+            onClick={() => void exportPdf()}
+            disabled={exporting}
+            title={
+              rendererConfigured.data
+                ? "Generate the PDF on the server and download it"
+                : "Open the print dialog to save as PDF"
+            }
+          >
+            {exporting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            {exporting ? "Exporting…" : "Export PDF"}
+          </Button>
+        )}
       </div>
     </div>
   );
