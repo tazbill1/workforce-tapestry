@@ -365,7 +365,6 @@ export function mergeCandidates(
       sharedEmail: person.normalized_email,
       rows,
       distinctNames: names.size,
-      distinctEmployeeIds: employeeIds.size,
       members: [
         {
           normalized_email: person.normalized_email,
