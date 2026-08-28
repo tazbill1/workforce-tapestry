@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect, Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { ensureDomainAccess } from "@/lib/access.functions";
-import { FileSpreadsheet, GitMerge, BarChart3, FileText, LogOut, Building2, Sparkles } from "lucide-react";
+import { FileSpreadsheet, GitMerge, BarChart3, FileText, LogOut, Building2, Sparkles, Users } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
