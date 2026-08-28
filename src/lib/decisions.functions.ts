@@ -55,6 +55,7 @@ export const getDecisionsReview = createServerFn({ method: "POST" })
         [...dismissed].filter((key) => key.startsWith("merge:")).map((key) => key.slice("merge:".length)),
       ),
       splitEmails,
+      activeExclusions,
     );
     const combos = roleCombos(people, state.roleMappings as RoleMappingRow[]);
     const departments = departmentEntries(people, state.departmentRules as DeptRuleRow[]);
@@ -501,6 +502,7 @@ export const markPeriodReady = createServerFn({ method: "POST" })
           [...dismissed].filter((key) => key.startsWith("merge:")).map((key) => key.slice("merge:".length)),
         ),
         new Set(state.splits.filter((row) => row.active).map((row) => row.normalized_email)),
+        (state.exclusions as ActiveExclusion[]).filter((item) => item.active),
       ),
       hasEngagementTotals: Boolean(state.engagement),
     });
