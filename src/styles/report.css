@@ -136,6 +136,9 @@
   position: absolute;
   top: 0.42in;
   right: var(--rp-margin-x);
+  display: flex;
+  align-items: center;
+  gap: 6pt;
   font-size: 6.5pt;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -485,4 +488,16 @@
     right: 0.8in;
     bottom: 0.3in;
   }
+}
+
+.rp-runhead-logo {
+  height: 10pt;
+  width: auto;
+  display: block;
+}
+
+.rp-logo-img {
+  height: 26pt;
+  width: auto;
+  display: block;
 }
