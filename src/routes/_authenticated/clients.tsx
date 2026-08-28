@@ -46,13 +46,10 @@ function ClientsScreen() {
   const load = useServerFn(listClientsAdmin);
   const add = useServerFn(createClient);
   const toggle = useServerFn(setClientActive);
-  const grant = useServerFn(grantClientAccess);
-  const revoke = useServerFn(revokeClientAccess);
   const saveLogo = useServerFn(setClientLogo);
 
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
-  const [grantEmail, setGrantEmail] = useState<Record<string, string>>({});
 
   const { data, isLoading } = useQuery({ queryKey: ["clients-admin"], queryFn: () => load() });
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["clients-admin"] });
