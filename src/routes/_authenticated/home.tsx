@@ -125,7 +125,12 @@ function HomeScreen() {
                   <Link to="/metrics">Metrics</Link>
                 </Button>
                 <Button asChild size="sm">
-                  <Link to="/report">Report</Link>
+                  <Link
+                    to="/report"
+                    search={{ client: c.id, period: c.latestPeriod ?? undefined }}
+                  >
+                    Report
+                  </Link>
                 </Button>
               </div>
             </CardContent>
