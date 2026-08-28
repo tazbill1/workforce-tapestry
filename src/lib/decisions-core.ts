@@ -444,39 +444,11 @@ export function mergeCandidates(
     });
   }
 
-  // Same employee ID on different emails. Flag only — IDs get recycled between a leaver
-  // and a new hire, and placeholder IDs are shared outright, so this is never evidence
-  // on its own that two records are one person.
-  const byEmployeeId = new Map<string, Person[]>();
-  for (const person of people) {
-    const id = norm(person.employee_id_raw) ?? "";
-    if (!id || PLACEHOLDER_IDS.has(id)) continue;
-    byEmployeeId.set(id, [...(byEmployeeId.get(id) ?? []), person]);
-  }
-  for (const [id, group] of byEmployeeId) {
-    if (group.length < 2) continue;
-    const emails = group.map((p) => p.normalized_email).sort();
-    if (emails.every((email) => handled.has(email)) || fullyMerged(emails)) continue;
-    // Already surfaced by the name flag — do not raise the same pair twice.
-    const nameKeys = new Set(group.map((p) => nameKey(p.name)).filter(Boolean));
-    if (nameKeys.size === 1) continue;
-    const key = `empid:${emails.join("|")}`;
-    if (dismissed.has(key)) continue;
-    out.push({
-      key,
-      kind: "shared_employee_id",
-      detail: `employee ID ${group[0]?.employee_id_raw ?? id} appears on ${emails.length} different emails under different names — check before doing anything; a recycled or placeholder ID looks exactly like this`,
-      members: group.map((p) => ({
-        normalized_email: p.normalized_email,
-        name: p.name,
-        statuses: p.statuses,
-        title_raw: p.title_raw,
-        department_raw: p.department_raw,
-        hire_date: p.hire_date,
-        employee_id_raw: p.employee_id_raw,
-      })),
-    });
-  }
+  // Employee ID alone is deliberately NOT a duplicate signal: IDs get recycled
+  // between a leaver and a new hire and placeholders are shared outright, so it
+  // only ever produced noise. A shared ID is still shown as context on a
+  // candidate raised by email or by a matching first + last name.
+
 
   return out;
 }
