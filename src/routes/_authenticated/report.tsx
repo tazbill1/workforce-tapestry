@@ -22,9 +22,12 @@ import {
   getFormatSections,
   getReport,
   getReportDownloadUrl,
+  getReportVersion,
   isRendererConfigured,
   listReportRuns,
+  snapshotReport,
 } from "@/lib/report.functions";
+
 
 import { FORMAT_SPECS, REPORT_FORMATS, type ReportFormat } from "@/lib/report-formats";
 import { ReportDocument, SECTIONS } from "@/components/report/ReportDocument";
