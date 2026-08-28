@@ -427,16 +427,13 @@ export function mergeCandidates(
         title_raw: p.title_raw,
         department_raw: p.department_raw,
         hire_date: p.hire_date,
-        employee_id_raw: p.employee_id_raw,
       })),
     });
   }
 
-  // Employee ID alone is deliberately NOT a duplicate signal: IDs get recycled
-  // between a leaver and a new hire and placeholders are shared outright, so it
-  // only ever produced noise. A shared ID is still shown as context on a
-  // candidate raised by email or by a matching first + last name.
-
+  // Duplicates are judged on email and name only. Employee IDs never enter the
+  // comparison: they get recycled between leavers and new hires and placeholder
+  // IDs are shared outright, so they only produced noise.
 
   return out;
 }
