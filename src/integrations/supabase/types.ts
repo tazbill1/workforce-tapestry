@@ -285,6 +285,60 @@ export type Database = {
         }
         Relationships: []
       }
+      name_links: {
+        Row: {
+          active: boolean
+          client_id: string
+          confirmed_at: string
+          confirmed_by: string | null
+          effective_from: string | null
+          id: string
+          normalized_email: string
+          normalized_name: string
+          reason: string | null
+          superseded_by: string | null
+        }
+        Insert: {
+          active?: boolean
+          client_id: string
+          confirmed_at?: string
+          confirmed_by?: string | null
+          effective_from?: string | null
+          id?: string
+          normalized_email: string
+          normalized_name: string
+          reason?: string | null
+          superseded_by?: string | null
+        }
+        Update: {
+          active?: boolean
+          client_id?: string
+          confirmed_at?: string
+          confirmed_by?: string | null
+          effective_from?: string | null
+          id?: string
+          normalized_email?: string
+          normalized_name?: string
+          reason?: string | null
+          superseded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "name_links_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "name_links_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "name_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       period_readiness: {
         Row: {
           client_id: string
@@ -654,6 +708,75 @@ export type Database = {
           },
           {
             foreignKeyName: "raw_records_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "raw_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recognition_activity: {
+        Row: {
+          client_id: string
+          comments: number
+          id: string
+          import_id: string
+          inserted_at: string
+          likes: number
+          match_source: string | null
+          matched_email: string | null
+          name_raw: string
+          normalized_name: string
+          period: string
+          posts: number
+          row_number: number | null
+          window_from: string | null
+          window_to: string | null
+        }
+        Insert: {
+          client_id: string
+          comments?: number
+          id?: string
+          import_id: string
+          inserted_at?: string
+          likes?: number
+          match_source?: string | null
+          matched_email?: string | null
+          name_raw: string
+          normalized_name: string
+          period: string
+          posts?: number
+          row_number?: number | null
+          window_from?: string | null
+          window_to?: string | null
+        }
+        Update: {
+          client_id?: string
+          comments?: number
+          id?: string
+          import_id?: string
+          inserted_at?: string
+          likes?: number
+          match_source?: string | null
+          matched_email?: string | null
+          name_raw?: string
+          normalized_name?: string
+          period?: string
+          posts?: number
+          row_number?: number | null
+          window_from?: string | null
+          window_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recognition_activity_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recognition_activity_import_id_fkey"
             columns: ["import_id"]
             isOneToOne: false
             referencedRelation: "raw_imports"
@@ -1160,6 +1283,7 @@ export type Database = {
         | "engagement_totals"
         | "recognition_counts"
         | "screenshot"
+        | "recognition_activity"
       import_state: "uploaded" | "parsed" | "failed" | "superseded"
       report_format: "portrait" | "landscape" | "wide" | "exec"
     }
@@ -1313,6 +1437,7 @@ export const Constants = {
         "engagement_totals",
         "recognition_counts",
         "screenshot",
+        "recognition_activity",
       ],
       import_state: ["uploaded", "parsed", "failed", "superseded"],
       report_format: ["portrait", "landscape", "wide", "exec"],
