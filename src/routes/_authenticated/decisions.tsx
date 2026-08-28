@@ -217,6 +217,9 @@ function DecisionsScreen() {
 
             <TabsContent value="exclusions" className="space-y-4 pt-4">
               <BulkExcludeCard
+                onPreview={(matchType, values) =>
+                  previewExclusionFn({ data: { clientId, period, matchType, values } })
+                }
                 onSubmit={async (values, payload) => {
                   let count = 0;
                   for (const matchValue of values) {
