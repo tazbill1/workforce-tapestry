@@ -489,3 +489,15 @@
     bottom: 0.3in;
   }
 }
+
+.rp-runhead-logo {
+  height: 10pt;
+  width: auto;
+  display: block;
+}
+
+.rp-logo-img {
+  height: 26pt;
+  width: auto;
+  display: block;
+}
