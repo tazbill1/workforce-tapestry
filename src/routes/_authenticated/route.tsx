@@ -18,6 +18,7 @@ const navItems = [
   { to: "/decisions", label: "Decisions", icon: GitMerge },
   { to: "/metrics", label: "Metrics", icon: BarChart3 },
   { to: "/report", label: "Report", icon: FileText },
+  { to: "/ask", label: "Ask", icon: Sparkles },
   { to: "/clients", label: "Clients", icon: Building2 },
 ];
 
