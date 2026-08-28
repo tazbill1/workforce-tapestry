@@ -156,7 +156,10 @@ export function ReportDocument({
 }) {
   const spec = FORMAT_SPECS[format];
   const enabledIds = sections && sections.length > 0 ? new Set(sections) : null;
-  const isEnabled = (id: string) => (enabledIds ? enabledIds.has(id) : true);
+  const insights = data.insights ?? [];
+  /** The insights section only exists when an analyst pinned something to this period. */
+  const isEnabled = (id: string) =>
+    (id !== "insights" || insights.length > 0) && (enabledIds ? enabledIds.has(id) : true);
 
   /** Chart heights are declared at landscape scale and shrunk for the shorter formats. */
   const ch = (height: number) => Math.round(height * spec.chartScale);
@@ -178,6 +181,7 @@ export function ReportDocument({
     action: actionPageCount - 1,
     watchlist: watchlistChunks.length - 1,
     lowmood: lowMoodChunks.length - 1,
+    insights: Math.max(0, insights.length - 1),
   };
 
   const pageNumbers = new Map<string, number>();
