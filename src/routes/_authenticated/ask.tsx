@@ -177,6 +177,35 @@ function UsePanel({
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const buildReport = useMutation({
+    mutationFn: async () => {
+      if (!clientId || !effectivePeriod) throw new Error("Pick a client and period first");
+      const step = attachStep === "none" ? null : turn.answer.steps[Number(attachStep)];
+      await saveFn({
+        data: {
+          title,
+          question: turn.question,
+          answerMd: turn.answer.answer,
+          clientId,
+          period: effectivePeriod,
+          includeInReport: true,
+          table: step ? { columns: step.columns, rows: step.rows.slice(0, 40) } : null,
+          sources: [...new Set(turn.answer.steps.map((entry) => entry.tool))],
+        },
+      });
+      return { clientId, period: effectivePeriod };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["insights"] });
+      toast.success("Insight pinned — opening the report");
+      navigate({
+        to: "/report",
+        search: { client: result.clientId, period: result.period },
+      });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   if (mode === "none") {
     return (
       <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -186,6 +215,10 @@ function UsePanel({
         </Button>
         <Button size="sm" variant="outline" onClick={() => setMode("action")}>
           Add to action plan
+        </Button>
+        <Button size="sm" onClick={() => setMode("report")}>
+          <FileText className="mr-1 h-3.5 w-3.5" />
+          Generate report
         </Button>
       </div>
     );
