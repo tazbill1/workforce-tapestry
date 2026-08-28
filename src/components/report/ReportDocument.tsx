@@ -1114,6 +1114,53 @@ export function ReportDocument({
         </p>
       </Page>
 
+      {/* 13 — Analyst insights, one page per pinned answer */}
+      {insights.map((insight, index) => (
+        <Page
+          key={insight.id}
+          id={index === 0 ? "insights" : `insights-${index}`}
+          title="Analyst insights"
+          {...page}
+        >
+          <span className="rp-action-number">
+            Analyst insight · {index + 1} of {insights.length}
+          </span>
+          <h2 className="rp-heading" style={{ marginTop: "6pt", fontSize: "16pt" }}>
+            {insight.title}
+          </h2>
+          <p className="rp-lede" style={{ fontStyle: "italic" }}>
+            {insight.question}
+          </p>
+          <div className="rp-action-block">
+            <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{insight.answer_md}</p>
+          </div>
+          {insight.table_json && insight.table_json.rows.length > 0 ? (
+            <table className="rp-table rp-tight">
+              <thead>
+                <tr>
+                  {insight.table_json.columns.map((column) => (
+                    <th key={column}>{column}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {insight.table_json.rows.slice(0, spec.tableRows).map((row, rowIndex) => (
+                  <tr key={rowIndex}>
+                    {insight.table_json!.columns.map((column) => (
+                      <td key={column}>{row[column] ?? DASH}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : null}
+          <p className="rp-footnote">
+            Written in the workspace against published metrics for this period
+            {insight.sources.length > 0 ? ` · source: ${insight.sources.join(", ")}` : ""}.
+          </p>
+        </Page>
+      ))}
+
       {/* 13 — Action plan, one page per item */}
       {(data.actionPlan.length > 0
         ? data.actionPlan
