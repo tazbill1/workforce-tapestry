@@ -97,6 +97,7 @@ function ReportPreview() {
   const sharesFn = useServerFn(listReportShares);
   const createShareFn = useServerFn(createReportShare);
   const revokeShareFn = useServerFn(revokeReportShare);
+  const checkFn = useServerFn(checkReport);
 
 
 
@@ -146,6 +147,15 @@ function ReportPreview() {
     queryFn: () => runsFn({ data: { clientId, period } }),
     enabled: Boolean(clientId && period),
   });
+
+  /** Pre-flight: wrong client / wrong date range detection. Advisory, never blocking. */
+  const checks = useQuery({
+    queryKey: ["report-checks", clientId, period],
+    queryFn: () => checkFn({ data: { clientId, period } }),
+    enabled: Boolean(clientId && period),
+  });
+
+
 
   const shares = useQuery({
     queryKey: ["report-shares", clientId, period],
