@@ -116,7 +116,25 @@ function AuthPage() {
             account with your work email.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {deniedMessage && (
+            <Alert variant="destructive">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertTitle>Access blocked</AlertTitle>
+              <AlertDescription className="space-y-1">
+                <p>{deniedMessage}</p>
+                {deniedEmail && (
+                  <p className="text-xs opacity-90">
+                    You tried: <span className="font-medium">{deniedEmail}</span>
+                  </p>
+                )}
+                <p className="text-xs opacity-90">
+                  Please sign in with your <span className="font-medium">@{ALLOWED_EMAIL_DOMAIN}</span>{" "}
+                  work email, or ask an admin to invite you.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Work email</Label>
