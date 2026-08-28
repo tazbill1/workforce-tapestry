@@ -33,6 +33,7 @@ import {
   dismissCandidate,
   getDecisionsReview,
   markPeriodReady,
+  previewExclusion,
   retireExclusion,
   saveDepartmentRule,
   saveEngagementTotals,
@@ -80,6 +81,7 @@ function DecisionsScreen() {
   const clientsFn = useServerFn(listMyClients);
   const periodsFn = useServerFn(listAssemblyPeriods);
   const reviewFn = useServerFn(getDecisionsReview);
+  const previewExclusionFn = useServerFn(previewExclusion);
   const confirmExclusionFn = useServerFn(confirmExclusion);
   const retireExclusionFn = useServerFn(retireExclusion);
   const dismissFn = useServerFn(dismissCandidate);
