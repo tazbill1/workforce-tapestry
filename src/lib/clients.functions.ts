@@ -34,23 +34,9 @@ export const listClientsAdmin = createServerFn({ method: "GET" })
       .order("name");
     if (error) throw new Error(error.message);
 
-    const { data: grants, error: grantError } = await context.supabase
-      .from("user_clients")
-      .select("id, user_id, client_id, granted_at");
-    if (grantError) throw new Error(grantError.message);
-
-    let emails: Record<string, string> = {};
-    if (isAnalyst) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const users = await listAllUsers(supabaseAdmin);
-      emails = Object.fromEntries(users.map((u) => [u.id, u.email ?? u.id]));
-    }
-
     return {
       isAnalyst: Boolean(isAnalyst),
       clients: clients ?? [],
-      grants: (grants ?? []).map((g) => ({ ...g, email: emails[g.user_id] ?? g.user_id })),
-      users: Object.entries(emails).map(([id, email]) => ({ id, email })),
     };
   });
 
