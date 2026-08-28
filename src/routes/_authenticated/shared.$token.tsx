@@ -62,7 +62,10 @@ function SharedReportPage() {
           Shared reports are limited to people assigned to that client.
         </p>
         <Button asChild variant="outline" className="mt-4">
-          <Link to="/report">Go to reports</Link>
+          <Link to="/report" search={{ client: undefined, period: undefined }}>
+            Go to reports
+          </Link>
+
         </Button>
       </div>
     );
