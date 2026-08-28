@@ -120,6 +120,14 @@ export async function buildReport(supabase: Client, clientId: string, period: st
       .eq("client_id", clientId)
       .eq("period", period)
       .order("position"),
+    // Analyst-authored insights pinned to this client and period from the Ask screen.
+    supabase
+      .from("saved_insights")
+      .select("id, title, question, answer_md, table_json, sources, created_at")
+      .eq("client_id", clientId)
+      .eq("period", period)
+      .eq("include_in_report", true)
+      .order("created_at"),
     loadPeople(supabase, clientId, period),
     loadPeople(supabase, clientId, priorPeriod),
   ]);
@@ -127,6 +135,7 @@ export async function buildReport(supabase: Client, clientId: string, period: st
   if (clientResult.error) throw new Error(clientResult.error.message);
   if (metricsResult.error) throw new Error(metricsResult.error.message);
   if (planResult.error) throw new Error(planResult.error.message);
+  if (insightResult.error) throw new Error(insightResult.error.message);
   if (!clientResult.data) throw new Error("Client not found");
 
   const included = people.filter((person) => !person.is_excluded);
