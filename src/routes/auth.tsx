@@ -36,21 +36,45 @@ function AuthPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    const denied = sessionStorage.getItem("auth_denied");
+    if (denied) {
+      sessionStorage.removeItem("auth_denied");
+      toast.error(denied);
+      return;
+    }
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/imports" });
     });
   }, [navigate]);
 
-  const signIn = async (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    const normalized = email.trim().toLowerCase();
+    if (mode === "signup" && !normalized.endsWith(`@${ALLOWED_EMAIL_DOMAIN}`)) {
+      toast.error(`Accounts are limited to @${ALLOWED_EMAIL_DOMAIN} email addresses.`);
+      return;
+    }
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } =
+      mode === "signin"
+        ? await supabase.auth.signInWithPassword({ email: normalized, password })
+        : await supabase.auth.signUp({
+            email: normalized,
+            password,
+            options: { emailRedirectTo: `${window.location.origin}/auth` },
+          });
     setBusy(false);
     if (error) {
       toast.error(error.message);
+      return;
+    }
+    if (mode === "signup") {
+      toast.success("Check your email to confirm your account, then sign in.");
+      setMode("signin");
       return;
     }
     navigate({ to: "/imports" });
@@ -69,6 +93,7 @@ function AuthPage() {
     if (result.redirected) return;
     navigate({ to: "/imports" });
   };
+
 
 
   return (
