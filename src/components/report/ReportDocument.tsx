@@ -921,6 +921,11 @@ export function ReportDocument({
                   ),
                   caption: "percentage points",
                 },
+                {
+                  label: "Activity rows matched",
+                  value: fmtPct(m.get("recognition_activity_matched_pct")),
+                  caption: "of imported activity rows",
+                },
               ]}
             />
             <table className="rp-table rp-tight">
