@@ -203,6 +203,15 @@ export const confirmNameLink = createServerFn({ method: "POST" })
 
     if (existing?.normalized_email === email) return { ok: true, unchanged: true };
 
+    // Only one link per name may be active, so retire the prior one before inserting.
+    if (existing) {
+      const { error: retireError } = await context.supabase
+        .from("name_links")
+        .update({ active: false })
+        .eq("id", existing.id);
+      if (retireError) throw new Error(retireError.message);
+    }
+
     const { data: inserted, error } = await context.supabase
       .from("name_links")
       .insert({
@@ -221,7 +230,7 @@ export const confirmNameLink = createServerFn({ method: "POST" })
       // Append-only: the prior link is superseded, never edited away.
       const { error: supersedeError } = await context.supabase
         .from("name_links")
-        .update({ active: false, superseded_by: inserted.id })
+        .update({ superseded_by: inserted.id })
         .eq("id", existing.id);
       if (supersedeError) throw new Error(supersedeError.message);
     }
