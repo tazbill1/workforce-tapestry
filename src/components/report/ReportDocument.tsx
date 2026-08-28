@@ -199,6 +199,15 @@ export function ReportDocument({
   const franchises = m.scopesFor("headcount_active", "franchise:");
   const roles = m.scopesFor("headcount_active", "role:");
   const depts = m.scopesFor("recognitions_count", "dept:");
+  const topContributors = m
+    .scopesFor("top_contributor", "rank:")
+    .map((scope) => ({
+      scope,
+      rank: Number(scope.slice("rank:".length)),
+      name: m.text("top_contributor", scope) ?? DASH,
+      total: m.get("top_contributor", scope),
+    }))
+    .sort((a, b) => a.rank - b.rank);
   const moodScopes = franchises.length > 0 ? franchises : m.scopesFor("mood_per_employee", "dept:");
 
   const activeTotal = m.get("headcount_active");
@@ -893,6 +902,54 @@ export function ReportDocument({
               color={TOKENS.lime}
             />
             <p className="rp-footnote">Recognitions by department, as entered for this period.</p>
+            <p className="rp-subheading" style={{ marginTop: "10pt" }}>
+              Participation in recognition
+            </p>
+            <Cards
+              cols={2}
+              items={[
+                {
+                  label: "Active people participating",
+                  value: fmtPct(m.get("recognition_participation_pct")),
+                  caption: `${fmtInt(m.get("recognition_participants_count"))} of ${fmtInt(m.get("headcount_active"))} active`,
+                },
+                {
+                  label: "vs " + prior,
+                  value: fmtDeltaPp(
+                    m.get("recognition_participation_pct"),
+                    m.prior("recognition_participation_pct"),
+                  ),
+                  caption: "percentage points",
+                },
+              ]}
+            />
+            <table className="rp-table rp-tight">
+              <thead>
+                <tr>
+                  <th>Franchise</th>
+                  <th className="rp-num">Participating</th>
+                  <th className="rp-num">Participation</th>
+                </tr>
+              </thead>
+              <tbody>
+                {m.scopesFor("recognition_participation_pct", "franchise:").map((scope) => (
+                  <tr key={scope}>
+                    <td>{scopeLabel(scope)}</td>
+                    <td className="rp-num">
+                      {fmtInt(m.get("recognition_participants_count", scope))}
+                    </td>
+                    <td className="rp-num">
+                      {fmtPct(m.get("recognition_participation_pct", scope))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="rp-footnote">
+              Participation counts an active person once if they posted, commented or liked in
+              the period. {fmtPct(m.get("recognition_activity_matched_pct"))} of imported
+              activity rows matched a person on the roster.
+            </p>
           </div>
 
           <div>
@@ -949,6 +1006,36 @@ export function ReportDocument({
               </tbody>
             </table>
 
+            <p className="rp-subheading" style={{ marginTop: "10pt" }}>
+              Top contributors
+            </p>
+            <table className="rp-table rp-tight">
+              <thead>
+                <tr>
+                  <th className="rp-num">#</th>
+                  <th>Person</th>
+                  <th className="rp-num">Activity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topContributors.length === 0 ? (
+                  <tr>
+                    <td colSpan={3}>No matched recognition activity for this period.</td>
+                  </tr>
+                ) : (
+                  topContributors.map((entry) => (
+                    <tr key={entry.scope}>
+                      <td className="rp-num">{entry.rank}</td>
+                      <td>{entry.name}</td>
+                      <td className="rp-num">{fmtInt(entry.total)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+            <p className="rp-footnote">
+              Posts, comments and likes combined, for people on the resolved roster.
+            </p>
           </div>
         </div>
       </Page>
