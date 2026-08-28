@@ -762,8 +762,28 @@ function ExclusionCandidateRow({
   );
 }
 
+type ExclusionPreview = {
+  peopleCount: number;
+  totalPeople: number;
+  totalRecords: number;
+  newlyExcluded: number;
+  groups: {
+    value: string;
+    people: {
+      normalized_email: string;
+      name: string | null;
+      title_raw: string | null;
+      department_raw: string | null;
+      statuses: string[];
+      recordCount: number;
+      alreadyExcluded: boolean;
+    }[];
+  }[];
+};
+
 function BulkExcludeCard({
   onSubmit,
+  onPreview,
 }: {
   onSubmit: (
     values: string[],
@@ -773,12 +793,19 @@ function BulkExcludeCard({
       reason: string;
     },
   ) => Promise<void>;
+  onPreview: (
+    matchType: (typeof MATCH_TYPES)[number],
+    values: string[],
+  ) => Promise<ExclusionPreview>;
 }) {
   const [matchType, setMatchType] = useState<(typeof MATCH_TYPES)[number]>("email_domain");
   const [raw, setRaw] = useState("");
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("vendor");
   const [reason, setReason] = useState("external vendor domain — not an employee");
   const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState<ExclusionPreview | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const [previewKey, setPreviewKey] = useState("");
 
   const values = [
     ...new Set(
@@ -788,6 +815,9 @@ function BulkExcludeCard({
         .filter(Boolean),
     ),
   ];
+  const currentKey = `${matchType}|${values.join(",")}`;
+  const previewStale = preview !== null && previewKey !== currentKey;
+
 
   return (
     <Card>
