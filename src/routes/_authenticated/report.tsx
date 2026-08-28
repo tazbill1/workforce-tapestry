@@ -359,7 +359,7 @@ function ReportPreview() {
           {rendererConfigured.data && (
             <Button
               className="mb-0.5"
-              onClick={() => generate.mutate(format)}
+              onClick={() => { if (confirmDespiteFindings()) generate.mutate(format); }}
               disabled={!report.data || generate.isPending}
             >
               {generate.isPending ? (
@@ -418,7 +418,7 @@ function ReportPreview() {
                       size="sm"
                       variant="ghost"
                       className="h-6 px-2 text-xs"
-                      onClick={() => generate.mutate(value)}
+                      onClick={() => { if (confirmDespiteFindings()) generate.mutate(value); }}
                       disabled={!report.data || generate.isPending}
                     >
                       {latest ? "New version" : "Generate"}
