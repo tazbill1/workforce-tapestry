@@ -242,7 +242,11 @@ export function ReportDocument({
         <div className="rp-logos">
           <img className="rp-logo-img" src={brandLogo.url} alt="WerkandMe" />
           <span className="rp-logo-sep" />
-          <span className="rp-logo">{clientName}</span>
+          {clientLogo ? (
+            <img className="rp-logo-img rp-client-logo" src={clientLogo} alt={clientName} />
+          ) : (
+            <span className="rp-logo">{clientName}</span>
+          )}
         </div>
         <p className="rp-eyebrow">Monthly culture report</p>
         <h1 className="rp-title">
