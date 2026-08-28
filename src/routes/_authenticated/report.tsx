@@ -70,6 +70,8 @@ function ReportPreview() {
   const sectionsFn = useServerFn(getFormatSections);
   const runsFn = useServerFn(listReportRuns);
   const generateFn = useServerFn(generateReport);
+  const snapshotFn = useServerFn(snapshotReport);
+  const versionFn = useServerFn(getReportVersion);
   const downloadFn = useServerFn(getReportDownloadUrl);
   const rendererConfiguredFn = useServerFn(isRendererConfigured);
 
@@ -78,6 +80,8 @@ function ReportPreview() {
   const [period, setPeriod] = useState<string>(search.period ?? "");
   const [format, setFormat] = useState<ReportFormat>("landscape");
   const [activeSection, setActiveSection] = useState<string>("cover");
+  const [viewingRunId, setViewingRunId] = useState<string | null>(null);
+
 
   const clients = useQuery({ queryKey: ["my-clients"], queryFn: () => clientsFn() });
 
