@@ -906,7 +906,7 @@ export function ReportDocument({
               Participation in recognition
             </p>
             <Cards
-              cols={2}
+              cols={3}
               items={[
                 {
                   label: "Active people participating",
