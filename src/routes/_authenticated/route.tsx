@@ -13,8 +13,12 @@ export const Route = createFileRoute("/_authenticated")({
     if (!access.allowed) {
       await supabase.auth.signOut();
       sessionStorage.setItem(
+        "auth_denied_email",
+        access.email,
+      );
+      sessionStorage.setItem(
         "auth_denied",
-        `Access is limited to @${access.domain} accounts.`,
+        `Only @${access.domain} email addresses can access this console.`,
       );
       throw redirect({ to: "/auth" });
     }
