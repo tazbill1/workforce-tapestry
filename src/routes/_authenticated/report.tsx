@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
-import { Download, FileText, Loader2, Printer, RefreshCw } from "lucide-react";
+import { Download, Eye, FileText, Loader2, Printer, RefreshCw, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -22,9 +22,12 @@ import {
   getFormatSections,
   getReport,
   getReportDownloadUrl,
+  getReportVersion,
   isRendererConfigured,
   listReportRuns,
+  snapshotReport,
 } from "@/lib/report.functions";
+
 
 import { FORMAT_SPECS, REPORT_FORMATS, type ReportFormat } from "@/lib/report-formats";
 import { ReportDocument, SECTIONS } from "@/components/report/ReportDocument";
@@ -67,6 +70,8 @@ function ReportPreview() {
   const sectionsFn = useServerFn(getFormatSections);
   const runsFn = useServerFn(listReportRuns);
   const generateFn = useServerFn(generateReport);
+  const snapshotFn = useServerFn(snapshotReport);
+  const versionFn = useServerFn(getReportVersion);
   const downloadFn = useServerFn(getReportDownloadUrl);
   const rendererConfiguredFn = useServerFn(isRendererConfigured);
 
@@ -75,6 +80,8 @@ function ReportPreview() {
   const [period, setPeriod] = useState<string>(search.period ?? "");
   const [format, setFormat] = useState<ReportFormat>("landscape");
   const [activeSection, setActiveSection] = useState<string>("cover");
+  const [viewingRunId, setViewingRunId] = useState<string | null>(null);
+
 
   const clients = useQuery({ queryKey: ["my-clients"], queryFn: () => clientsFn() });
 
@@ -113,8 +120,19 @@ function ReportPreview() {
   const runs = useQuery({
     queryKey: ["report-runs", clientId, period],
     queryFn: () => runsFn({ data: { clientId, period } }),
-    enabled: Boolean(clientId && period) && Boolean(rendererConfigured.data),
+    enabled: Boolean(clientId && period),
   });
+
+  // Reopening a stored version renders its frozen snapshot, not today's recomputed numbers.
+  const version = useQuery({
+    queryKey: ["report-version", viewingRunId],
+    queryFn: () => versionFn({ data: { runId: viewingRunId as string } }),
+    enabled: Boolean(viewingRunId),
+  });
+
+  useEffect(() => {
+    setViewingRunId(null);
+  }, [clientId, period]);
 
 
   const generate = useMutation({
@@ -122,7 +140,7 @@ function ReportPreview() {
       generateFn({ data: { clientId, period, format: target } }),
     onSuccess: (result) => {
       toast.success(
-        `Rendered ${result.pageCount ?? "?"} pages · ${(result.byteSize / 1024).toFixed(0)} KB`,
+        `Saved v${result.version} · ${result.pageCount ?? "?"} pages · ${(result.byteSize / 1024).toFixed(0)} KB`,
       );
       void queryClient.invalidateQueries({ queryKey: ["report-runs", clientId, period] });
     },
@@ -146,8 +164,12 @@ function ReportPreview() {
         void queryClient.invalidateQueries({ queryKey: ["report-runs", clientId, period] });
         const { url } = await downloadFn({ data: { runId: result.runId } });
         window.open(url, "_blank", "noopener");
-        toast.success(`PDF ready · ${(result.byteSize / 1024).toFixed(0)} KB`);
+        toast.success(`v${result.version} ready · ${(result.byteSize / 1024).toFixed(0)} KB`);
       } else {
+        // No server renderer: still record the version so the printed numbers are retained.
+        const result = await snapshotFn({ data: { clientId, period, format } });
+        void queryClient.invalidateQueries({ queryKey: ["report-runs", clientId, period] });
+        toast.success(`Snapshot saved as v${result.version}`);
         window.print();
       }
     } catch (error) {
@@ -157,7 +179,14 @@ function ReportPreview() {
     }
   };
 
-  const activeSections = formatSections.data?.[format];
+  const snapshotData = (version.data?.snapshot ?? null) as typeof report.data | null;
+  const viewing = viewingRunId ? version.data ?? null : null;
+  const displayFormat = (viewing?.format as ReportFormat | undefined) ?? format;
+  const displayData = viewingRunId ? snapshotData : report.data;
+
+  const liveSections = formatSections.data?.[format];
+  const activeSections =
+    viewing && viewing.sections.length > 0 ? viewing.sections : liveSections;
   const sections = useMemo(
     () =>
       activeSections && activeSections.length > 0
@@ -175,6 +204,7 @@ function ReportPreview() {
     }
     return map;
   }, [runs.data]);
+
 
 
   return (
@@ -258,15 +288,38 @@ function ReportPreview() {
 
         </div>
 
-        {rendererConfigured.data && (
-          <div className="grid gap-2 border-t px-6 py-3 md:grid-cols-4">
-            {REPORT_FORMATS.map((value) => {
-              const list = runsByFormat.get(value) ?? [];
-              const latest = list[0];
-              return (
-                <div key={value} className="rounded border bg-background p-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold">{FORMAT_SPECS[value].label}</span>
+        {viewingRunId && (
+          <div className="flex items-center gap-3 border-t bg-amber-50 px-6 py-2 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+            <Eye className="h-3.5 w-3.5" />
+            <span>
+              Viewing stored version {viewing ? `v${viewing.version}` : "…"}
+              {viewing ? ` · ${new Date(viewing.created_at).toLocaleString("en-US")}` : ""} — frozen
+              snapshot, not current data.
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-xs"
+              onClick={() => setViewingRunId(null)}
+            >
+              <X className="mr-1 h-3 w-3" />
+              Back to current
+            </Button>
+          </div>
+        )}
+
+        <div className="grid gap-2 border-t px-6 py-3 md:grid-cols-4">
+          {REPORT_FORMATS.map((value) => {
+            const list = runsByFormat.get(value) ?? [];
+            const latest = list[0];
+            return (
+              <div key={value} className="rounded border bg-background p-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold">
+                    {FORMAT_SPECS[value].label}
+                    {latest ? ` · v${latest.version}` : ""}
+                  </span>
+                  {rendererConfigured.data && (
                     <Button
                       size="sm"
                       variant="ghost"
@@ -274,37 +327,52 @@ function ReportPreview() {
                       onClick={() => generate.mutate(value)}
                       disabled={!report.data || generate.isPending}
                     >
-                      {latest ? "Regenerate" : "Generate"}
+                      {latest ? "New version" : "Generate"}
                     </Button>
-                  </div>
-                  {list.length === 0 ? (
-                    <p className="mt-1 text-xs text-muted-foreground">Not generated yet.</p>
-                  ) : (
-                    <ul className="mt-1 space-y-0.5">
-                      {list.map((run) => (
-                        <li key={run.id} className="flex items-center justify-between gap-2">
-                          <span className="truncate text-xs text-muted-foreground">
-                            {new Date(run.created_at).toLocaleString("en-US")}
-                            {run.page_count ? ` · ${run.page_count}p` : ""}
-                          </span>
+                  )}
+                </div>
+                {list.length === 0 ? (
+                  <p className="mt-1 text-xs text-muted-foreground">No versions yet.</p>
+                ) : (
+                  <ul className="mt-1 space-y-0.5">
+                    {list.map((run) => (
+                      <li key={run.id} className="flex items-center justify-between gap-1">
+                        <span className="truncate text-xs text-muted-foreground">
+                          v{run.version} · {new Date(run.created_at).toLocaleDateString("en-US")}
+                          {run.page_count ? ` · ${run.page_count}p` : ""}
+                        </span>
+                        <span className="flex shrink-0 items-center">
                           <Button
                             size="sm"
                             variant="ghost"
                             className="h-6 px-1"
-                            onClick={() => download.mutate(run.id)}
-                            disabled={download.isPending}
+                            title="View this stored version"
+                            onClick={() => setViewingRunId(run.id)}
                           >
-                            <Download className="h-3.5 w-3.5" />
+                            <Eye className="h-3.5 w-3.5" />
                           </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+                          {run.storage_path && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-1"
+                              title="Download the PDF"
+                              onClick={() => download.mutate(run.id)}
+                              disabled={download.isPending}
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
 
       </header>
 
@@ -337,20 +405,22 @@ function ReportPreview() {
         </nav>
 
         <main className="min-w-0 flex-1">
-          {report.isLoading ? (
+          {report.isLoading || version.isLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading published metrics…
             </div>
-          ) : report.error ? (
-            <p className="text-sm text-destructive">{(report.error as Error).message}</p>
-          ) : report.data ? (
+          ) : report.error || version.error ? (
+            <p className="text-sm text-destructive">
+              {((report.error ?? version.error) as Error).message}
+            </p>
+          ) : displayData ? (
             <div
               className="origin-top"
               style={{ zoom: "var(--rp-zoom, 0.82)" } as React.CSSProperties}
             >
               <ReportDocument
-                data={report.data}
-                format={format}
+                data={displayData}
+                format={displayFormat}
                 {...(activeSections ? { sections: activeSections } : {})}
               />
 
@@ -362,7 +432,8 @@ function ReportPreview() {
           )}
         </main>
 
-        {report.data && (
+        {displayData && !viewingRunId && (
+
           <Button
             size="lg"
             className="rp-no-print fixed bottom-6 right-6 z-30 shadow-lg"

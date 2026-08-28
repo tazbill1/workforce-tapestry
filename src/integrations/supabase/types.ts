@@ -1006,7 +1006,10 @@ export type Database = {
           note: string | null
           page_count: number | null
           period: string
+          sections: string[]
+          snapshot: Json | null
           storage_path: string | null
+          version: number
         }
         Insert: {
           byte_size?: number | null
@@ -1018,7 +1021,10 @@ export type Database = {
           note?: string | null
           page_count?: number | null
           period: string
+          sections?: string[]
+          snapshot?: Json | null
           storage_path?: string | null
+          version?: number
         }
         Update: {
           byte_size?: number | null
@@ -1030,7 +1036,10 @@ export type Database = {
           note?: string | null
           page_count?: number | null
           period?: string
+          sections?: string[]
+          snapshot?: Json | null
           storage_path?: string | null
+          version?: number
         }
         Relationships: [
           {
