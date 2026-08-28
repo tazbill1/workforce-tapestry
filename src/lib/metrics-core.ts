@@ -26,6 +26,16 @@ export type EngagementRow = {
 
 export type RecognitionRow = { department_raw: string; count: number };
 
+/** One imported recognition-activity row, already name-matched where possible. */
+export type ActivityRow = {
+  name_raw: string;
+  normalized_name: string;
+  matched_email: string | null;
+  posts: number | null;
+  comments: number | null;
+  likes: number | null;
+};
+
 export type MetricDefinition = {
   key: string;
   version: number;
