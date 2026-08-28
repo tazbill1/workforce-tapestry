@@ -63,7 +63,9 @@ function AuthPage() {
     event.preventDefault();
     const normalized = email.trim().toLowerCase();
     if (mode === "signup" && !normalized.endsWith(`@${ALLOWED_EMAIL_DOMAIN}`)) {
-      toast.error(`Accounts are limited to @${ALLOWED_EMAIL_DOMAIN} email addresses.`);
+      setDeniedMessage(`Only @${ALLOWED_EMAIL_DOMAIN} email addresses can sign up.`);
+      setDeniedEmail(normalized);
+      toast.error(`Only @${ALLOWED_EMAIL_DOMAIN} email addresses can sign up.`);
       return;
     }
     setBusy(true);
