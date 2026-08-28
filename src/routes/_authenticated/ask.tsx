@@ -119,7 +119,8 @@ function UsePanel({
   const saveFn = useServerFn(saveInsight);
   const actionFn = useServerFn(addActionPlanItem);
 
-  const [mode, setMode] = useState<"none" | "insight" | "action">("none");
+  const navigate = useNavigate();
+  const [mode, setMode] = useState<"none" | "insight" | "action" | "report">("none");
   const [clientId, setClientId] = useState<string>(clients[0]?.id ?? "");
   const [period, setPeriod] = useState<string>("");
   const [title, setTitle] = useState<string>(turn.question.slice(0, 90));
