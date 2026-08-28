@@ -266,6 +266,7 @@ export async function buildReport(supabase: Client, clientId: string, period: st
     priorPeriod,
     metrics: (metricsResult.data ?? []) as MetricRow[],
     actionPlan: planResult.data ?? [],
+    insights: (insightResult.data ?? []) as unknown as InsightBlock[],
     lists: {
       departures,
       invited,
