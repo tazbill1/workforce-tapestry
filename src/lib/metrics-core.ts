@@ -545,8 +545,91 @@ export type ComputeInput = {
   priorRows: PersonRow[];
   engagement: EngagementRow | null;
   recognitions: RecognitionRow[];
+  /** Per-person recognition activity for the period, already name-matched where possible. */
+  activity?: ActivityRow[];
   benchmarks?: BenchmarkRow[];
 };
+
+/**
+ * Person-level recognition activity. Participation is published per bucket so the report
+ * never divides; top contributors are published as ranked scopes with the name in value_text.
+ */
+function recognitionActivity(
+  activity: ActivityRow[],
+  company: Bucket,
+  franchises: Bucket[],
+  departments: Bucket[],
+  deptLabel: (row: PersonRow) => string,
+): ComputedMetric[] {
+  const out: ComputedMetric[] = [];
+  if (activity.length === 0) return out;
+
+  const total = (row: ActivityRow) => (row.posts ?? 0) + (row.comments ?? 0) + (row.likes ?? 0);
+  const matched = activity.filter((row) => row.matched_email);
+
+  // Roll up repeated rows for the same person (multi-part exports).
+  const perPerson = new Map<string, { total: number; name: string }>();
+  for (const row of matched) {
+    const email = row.matched_email!.toLowerCase();
+    const existing = perPerson.get(email);
+    const name = (row.name_raw || row.normalized_name || email).trim();
+    perPerson.set(email, {
+      total: (existing?.total ?? 0) + total(row),
+      name: existing?.name ?? name,
+    });
+  }
+
+  out.push({
+    metric_key: "recognition_activity_matched_pct",
+    definition_version: currentVersion("recognition_activity_matched_pct"),
+    scope: "company",
+    value_numeric: round((matched.length / activity.length) * 100, 1),
+  });
+
+  const bucketsToPublish = [company, ...franchises, ...departments];
+  for (const bucket of bucketsToPublish) {
+    const active = bucket.rows.filter((row) => (row.status ?? "").toLowerCase() === "active");
+    if (active.length === 0) continue;
+    const participants = active.filter((row) => {
+      const entry = perPerson.get(row.normalized_email.toLowerCase());
+      return entry !== undefined && entry.total > 0;
+    }).length;
+    out.push(
+      {
+        metric_key: "recognition_participants_count",
+        definition_version: currentVersion("recognition_participants_count"),
+        scope: bucket.scope,
+        value_numeric: participants,
+      },
+      {
+        metric_key: "recognition_participation_pct",
+        definition_version: currentVersion("recognition_participation_pct"),
+        scope: bucket.scope,
+        value_numeric: round((participants / active.length) * 100, 1),
+      },
+    );
+  }
+
+  // Top contributors: only people present on the resolved roster, so the report never
+  // names someone who was excluded or who left the roster.
+  const onRoster = new Map(company.rows.map((row) => [row.normalized_email.toLowerCase(), row]));
+  const ranked = [...perPerson.entries()]
+    .filter(([email, entry]) => entry.total > 0 && onRoster.has(email))
+    .sort((a, b) => b[1].total - a[1].total || a[1].name.localeCompare(b[1].name))
+    .slice(0, 10);
+  ranked.forEach(([email, entry], index) => {
+    const person = onRoster.get(email)!;
+    const where = person.franchise_label ?? deptLabel(person);
+    out.push({
+      metric_key: "top_contributor",
+      definition_version: currentVersion("top_contributor"),
+      scope: `rank:${index + 1}`,
+      value_numeric: entry.total,
+      value_text: where ? `${entry.name} — ${where}` : entry.name,
+    });
+  });
+  return out;
+}
 
 
 export function computeMetrics(input: ComputeInput): ComputedMetric[] {
