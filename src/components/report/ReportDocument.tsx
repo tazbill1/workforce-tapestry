@@ -1,4 +1,5 @@
 import { createContext, useContext, type CSSProperties, type ReactNode } from "react";
+import brandLogo from "@/assets/werkandme-logo.png.asset.json";
 import {
   BenchmarkBarChart,
   GroupedBarChart,
@@ -85,7 +86,10 @@ function Page({
   return (
     <section className="rp-page" id={`rp-${id}`} data-section={id}>
       {!cover ? (
-        <div className="rp-runhead">WerkandMe · Team Culture &amp; Tenure Report</div>
+        <div className="rp-runhead">
+          <img className="rp-runhead-logo" src={brandLogo.url} alt="WerkandMe" />
+          <span>Team Culture &amp; Tenure Report</span>
+        </div>
       ) : null}
       <div className="rp-body">{children}</div>
       {!cover ? (
