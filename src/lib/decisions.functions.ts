@@ -5,6 +5,7 @@ import {
   departmentEntries,
   exclusionCandidates,
   groupRoster,
+  matchesExclusionRule,
   mergeCandidates,
   roleCombos,
   validationGate,
