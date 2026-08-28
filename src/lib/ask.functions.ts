@@ -15,7 +15,7 @@ const turnSchema = z.object({
     .default([]),
 });
 
-export type AskStep = { tool: string; args: Record<string, unknown> } & ToolResult;
+export type AskStep = { tool: string; argsJson: string } & ToolResult;
 
 export type AskAnswer = {
   answer: string;
@@ -101,7 +101,7 @@ export const askQuestion = createServerFn({ method: "POST" })
         }
         try {
           const toolResult = await runAskTool(context.supabase, call.function.name, args);
-          steps.push({ tool: call.function.name, args, ...toolResult });
+          steps.push({ tool: call.function.name, argsJson: JSON.stringify(args), ...toolResult });
           messages.push({
             role: "tool",
             tool_call_id: call.id,
