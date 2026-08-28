@@ -42,8 +42,8 @@ export const listClientsAdmin = createServerFn({ method: "GET" })
     let emails: Record<string, string> = {};
     if (isAnalyst) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: users } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
-      emails = Object.fromEntries((users?.users ?? []).map((u) => [u.id, u.email ?? u.id]));
+      const users = await listAllUsers(supabaseAdmin);
+      emails = Object.fromEntries(users.map((u) => [u.id, u.email ?? u.id]));
     }
 
     return {
