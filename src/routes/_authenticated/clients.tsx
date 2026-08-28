@@ -157,7 +157,6 @@ function ClientsScreen() {
         </CardHeader>
         <CardContent className="space-y-6">
           {(data?.clients ?? []).map((client) => {
-            const grants = (data?.grants ?? []).filter((g) => g.client_id === client.id);
             return (
               <div key={client.id} className="space-y-3 rounded-lg border p-4">
                 <div className="flex flex-wrap items-center gap-2">
