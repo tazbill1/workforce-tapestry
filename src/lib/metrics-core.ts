@@ -655,6 +655,9 @@ export function computeMetrics(input: ComputeInput): ComputedMetric[] {
     out.push(...mood(bucket));
     out.push(...participation(bucket));
   }
+  out.push(
+    ...recognitionActivity(input.activity ?? [], company, franchises, departments, deptLabel),
+  );
 
   // Departures: prior Active -> current Inactive, matched on normalized_email only.
   const priorActive = new Set(
