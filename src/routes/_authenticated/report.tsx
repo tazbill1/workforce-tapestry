@@ -120,8 +120,19 @@ function ReportPreview() {
   const runs = useQuery({
     queryKey: ["report-runs", clientId, period],
     queryFn: () => runsFn({ data: { clientId, period } }),
-    enabled: Boolean(clientId && period) && Boolean(rendererConfigured.data),
+    enabled: Boolean(clientId && period),
   });
+
+  // Reopening a stored version renders its frozen snapshot, not today's recomputed numbers.
+  const version = useQuery({
+    queryKey: ["report-version", viewingRunId],
+    queryFn: () => versionFn({ data: { runId: viewingRunId as string } }),
+    enabled: Boolean(viewingRunId),
+  });
+
+  useEffect(() => {
+    setViewingRunId(null);
+  }, [clientId, period]);
 
 
   const generate = useMutation({
@@ -129,7 +140,7 @@ function ReportPreview() {
       generateFn({ data: { clientId, period, format: target } }),
     onSuccess: (result) => {
       toast.success(
-        `Rendered ${result.pageCount ?? "?"} pages · ${(result.byteSize / 1024).toFixed(0)} KB`,
+        `Saved v${result.version} · ${result.pageCount ?? "?"} pages · ${(result.byteSize / 1024).toFixed(0)} KB`,
       );
       void queryClient.invalidateQueries({ queryKey: ["report-runs", clientId, period] });
     },
@@ -153,8 +164,12 @@ function ReportPreview() {
         void queryClient.invalidateQueries({ queryKey: ["report-runs", clientId, period] });
         const { url } = await downloadFn({ data: { runId: result.runId } });
         window.open(url, "_blank", "noopener");
-        toast.success(`PDF ready · ${(result.byteSize / 1024).toFixed(0)} KB`);
+        toast.success(`v${result.version} ready · ${(result.byteSize / 1024).toFixed(0)} KB`);
       } else {
+        // No server renderer: still record the version so the printed numbers are retained.
+        const result = await snapshotFn({ data: { clientId, period, format } });
+        void queryClient.invalidateQueries({ queryKey: ["report-runs", clientId, period] });
+        toast.success(`Snapshot saved as v${result.version}`);
         window.print();
       }
     } catch (error) {
@@ -164,7 +179,14 @@ function ReportPreview() {
     }
   };
 
-  const activeSections = formatSections.data?.[format];
+  const snapshotData = (version.data?.snapshot ?? null) as typeof report.data | null;
+  const viewing = viewingRunId ? version.data ?? null : null;
+  const displayFormat = (viewing?.format as ReportFormat | undefined) ?? format;
+  const displayData = viewingRunId ? snapshotData : report.data;
+
+  const liveSections = formatSections.data?.[format];
+  const activeSections =
+    viewing && viewing.sections.length > 0 ? viewing.sections : liveSections;
   const sections = useMemo(
     () =>
       activeSections && activeSections.length > 0
@@ -182,6 +204,7 @@ function ReportPreview() {
     }
     return map;
   }, [runs.data]);
+
 
 
   return (
