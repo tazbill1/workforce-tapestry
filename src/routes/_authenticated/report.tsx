@@ -135,6 +135,28 @@ function ReportPreview() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const [exporting, setExporting] = useState(false);
+
+  const exportPdf = async () => {
+    if (!report.data || exporting) return;
+    setExporting(true);
+    try {
+      if (rendererConfigured.data) {
+        const result = await generateFn({ data: { clientId, period, format } });
+        void queryClient.invalidateQueries({ queryKey: ["report-runs", clientId, period] });
+        const { url } = await downloadFn({ data: { runId: result.runId } });
+        window.open(url, "_blank", "noopener");
+        toast.success(`PDF ready · ${(result.byteSize / 1024).toFixed(0)} KB`);
+      } else {
+        window.print();
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const activeSections = formatSections.data?.[format];
   const sections = useMemo(
     () =>
