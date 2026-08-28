@@ -2,6 +2,20 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
+/** Supabase caps listUsers at one page, so walk every page before deciding a user is missing. */
+async function listAllUsers(admin: {
+  auth: { admin: { listUsers: (p: { page: number; perPage: number }) => Promise<any> } };
+}) {
+  const all: Array<{ id: string; email?: string | null }> = [];
+  for (let page = 1; page <= 20; page++) {
+    const { data } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    const batch = data?.users ?? [];
+    all.push(...batch);
+    if (batch.length < 1000) break;
+  }
+  return all;
+}
+
 async function assertAnalyst(context: { supabase: any; userId: string }) {
   const { data, error } = await context.supabase.rpc("is_analyst", { _user_id: context.userId });
   if (error) throw new Error(error.message);
