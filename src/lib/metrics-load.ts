@@ -3,6 +3,7 @@ import type { Database } from "@/integrations/supabase/types";
 import {
   METRIC_DEFINITIONS,
   type ComputedMetric,
+  type ActivityRow,
   type EngagementRow,
   type PersonRow,
   type RecognitionRow,
@@ -67,6 +68,29 @@ export async function loadManualInputs(
   };
 }
 
+/** Per-person recognition activity for the period; unmatched rows come back too, so the
+ * match-rate metric can be published. */
+export async function loadRecognitionActivity(
+  supabase: Client,
+  clientId: string,
+  period: string,
+): Promise<ActivityRow[]> {
+  const rows: ActivityRow[] = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("recognition_activity")
+      .select("name_raw, normalized_name, matched_email, posts, comments, likes")
+      .eq("client_id", clientId)
+      .eq("period", period)
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(error.message);
+    rows.push(...((data ?? []) as unknown as ActivityRow[]));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows;
+}
+
 /** Definitions are reference data; make sure every one the compute step needs exists. */
 export async function ensureDefinitions(supabase: Client): Promise<number> {
   const { error } = await supabase
@@ -123,6 +147,7 @@ export async function persistMetrics(
     definition_version: metric.definition_version,
     scope: metric.scope,
     value_numeric: metric.value_numeric,
+    value_text: metric.value_text ?? null,
     computed_at: new Date().toISOString(),
   }));
   for (let i = 0; i < payload.length; i += 200) {
