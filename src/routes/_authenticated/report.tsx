@@ -71,8 +71,8 @@ function ReportPreview() {
   const rendererConfiguredFn = useServerFn(isRendererConfigured);
 
 
-  const [clientId, setClientId] = useState<string>("");
-  const [period, setPeriod] = useState<string>("");
+  const [clientId, setClientId] = useState<string>(search.client ?? "");
+  const [period, setPeriod] = useState<string>(search.period ?? "");
   const [format, setFormat] = useState<ReportFormat>("landscape");
   const [activeSection, setActiveSection] = useState<string>("cover");
 
