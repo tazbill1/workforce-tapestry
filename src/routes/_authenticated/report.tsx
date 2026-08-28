@@ -52,8 +52,8 @@ export const Route = createFileRoute("/_authenticated/report")({
     ],
   }),
   validateSearch: (search: Record<string, unknown>) => ({
-    client: typeof search.client === "string" ? search.client : undefined,
-    period: typeof search.period === "string" ? search.period : undefined,
+    client: typeof search["client"] === "string" ? (search["client"] as string) : undefined,
+    period: typeof search["period"] === "string" ? (search["period"] as string) : undefined,
   }),
   component: ReportPreview,
 });
