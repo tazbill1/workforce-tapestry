@@ -74,6 +74,10 @@ function ReportPreview() {
   const versionFn = useServerFn(getReportVersion);
   const downloadFn = useServerFn(getReportDownloadUrl);
   const rendererConfiguredFn = useServerFn(isRendererConfigured);
+  const sharesFn = useServerFn(listReportShares);
+  const createShareFn = useServerFn(createReportShare);
+  const revokeShareFn = useServerFn(revokeReportShare);
+
 
 
   const [clientId, setClientId] = useState<string>(search.client ?? "");
