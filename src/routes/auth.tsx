@@ -41,13 +41,18 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [busy, setBusy] = useState(false);
+  const [deniedMessage, setDeniedMessage] = useState<string | null>(null);
+  const [deniedEmail, setDeniedEmail] = useState<string | null>(null);
 
   useEffect(() => {
     const denied = sessionStorage.getItem("auth_denied");
+    const deniedEmailStored = sessionStorage.getItem("auth_denied_email");
     if (denied) {
       sessionStorage.removeItem("auth_denied");
+      sessionStorage.removeItem("auth_denied_email");
+      setDeniedMessage(denied);
+      setDeniedEmail(deniedEmailStored);
       toast.error(denied);
-      return;
     }
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/imports" });
