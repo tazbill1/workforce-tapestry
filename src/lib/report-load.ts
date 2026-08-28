@@ -106,7 +106,7 @@ export async function buildReport(supabase: Client, clientId: string, period: st
   const priorPeriod = priorPeriodOf(period);
   const end = periodEnd(period);
 
-  const [clientResult, metricsResult, planResult, people, priorPeople] = await Promise.all([
+  const [clientResult, metricsResult, planResult, insightResult, people, priorPeople] = await Promise.all([
     supabase.from("clients").select("id, name, code").eq("id", clientId).maybeSingle(),
     supabase
       .from("published_metrics")
