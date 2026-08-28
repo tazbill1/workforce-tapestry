@@ -257,7 +257,6 @@ export type CandidateRow = {
   department_raw: string | null;
   status: string | null;
   hire_date: string | null;
-  employee_id_raw: string | null;
 };
 
 export type MergeCandidate = {
