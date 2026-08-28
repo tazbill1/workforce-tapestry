@@ -100,8 +100,8 @@ function ClientsScreen() {
           Clients
         </h1>
         <p className="text-sm text-muted-foreground">
-          Add a client, then grant users access. Analysts see every client automatically; coaches and
-          viewers only see the clients granted here.
+          Add a client and upload its logo for reports. Every signed-in user can see every client —
+          see the Users screen for who has an account.
         </p>
       </header>
 
