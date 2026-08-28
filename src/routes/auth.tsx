@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
+import { ShieldAlert } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -39,13 +41,18 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [busy, setBusy] = useState(false);
+  const [deniedMessage, setDeniedMessage] = useState<string | null>(null);
+  const [deniedEmail, setDeniedEmail] = useState<string | null>(null);
 
   useEffect(() => {
     const denied = sessionStorage.getItem("auth_denied");
+    const deniedEmailStored = sessionStorage.getItem("auth_denied_email");
     if (denied) {
       sessionStorage.removeItem("auth_denied");
+      sessionStorage.removeItem("auth_denied_email");
+      setDeniedMessage(denied);
+      setDeniedEmail(deniedEmailStored);
       toast.error(denied);
-      return;
     }
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/imports" });
@@ -56,7 +63,9 @@ function AuthPage() {
     event.preventDefault();
     const normalized = email.trim().toLowerCase();
     if (mode === "signup" && !normalized.endsWith(`@${ALLOWED_EMAIL_DOMAIN}`)) {
-      toast.error(`Accounts are limited to @${ALLOWED_EMAIL_DOMAIN} email addresses.`);
+      setDeniedMessage(`Only @${ALLOWED_EMAIL_DOMAIN} email addresses can sign up.`);
+      setDeniedEmail(normalized);
+      toast.error(`Only @${ALLOWED_EMAIL_DOMAIN} email addresses can sign up.`);
       return;
     }
     setBusy(true);
@@ -107,7 +116,25 @@ function AuthPage() {
             account with your work email.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {deniedMessage && (
+            <Alert variant="destructive">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertTitle>Access blocked</AlertTitle>
+              <AlertDescription className="space-y-1">
+                <p>{deniedMessage}</p>
+                {deniedEmail && (
+                  <p className="text-xs opacity-90">
+                    You tried: <span className="font-medium">{deniedEmail}</span>
+                  </p>
+                )}
+                <p className="text-xs opacity-90">
+                  Please sign in with your <span className="font-medium">@{ALLOWED_EMAIL_DOMAIN}</span>{" "}
+                  work email, or ask an admin to invite you.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Work email</Label>
