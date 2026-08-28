@@ -405,20 +405,22 @@ function ReportPreview() {
         </nav>
 
         <main className="min-w-0 flex-1">
-          {report.isLoading ? (
+          {report.isLoading || version.isLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading published metrics…
             </div>
-          ) : report.error ? (
-            <p className="text-sm text-destructive">{(report.error as Error).message}</p>
-          ) : report.data ? (
+          ) : report.error || version.error ? (
+            <p className="text-sm text-destructive">
+              {((report.error ?? version.error) as Error).message}
+            </p>
+          ) : displayData ? (
             <div
               className="origin-top"
               style={{ zoom: "var(--rp-zoom, 0.82)" } as React.CSSProperties}
             >
               <ReportDocument
-                data={report.data}
-                format={format}
+                data={displayData}
+                format={displayFormat}
                 {...(activeSections ? { sections: activeSections } : {})}
               />
 
@@ -430,7 +432,8 @@ function ReportPreview() {
           )}
         </main>
 
-        {report.data && (
+        {displayData && !viewingRunId && (
+
           <Button
             size="lg"
             className="rp-no-print fixed bottom-6 right-6 z-30 shadow-lg"
