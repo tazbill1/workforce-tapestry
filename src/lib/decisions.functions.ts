@@ -5,6 +5,7 @@ import {
   departmentEntries,
   exclusionCandidates,
   groupRoster,
+  matchesExclusionRule,
   mergeCandidates,
   roleCombos,
   validationGate,
@@ -115,7 +116,62 @@ export const getDecisionsReview = createServerFn({ method: "POST" })
     };
   });
 
+/** Dry run: who would these match rules remove, and who is already excluded today. */
+export const previewExclusion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { clientId: string; period: string; matchType: string; values: string[] }) =>
+    scope
+      .extend({
+        matchType: z.enum(["email", "name", "employee_id", "email_domain", "keyword"]),
+        values: z.array(z.string().min(1)).min(1).max(50),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const [{ rosterRows }, state] = await Promise.all([
+      loadRosterUnion(context.supabase, data.clientId, data.period),
+      loadDecisionState(context.supabase, data.clientId, data.period),
+    ]);
+    const people = groupRoster(rosterRows);
+    const active = (state.exclusions as ActiveExclusion[]).filter((item) => item.active);
+
+    const matchedEmails = new Set<string>();
+    const groups = data.values.map((value) => {
+      const matches = people.filter((person) => matchesExclusionRule(person, data.matchType, value));
+      for (const person of matches) matchedEmails.add(person.normalized_email);
+      return {
+        value,
+        people: matches.map((person) => ({
+          normalized_email: person.normalized_email,
+          name: person.name,
+          title_raw: person.title_raw,
+          department_raw: person.department_raw,
+          statuses: person.statuses,
+          recordCount: person.rows.length,
+          alreadyExcluded: active.some((item) =>
+            matchesExclusionRule(person, item.match_type, item.match_value),
+          ),
+        })),
+      };
+    });
+
+    return {
+      peopleCount: people.length,
+      groups,
+      totalPeople: matchedEmails.size,
+      totalRecords: groups.reduce(
+        (sum, group) => sum + group.people.reduce((inner, person) => inner + person.recordCount, 0),
+        0,
+      ),
+      newlyExcluded: [...matchedEmails].filter((email) => {
+        const person = people.find((item) => item.normalized_email === email)!;
+        return !active.some((item) => matchesExclusionRule(person, item.match_type, item.match_value));
+      }).length,
+    };
+  });
+
 export const dismissCandidate = createServerFn({ method: "POST" })
+
   .middleware([requireSupabaseAuth])
   .inputValidator(
     (input: { clientId: string; period: string; kind: string; key: string; note?: string }) =>
