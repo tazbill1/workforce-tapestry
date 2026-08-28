@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect, Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { ensureDomainAccess } from "@/lib/access.functions";
-import { FileSpreadsheet, GitMerge, BarChart3, FileText, LogOut, Building2, Sparkles, Users } from "lucide-react";
+import { LayoutDashboard, FileSpreadsheet, GitMerge, BarChart3, FileText, LogOut, Building2, Sparkles, Users } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -29,6 +29,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 const navItems = [
+  { to: "/home", label: "Home", icon: LayoutDashboard },
   { to: "/imports", label: "Imports", icon: FileSpreadsheet },
   { to: "/assembly", label: "Assembly", icon: GitMerge },
   { to: "/decisions", label: "Decisions", icon: GitMerge },
