@@ -25,7 +25,9 @@ import {
   listClientsAdmin,
   revokeClientAccess,
   setClientActive,
+  setClientLogo,
 } from "@/lib/clients.functions";
+import { LOGO_MAX_H, LOGO_MAX_W, resizeLogo } from "@/lib/logo-resize";
 
 export const Route = createFileRoute("/_authenticated/clients")({
   head: () => ({
