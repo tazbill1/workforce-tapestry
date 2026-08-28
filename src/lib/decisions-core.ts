@@ -266,7 +266,6 @@ export type MergeCandidate = {
     | "same_email_conflicting_status"
     | "identical_rows"
     | "similar_name"
-    | "shared_employee_id"
     | "shared_mailbox";
   detail: string;
   members: Array<{
@@ -276,7 +275,6 @@ export type MergeCandidate = {
     title_raw: string | null;
     department_raw: string | null;
     hire_date: string | null;
-    employee_id_raw?: string | null;
   }>;
   /** Present for same-email candidates: the individual roster rows behind the mailbox. */
   rows?: CandidateRow[];
@@ -284,8 +282,6 @@ export type MergeCandidate = {
   sharedEmail?: string;
   /** How many distinct people names sit on that mailbox. More than one means split, not merge. */
   distinctNames?: number;
-  /** How many distinct non-placeholder employee IDs sit on it. */
-  distinctEmployeeIds?: number;
 };
 
 const NAME_SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv", "v"]);
@@ -344,15 +340,9 @@ export function mergeCandidates(
       department_raw: row.department_raw,
       status: canonicalStatus(row.status_raw).label,
       hire_date: row.hire_date,
-      employee_id_raw: row.employee_id_raw,
     }));
     const names = new Set(
       rows.map((row) => nameKey(row.name)).filter((value): value is string => Boolean(value)),
-    );
-    const employeeIds = new Set(
-      rows
-        .map((row) => norm(row.employee_id_raw))
-        .filter((value): value is string => Boolean(value) && !PLACEHOLDER_IDS.has(value!)),
     );
     const sharedMailbox = names.size > 1;
 
