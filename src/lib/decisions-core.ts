@@ -288,11 +288,23 @@ export type MergeCandidate = {
   distinctEmployeeIds?: number;
 };
 
+const NAME_SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv", "v"]);
+
+/**
+ * Identity key for a person's name: first + last only, order-insensitive so
+ * "Smith, John" and "John Smith" collapse. Middle names, initials and suffixes
+ * are dropped. Single-token names never key — one word is not evidence.
+ */
 function nameKey(name: string | null): string | null {
-  const value = (name ?? "").toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
-  if (!value) return null;
-  return value.split(" ").sort().join(" ");
+  const tokens = (name ?? "")
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, " ")
+    .split(/\s+/)
+    .filter((token) => token.length > 1 && !NAME_SUFFIXES.has(token));
+  if (tokens.length < 2) return null;
+  return [tokens[0]!, tokens[tokens.length - 1]!].sort().join(" ");
 }
+
 
 /**
  * Identity is email. Nothing else groups or merges people automatically.
