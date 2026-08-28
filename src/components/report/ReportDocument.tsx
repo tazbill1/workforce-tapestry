@@ -200,6 +200,8 @@ export function ReportDocument({
 
   const m = buildMetricBook(data.metrics, data.period, data.priorPeriod);
   const clientName = data.client.name;
+  // Optional per-client mark, already scaled to report size at upload time.
+  const clientLogo = (data.client as { logo_url?: string | null }).logo_url ?? null;
   const period = periodLabel(data.period);
   const prior = periodShort(data.priorPeriod);
   const now = periodShort(data.period);
@@ -242,7 +244,11 @@ export function ReportDocument({
         <div className="rp-logos">
           <img className="rp-logo-img" src={brandLogo.url} alt="WerkandMe" />
           <span className="rp-logo-sep" />
-          <span className="rp-logo">{clientName}</span>
+          {clientLogo ? (
+            <img className="rp-logo-img rp-client-logo" src={clientLogo} alt={clientName} />
+          ) : (
+            <span className="rp-logo">{clientName}</span>
+          )}
         </div>
         <p className="rp-eyebrow">Monthly culture report</p>
         <h1 className="rp-title">

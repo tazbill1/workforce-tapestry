@@ -501,3 +501,10 @@
   width: auto;
   display: block;
 }
+
+/* Client-supplied mark on the cover: uploads are pre-scaled, this caps the printed box. */
+.rp-client-logo {
+  max-height: 30pt;
+  max-width: 2.4in;
+  object-fit: contain;
+}
