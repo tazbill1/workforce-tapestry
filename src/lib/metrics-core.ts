@@ -379,6 +379,7 @@ export type ComputedMetric = {
   definition_version: number;
   scope: string;
   value_numeric: number | null;
+  value_text?: string | null;
 };
 
 const num = (value: number | string | null | undefined): number | null => {
