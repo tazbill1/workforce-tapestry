@@ -51,10 +51,15 @@ export const Route = createFileRoute("/_authenticated/report")({
       { name: "robots", content: "noindex" },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    client: typeof search["client"] === "string" ? (search["client"] as string) : undefined,
+    period: typeof search["period"] === "string" ? (search["period"] as string) : undefined,
+  }),
   component: ReportPreview,
 });
 
 function ReportPreview() {
+  const search = Route.useSearch();
   const queryClient = useQueryClient();
   const clientsFn = useServerFn(listMyClients);
   const periodsFn = useServerFn(listMetricPeriods);
@@ -66,8 +71,8 @@ function ReportPreview() {
   const rendererConfiguredFn = useServerFn(isRendererConfigured);
 
 
-  const [clientId, setClientId] = useState<string>("");
-  const [period, setPeriod] = useState<string>("");
+  const [clientId, setClientId] = useState<string>(search.client ?? "");
+  const [period, setPeriod] = useState<string>(search.period ?? "");
   const [format, setFormat] = useState<ReportFormat>("landscape");
   const [activeSection, setActiveSection] = useState<string>("cover");
 

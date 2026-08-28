@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { Loader2, Send, Sparkles, Table2, Trash2 } from "lucide-react";
+import { FileText, Loader2, Send, Sparkles, Table2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -119,7 +119,8 @@ function UsePanel({
   const saveFn = useServerFn(saveInsight);
   const actionFn = useServerFn(addActionPlanItem);
 
-  const [mode, setMode] = useState<"none" | "insight" | "action">("none");
+  const navigate = useNavigate();
+  const [mode, setMode] = useState<"none" | "insight" | "action" | "report">("none");
   const [clientId, setClientId] = useState<string>(clients[0]?.id ?? "");
   const [period, setPeriod] = useState<string>("");
   const [title, setTitle] = useState<string>(turn.question.slice(0, 90));
@@ -176,6 +177,35 @@ function UsePanel({
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const buildReport = useMutation({
+    mutationFn: async () => {
+      if (!clientId || !effectivePeriod) throw new Error("Pick a client and period first");
+      const step = attachStep === "none" ? null : turn.answer.steps[Number(attachStep)];
+      await saveFn({
+        data: {
+          title,
+          question: turn.question,
+          answerMd: turn.answer.answer,
+          clientId,
+          period: effectivePeriod,
+          includeInReport: true,
+          table: step ? { columns: step.columns, rows: step.rows.slice(0, 40) } : null,
+          sources: [...new Set(turn.answer.steps.map((entry) => entry.tool))],
+        },
+      });
+      return { clientId, period: effectivePeriod };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["insights"] });
+      toast.success("Insight pinned — opening the report");
+      navigate({
+        to: "/report",
+        search: { client: result.clientId, period: result.period },
+      });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   if (mode === "none") {
     return (
       <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -185,6 +215,10 @@ function UsePanel({
         </Button>
         <Button size="sm" variant="outline" onClick={() => setMode("action")}>
           Add to action plan
+        </Button>
+        <Button size="sm" onClick={() => setMode("report")}>
+          <FileText className="mr-1 h-3.5 w-3.5" />
+          Generate report
         </Button>
       </div>
     );
@@ -225,7 +259,53 @@ function UsePanel({
         </div>
       </div>
 
-      {mode === "insight" ? (
+      {mode === "report" ? (
+        <>
+          <div className="space-y-1">
+            <Label className="text-xs">Insight title on the report page</Label>
+            <Input value={title} onChange={(event) => setTitle(event.target.value)} />
+          </div>
+          {turn.answer.steps.length > 0 ? (
+            <div className="space-y-1">
+              <Label className="text-xs">Attach a result table</Label>
+              <Select value={attachStep} onValueChange={setAttachStep}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No table</SelectItem>
+                  {turn.answer.steps.map((step, index) => (
+                    <SelectItem key={index} value={String(index)}>
+                      {step.tool} — {step.summary}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+          <p className="text-xs text-muted-foreground">
+            This pins the answer to {effectivePeriod || "the selected period"} and opens the report
+            preview, where you can page through it and save it as a PDF.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={() => buildReport.mutate()}
+              disabled={buildReport.isPending || !clientId || !effectivePeriod}
+            >
+              {buildReport.isPending ? (
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <FileText className="mr-1 h-3.5 w-3.5" />
+              )}
+              Build report
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setMode("none")}>
+              Cancel
+            </Button>
+          </div>
+        </>
+      ) : mode === "insight" ? (
         <>
           <div className="space-y-1">
             <Label className="text-xs">Title</Label>
