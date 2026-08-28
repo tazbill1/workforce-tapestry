@@ -36,6 +36,7 @@ const navItems = [
   { to: "/report", label: "Report", icon: FileText },
   { to: "/ask", label: "Ask", icon: Sparkles },
   { to: "/clients", label: "Clients", icon: Building2 },
+  { to: "/users", label: "Users", icon: Users },
 ];
 
 
