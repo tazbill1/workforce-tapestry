@@ -2,6 +2,20 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
+/** Supabase caps listUsers at one page, so walk every page before deciding a user is missing. */
+async function listAllUsers(admin: {
+  auth: { admin: { listUsers: (p: { page: number; perPage: number }) => Promise<any> } };
+}) {
+  const all: Array<{ id: string; email?: string | null }> = [];
+  for (let page = 1; page <= 20; page++) {
+    const { data } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    const batch = data?.users ?? [];
+    all.push(...batch);
+    if (batch.length < 1000) break;
+  }
+  return all;
+}
+
 async function assertAnalyst(context: { supabase: any; userId: string }) {
   const { data, error } = await context.supabase.rpc("is_analyst", { _user_id: context.userId });
   if (error) throw new Error(error.message);
@@ -28,8 +42,8 @@ export const listClientsAdmin = createServerFn({ method: "GET" })
     let emails: Record<string, string> = {};
     if (isAnalyst) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: users } = await supabaseAdmin.auth.admin.listUsers({ perPage: 200 });
-      emails = Object.fromEntries((users?.users ?? []).map((u) => [u.id, u.email ?? u.id]));
+      const users = await listAllUsers(supabaseAdmin);
+      emails = Object.fromEntries(users.map((u) => [u.id, u.email ?? u.id]));
     }
 
     return {
@@ -89,18 +103,27 @@ export const grantClientAccess = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAnalyst(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: users, error: userError } = await supabaseAdmin.auth.admin.listUsers({
-      perPage: 200,
-    });
-    if (userError) throw new Error(userError.message);
-    const target = (users?.users ?? []).find(
-      (u) => (u.email ?? "").toLowerCase() === data.email.toLowerCase(),
-    );
-    if (!target) throw new Error(`No account found for ${data.email}. They must sign in once first.`);
+    const email = data.email.toLowerCase();
+    const users = await listAllUsers(supabaseAdmin);
+    let targetId = users.find((u) => (u.email ?? "").toLowerCase() === email)?.id;
+
+    // Pre-provision the account so access can be granted before their first sign-in.
+    if (!targetId) {
+      const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        email_confirm: true,
+      });
+      if (createError || !created?.user) {
+        throw new Error(
+          createError?.message ?? `Could not create an account for ${data.email}.`,
+        );
+      }
+      targetId = created.user.id;
+    }
 
     const { error } = await context.supabase
       .from("user_clients")
-      .insert({ user_id: target.id, client_id: data.clientId });
+      .insert({ user_id: targetId, client_id: data.clientId });
     if (error && !error.message.includes("duplicate")) throw new Error(error.message);
     return { ok: true };
   });
