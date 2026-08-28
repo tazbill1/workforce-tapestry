@@ -102,18 +102,19 @@ function AuthPage() {
         <CardHeader>
           <CardTitle>Client Reporting Console</CardTitle>
           <CardDescription>
-            Internal access only. Accounts are created by invitation — there is no self-service
-            signup.
+            Internal access for the @{ALLOWED_EMAIL_DOMAIN} team. Sign in with Google or create an
+            account with your work email.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={signIn} className="space-y-4">
+          <form onSubmit={submit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Work email</Label>
               <Input
                 id="email"
                 type="email"
                 autoComplete="email"
+                placeholder={`you@${ALLOWED_EMAIL_DOMAIN}`}
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -124,16 +125,32 @@ function AuthPage() {
               <Input
                 id="password"
                 type="password"
-                autoComplete="current-password"
+                autoComplete={mode === "signin" ? "current-password" : "new-password"}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
             <Button type="submit" className="w-full" disabled={busy}>
-              {busy ? "Signing in…" : "Sign in"}
+              {busy
+                ? mode === "signin"
+                  ? "Signing in…"
+                  : "Creating account…"
+                : mode === "signin"
+                  ? "Sign in"
+                  : "Create account"}
             </Button>
           </form>
+          <button
+            type="button"
+            className="mt-3 w-full text-xs text-muted-foreground underline-offset-2 hover:underline"
+            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+          >
+            {mode === "signin"
+              ? `New here? Create an account with your @${ALLOWED_EMAIL_DOMAIN} email`
+              : "Already have an account? Sign in"}
+          </button>
+
           <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
             <span className="h-px flex-1 bg-border" />
             or
