@@ -3,9 +3,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
+  CheckCircle2,
   Download,
   Eye,
   FileText,
+  Info,
   Link2,
   Link2Off,
   Loader2,
@@ -30,6 +33,7 @@ import {
 import { listMyClients } from "@/lib/imports.functions";
 import { listMetricPeriods } from "@/lib/metrics.functions";
 import {
+  checkReport,
   createReportShare,
   generateReport,
   getFormatSections,
