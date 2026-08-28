@@ -36,13 +36,55 @@ export const listReportRuns = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: runs, error } = await context.supabase
       .from("report_runs")
-      .select("id, format, storage_path, created_at, created_by, byte_size, page_count")
+      .select(
+        "id, version, format, storage_path, created_at, created_by, byte_size, page_count, note",
+      )
       .eq("client_id", data.clientId)
       .eq("period", data.period)
-      .order("created_at", { ascending: false });
+      .order("version", { ascending: false });
     if (error) throw new Error(error.message);
     return runs ?? [];
   });
+
+/** Frozen copy of a prior version: the numbers exactly as they were when that report went out. */
+export const getReportVersion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { runId: string }) =>
+    z.object({ runId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: run, error } = await context.supabase
+      .from("report_runs")
+      .select("id, version, format, sections, snapshot, created_at, note, storage_path")
+      .eq("id", data.runId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!run) throw new Error("Report version not found");
+    if (!run.snapshot) throw new Error("This version predates snapshots and cannot be reopened");
+    return run;
+  });
+
+export const snapshotReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { clientId: string; period: string; format: string }) =>
+    z
+      .object({
+        clientId: z.string().uuid(),
+        period: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        format: z.enum(REPORT_FORMATS),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { snapshotReportRun } = await import("./report-pdf.server");
+    return snapshotReportRun(context.supabase, {
+      clientId: data.clientId,
+      period: data.period,
+      format: data.format,
+      userId: context.userId,
+    });
+  });
+
 
 export const getFormatSections = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
