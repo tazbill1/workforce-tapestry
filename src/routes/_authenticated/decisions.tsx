@@ -818,6 +818,59 @@ function BulkExcludeCard({
   const currentKey = `${matchType}|${values.join(",")}`;
   const previewStale = preview !== null && previewKey !== currentKey;
 
+  const previewRef = useRef(onPreview);
+  previewRef.current = onPreview;
+
+  // Auto-preview as soon as the values settle, so confirming never waits on a
+  // separate click. Manual preview stays available for a forced refresh.
+  useEffect(() => {
+    if (values.length === 0) {
+      setPreview(null);
+      setPreviewKey("");
+      return;
+    }
+    if (previewKey === currentKey) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setPreviewing(true);
+      try {
+        const result = await previewRef.current(matchType, values);
+        if (cancelled) return;
+        setPreview(result);
+        setPreviewKey(currentKey);
+      } catch (error) {
+        if (!cancelled) toast.error((error as Error).message);
+      } finally {
+        if (!cancelled) setPreviewing(false);
+      }
+    }, 600);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentKey]);
+
+  const blockedReason =
+    values.length === 0
+      ? "Paste at least one value."
+      : reason.trim().length < 3
+        ? "Add a reason (three characters or more)."
+        : previewing || preview === null || previewStale
+          ? "Checking matches…"
+          : preview.newlyExcluded === 0
+            ? preview.totalPeople === 0
+              ? "Nothing in this period matches — check spelling or match type. You can still record the rule."
+              : "Everyone matched is already excluded — you can still record the rule."
+            : null;
+  const hardBlocked =
+    values.length === 0 ||
+    reason.trim().length < 3 ||
+    previewing ||
+    preview === null ||
+    previewStale;
+
+
 
   return (
     <Card>
