@@ -136,29 +136,37 @@ export function groupRoster(rosterRows: RosterRow[]): Person[] {
     .sort((a, b) => a.normalized_email.localeCompare(b.normalized_email));
 }
 
-function matchesActiveExclusion(person: Person, exclusions: ActiveExclusion[]): boolean {
+/** Does one match rule (type + raw value) hit this person? */
+export function matchesExclusionRule(
+  person: Person,
+  matchType: string,
+  matchValue: string,
+): boolean {
   const email = person.normalized_email;
   const domain = email.split("@")[1] ?? "";
-  return exclusions.some((item) => {
-    const value = item.match_value.trim().toLowerCase();
-    switch (item.match_type) {
-      case "email":
-        return email === value;
-      case "email_domain":
-        return domain === value.replace(/^@/, "");
-      case "name":
-        return norm(person.name) === value;
-      case "employee_id":
-        return norm(person.employee_id_raw) === value;
-      case "keyword":
-        return [person.name, email, person.title_raw, person.department_raw]
-          .filter(Boolean)
-          .some((field) => String(field).toLowerCase().includes(value));
-      default:
-        return false;
-    }
-  });
+  const value = matchValue.trim().toLowerCase();
+  switch (matchType) {
+    case "email":
+      return email === value;
+    case "email_domain":
+      return domain === value.replace(/^@/, "");
+    case "name":
+      return norm(person.name) === value;
+    case "employee_id":
+      return norm(person.employee_id_raw) === value;
+    case "keyword":
+      return [person.name, email, person.title_raw, person.department_raw]
+        .filter(Boolean)
+        .some((field) => String(field).toLowerCase().includes(value));
+    default:
+      return false;
+  }
 }
+
+function matchesActiveExclusion(person: Person, exclusions: ActiveExclusion[]): boolean {
+  return exclusions.some((item) => matchesExclusionRule(person, item.match_type, item.match_value));
+}
+
 
 export function exclusionCandidates(
   people: Person[],
