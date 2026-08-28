@@ -25,11 +25,11 @@ async function listAllUsers(admin: any) {
 
 export const listConsoleUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<{ isAnalyst: boolean; users: ConsoleUser[] }> => {
+  .handler(async ({ context }): Promise<{ isAnalyst: boolean; currentUserId: string; users: ConsoleUser[] }> => {
     const { data: isAnalyst } = await context.supabase.rpc("is_analyst", {
       _user_id: context.userId,
     });
-    if (!isAnalyst) return { isAnalyst: false, users: [] };
+    if (!isAnalyst) return { isAnalyst: false, currentUserId: context.userId, users: [] };
 
     const { data: roleRows, error: roleError } = await context.supabase
       .from("user_roles")
@@ -60,7 +60,7 @@ export const listConsoleUsers = createServerFn({ method: "GET" })
       return a.email.localeCompare(b.email);
     });
 
-    return { isAnalyst: true, users: mapped };
+    return { isAnalyst: true, currentUserId: context.userId, users: mapped };
   });
 
 const ROLES = ["analyst", "coach", "viewer"] as const;
