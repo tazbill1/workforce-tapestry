@@ -1185,6 +1185,56 @@ export type Database = {
           },
         ]
       }
+      saved_insights: {
+        Row: {
+          answer_md: string
+          client_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          include_in_report: boolean
+          period: string | null
+          question: string
+          sources: Json
+          table_json: Json | null
+          title: string
+        }
+        Insert: {
+          answer_md: string
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          include_in_report?: boolean
+          period?: string | null
+          question: string
+          sources?: Json
+          table_json?: Json | null
+          title: string
+        }
+        Update: {
+          answer_md?: string
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          include_in_report?: boolean
+          period?: string | null
+          question?: string
+          sources?: Json
+          table_json?: Json | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_insights_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_clients: {
         Row: {
           client_id: string
