@@ -240,7 +240,7 @@ export function ReportDocument({
       <Page id="cover" title="Cover" client={clientName} period={period} cover>
         <div className="rp-cover-rule" />
         <div className="rp-logos">
-          <span className="rp-logo">Werk&amp;Me</span>
+          <img className="rp-logo-img" src={brandLogo.url} alt="WerkandMe" />
           <span className="rp-logo-sep" />
           <span className="rp-logo">{clientName}</span>
         </div>
