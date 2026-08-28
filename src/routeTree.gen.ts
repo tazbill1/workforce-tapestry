@@ -19,6 +19,7 @@ import { Route as AuthenticatedDecisionsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedImportsRouteImport } from './routes/_authenticated/imports'
 import { Route as AuthenticatedMetricsRouteImport } from './routes/_authenticated/metrics'
 import { Route as AuthenticatedReportRouteImport } from './routes/_authenticated/report'
+import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedSharedTokenRouteImport } from './routes/_authenticated/shared.$token'
 
 const IndexRoute = IndexRouteImport.update({
@@ -70,6 +71,11 @@ const AuthenticatedReportRoute = AuthenticatedReportRouteImport.update({
   path: '/report',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSharedTokenRoute =
   AuthenticatedSharedTokenRouteImport.update({
     id: '/shared/$token',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/imports': typeof AuthenticatedImportsRoute
   '/metrics': typeof AuthenticatedMetricsRoute
   '/report': typeof AuthenticatedReportRoute
+  '/users': typeof AuthenticatedUsersRoute
   '/shared/$token': typeof AuthenticatedSharedTokenRoute
 }
 export interface FileRoutesByTo {
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/imports': typeof AuthenticatedImportsRoute
   '/metrics': typeof AuthenticatedMetricsRoute
   '/report': typeof AuthenticatedReportRoute
+  '/users': typeof AuthenticatedUsersRoute
   '/shared/$token': typeof AuthenticatedSharedTokenRoute
 }
 export interface FileRoutesById {
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/_authenticated/imports': typeof AuthenticatedImportsRoute
   '/_authenticated/metrics': typeof AuthenticatedMetricsRoute
   '/_authenticated/report': typeof AuthenticatedReportRoute
+  '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/shared/$token': typeof AuthenticatedSharedTokenRoute
 }
 export interface FileRouteTypes {
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/imports'
     | '/metrics'
     | '/report'
+    | '/users'
     | '/shared/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/imports'
     | '/metrics'
     | '/report'
+    | '/users'
     | '/shared/$token'
   id:
     | '__root__'
@@ -152,6 +163,7 @@ export interface FileRouteTypes {
     | '/_authenticated/imports'
     | '/_authenticated/metrics'
     | '/_authenticated/report'
+    | '/_authenticated/users'
     | '/_authenticated/shared/$token'
   fileRoutesById: FileRoutesById
 }
@@ -233,6 +245,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReportRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/users': {
+      id: '/_authenticated/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof AuthenticatedUsersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/shared/$token': {
       id: '/_authenticated/shared/$token'
       path: '/shared/$token'
@@ -251,6 +270,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedImportsRoute: typeof AuthenticatedImportsRoute
   AuthenticatedMetricsRoute: typeof AuthenticatedMetricsRoute
   AuthenticatedReportRoute: typeof AuthenticatedReportRoute
+  AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedSharedTokenRoute: typeof AuthenticatedSharedTokenRoute
 }
 
@@ -262,6 +282,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedImportsRoute: AuthenticatedImportsRoute,
   AuthenticatedMetricsRoute: AuthenticatedMetricsRoute,
   AuthenticatedReportRoute: AuthenticatedReportRoute,
+  AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedSharedTokenRoute: AuthenticatedSharedTokenRoute,
 }
 

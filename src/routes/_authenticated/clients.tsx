@@ -3,27 +3,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Building2, Image as ImageIcon, Loader2, Trash2, UserPlus } from "lucide-react";
+import { Building2, Image as ImageIcon, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 import {
   createClient,
-  grantClientAccess,
   listClientsAdmin,
-  revokeClientAccess,
   setClientActive,
   setClientLogo,
 } from "@/lib/clients.functions";
@@ -56,13 +46,10 @@ function ClientsScreen() {
   const load = useServerFn(listClientsAdmin);
   const add = useServerFn(createClient);
   const toggle = useServerFn(setClientActive);
-  const grant = useServerFn(grantClientAccess);
-  const revoke = useServerFn(revokeClientAccess);
   const saveLogo = useServerFn(setClientLogo);
 
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
-  const [grantEmail, setGrantEmail] = useState<Record<string, string>>({});
 
   const { data, isLoading } = useQuery({ queryKey: ["clients-admin"], queryFn: () => load() });
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["clients-admin"] });
@@ -81,24 +68,6 @@ function ClientsScreen() {
   const toggleMutation = useMutation({
     mutationFn: (input: { clientId: string; active: boolean }) => toggle({ data: input }),
     onSuccess: refresh,
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const grantMutation = useMutation({
-    mutationFn: (input: { clientId: string; email: string }) => grant({ data: input }),
-    onSuccess: () => {
-      toast.success("Access granted");
-      refresh();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const revokeMutation = useMutation({
-    mutationFn: (input: { grantId: string }) => revoke({ data: input }),
-    onSuccess: () => {
-      toast.success("Access removed");
-      refresh();
-    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -131,8 +100,8 @@ function ClientsScreen() {
           Clients
         </h1>
         <p className="text-sm text-muted-foreground">
-          Add a client, then grant users access. Analysts see every client automatically; coaches and
-          viewers only see the clients granted here.
+          Add a client and upload its logo for reports. Every signed-in user can see every client —
+          see the Users screen for who has an account.
         </p>
       </header>
 
@@ -188,7 +157,6 @@ function ClientsScreen() {
         </CardHeader>
         <CardContent className="space-y-6">
           {(data?.clients ?? []).map((client) => {
-            const grants = (data?.grants ?? []).filter((g) => g.client_id === client.id);
             return (
               <div key={client.id} className="space-y-3 rounded-lg border p-4">
                 <div className="flex flex-wrap items-center gap-2">
@@ -258,71 +226,6 @@ function ClientsScreen() {
                   )}
                 </div>
 
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>User with access</TableHead>
-                      <TableHead className="w-32 text-right">Granted</TableHead>
-                      {isAnalyst && <TableHead className="w-16" />}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {grants.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={isAnalyst ? 3 : 2} className="text-muted-foreground">
-                          No user grants — analysts still have access.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {grants.map((g) => (
-                      <TableRow key={g.id}>
-                        <TableCell>{g.email}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          {new Date(g.granted_at).toLocaleDateString()}
-                        </TableCell>
-                        {isAnalyst && (
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => revokeMutation.mutate({ grantId: g.id })}
-                              title="Remove access"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-
-                {isAnalyst && (
-                  <form
-                    className="flex flex-wrap items-end gap-2"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const email = grantEmail[client.id] ?? "";
-                      grantMutation.mutate({ clientId: client.id, email });
-                      setGrantEmail((prev) => ({ ...prev, [client.id]: "" }));
-                    }}
-                  >
-                    <Input
-                      className="max-w-xs"
-                      type="email"
-                      placeholder="person@company.com"
-                      value={grantEmail[client.id] ?? ""}
-                      onChange={(e) =>
-                        setGrantEmail((prev) => ({ ...prev, [client.id]: e.target.value }))
-                      }
-                      required
-                    />
-                    <Button type="submit" variant="secondary" disabled={grantMutation.isPending}>
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      Grant access
-                    </Button>
-                  </form>
-                )}
               </div>
             );
           })}
