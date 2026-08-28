@@ -144,3 +144,144 @@ export const getReportDownloadUrl = createServerFn({ method: "POST" })
     if (signed.error) throw new Error(signed.error.message);
     return { url: signed.data.signedUrl, expiresInSeconds: 120 };
   });
+
+/**
+ * Shareable links. The token is only a lookup key — access is still decided by RLS,
+ * so a link opened by someone without access to that client resolves to nothing.
+ */
+export const listReportShares = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { clientId: string; period: string }) =>
+    z
+      .object({
+        clientId: z.string().uuid(),
+        period: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: runs, error: runsError } = await context.supabase
+      .from("report_runs")
+      .select("id")
+      .eq("client_id", data.clientId)
+      .eq("period", data.period);
+    if (runsError) throw new Error(runsError.message);
+    const runIds = (runs ?? []).map((run) => run.id);
+    if (runIds.length === 0) return [];
+
+    const { data: shares, error } = await context.supabase
+      .from("report_shares")
+      .select("id, report_run_id, token, label, expires_at, revoked_at, created_at")
+      .in("report_run_id", runIds)
+      .is("revoked_at", null)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return shares ?? [];
+  });
+
+export const createReportShare = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { runId: string; expiresInDays?: number; label?: string }) =>
+    z
+      .object({
+        runId: z.string().uuid(),
+        expiresInDays: z.number().int().min(1).max(365).optional(),
+        label: z.string().max(120).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: run, error: runError } = await context.supabase
+      .from("report_runs")
+      .select("id, client_id, version, format")
+      .eq("id", data.runId)
+      .maybeSingle();
+    if (runError) throw new Error(runError.message);
+    if (!run) throw new Error("Report version not found");
+
+    // Reuse a live link for the same version rather than minting duplicates.
+    const { data: existing } = await context.supabase
+      .from("report_shares")
+      .select("id, token, expires_at")
+      .eq("report_run_id", run.id)
+      .is("revoked_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const live = (existing ?? []).find(
+      (share) => !share.expires_at || new Date(share.expires_at) > new Date(),
+    );
+    if (live) return { token: live.token, id: live.id, reused: true };
+
+    const bytes = new Uint8Array(24);
+    crypto.getRandomValues(bytes);
+    const token = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+
+    const expiresAt = data.expiresInDays
+      ? new Date(Date.now() + data.expiresInDays * 86_400_000).toISOString()
+      : null;
+
+    const { data: inserted, error } = await context.supabase
+      .from("report_shares")
+      .insert({
+        report_run_id: run.id,
+        client_id: run.client_id,
+        token,
+        label: data.label ?? null,
+        expires_at: expiresAt,
+        created_by: context.userId,
+      })
+      .select("id, token")
+      .single();
+    if (error) throw new Error(error.message);
+    return { token: inserted.token, id: inserted.id, reused: false };
+  });
+
+export const revokeReportShare = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { shareId: string }) =>
+    z.object({ shareId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("report_shares")
+      .update({ revoked_at: new Date().toISOString() })
+      .eq("id", data.shareId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Resolves a share token to its frozen snapshot; RLS keeps it scoped to the client. */
+export const getSharedReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { token: string }) =>
+    z.object({ token: z.string().min(16).max(128) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: share, error } = await context.supabase
+      .from("report_shares")
+      .select("id, report_run_id, expires_at, revoked_at, label")
+      .eq("token", data.token)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!share) throw new Error("This link is not valid for your account");
+    if (share.revoked_at) throw new Error("This link has been revoked");
+    if (share.expires_at && new Date(share.expires_at) <= new Date()) {
+      throw new Error("This link has expired");
+    }
+
+    const { data: run, error: runError } = await context.supabase
+      .from("report_runs")
+      .select("id, client_id, period, version, format, sections, snapshot, created_at")
+      .eq("id", share.report_run_id)
+      .maybeSingle();
+    if (runError) throw new Error(runError.message);
+    if (!run?.snapshot) throw new Error("This report version is no longer available");
+
+    const { data: client } = await context.supabase
+      .from("clients")
+      .select("name")
+      .eq("id", run.client_id)
+      .maybeSingle();
+
+    return { run, clientName: client?.name ?? "Client", label: share.label };
+  });
