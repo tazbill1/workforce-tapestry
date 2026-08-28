@@ -10,20 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 import {
   createClient,
-  grantClientAccess,
   listClientsAdmin,
-  revokeClientAccess,
   setClientActive,
   setClientLogo,
 } from "@/lib/clients.functions";
