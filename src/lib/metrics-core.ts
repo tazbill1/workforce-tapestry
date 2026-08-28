@@ -26,6 +26,16 @@ export type EngagementRow = {
 
 export type RecognitionRow = { department_raw: string; count: number };
 
+/** One imported recognition-activity row, already name-matched where possible. */
+export type ActivityRow = {
+  name_raw: string;
+  normalized_name: string;
+  matched_email: string | null;
+  posts: number | null;
+  comments: number | null;
+  likes: number | null;
+};
+
 export type MetricDefinition = {
   key: string;
   version: number;
@@ -292,6 +302,38 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     effective_from: "2026-06-01",
   },
   {
+    key: "recognition_participation_pct",
+    version: 1,
+    description: "Share of active people with at least one recognition post, comment or like.",
+    formula_note:
+      "recognition_participants_count / headcount_active. Activity rows are matched to people by name link; unmatched rows are excluded from the numerator.",
+    effective_from: "2026-08-01",
+  },
+  {
+    key: "recognition_participants_count",
+    version: 1,
+    description: "Active people with at least one recognition post, comment or like.",
+    formula_note:
+      "Distinct matched people in recognition_activity with posts + comments + likes > 0, restricted to Active person_period rows.",
+    effective_from: "2026-08-01",
+  },
+  {
+    key: "recognition_activity_matched_pct",
+    version: 1,
+    description: "Share of imported recognition-activity rows matched to a person on the roster.",
+    formula_note: "Rows with a matched_email over all imported activity rows for the period.",
+    effective_from: "2026-08-01",
+  },
+  {
+    key: "top_contributor",
+    version: 1,
+    description:
+      "Named person ranked by total recognition activity for the period; scope carries the rank.",
+    formula_note:
+      "posts + comments + likes per matched person, ranked descending, top 10 stored as rank:1..rank:10. Name in value_text, total in value_numeric.",
+    effective_from: "2026-08-01",
+  },
+  {
     key: "roster_size",
     version: 1,
     description: "People on the resolved roster for the period, after exclusions.",
@@ -337,6 +379,7 @@ export type ComputedMetric = {
   definition_version: number;
   scope: string;
   value_numeric: number | null;
+  value_text?: string | null;
 };
 
 const num = (value: number | string | null | undefined): number | null => {
@@ -502,8 +545,91 @@ export type ComputeInput = {
   priorRows: PersonRow[];
   engagement: EngagementRow | null;
   recognitions: RecognitionRow[];
+  /** Per-person recognition activity for the period, already name-matched where possible. */
+  activity?: ActivityRow[];
   benchmarks?: BenchmarkRow[];
 };
+
+/**
+ * Person-level recognition activity. Participation is published per bucket so the report
+ * never divides; top contributors are published as ranked scopes with the name in value_text.
+ */
+function recognitionActivity(
+  activity: ActivityRow[],
+  company: Bucket,
+  franchises: Bucket[],
+  departments: Bucket[],
+  deptLabel: (row: PersonRow) => string,
+): ComputedMetric[] {
+  const out: ComputedMetric[] = [];
+  if (activity.length === 0) return out;
+
+  const total = (row: ActivityRow) => (row.posts ?? 0) + (row.comments ?? 0) + (row.likes ?? 0);
+  const matched = activity.filter((row) => row.matched_email);
+
+  // Roll up repeated rows for the same person (multi-part exports).
+  const perPerson = new Map<string, { total: number; name: string }>();
+  for (const row of matched) {
+    const email = row.matched_email!.toLowerCase();
+    const existing = perPerson.get(email);
+    const name = (row.name_raw || row.normalized_name || email).trim();
+    perPerson.set(email, {
+      total: (existing?.total ?? 0) + total(row),
+      name: existing?.name ?? name,
+    });
+  }
+
+  out.push({
+    metric_key: "recognition_activity_matched_pct",
+    definition_version: currentVersion("recognition_activity_matched_pct"),
+    scope: "company",
+    value_numeric: round((matched.length / activity.length) * 100, 1),
+  });
+
+  const bucketsToPublish = [company, ...franchises, ...departments];
+  for (const bucket of bucketsToPublish) {
+    const active = bucket.rows.filter((row) => (row.status ?? "").toLowerCase() === "active");
+    if (active.length === 0) continue;
+    const participants = active.filter((row) => {
+      const entry = perPerson.get(row.normalized_email.toLowerCase());
+      return entry !== undefined && entry.total > 0;
+    }).length;
+    out.push(
+      {
+        metric_key: "recognition_participants_count",
+        definition_version: currentVersion("recognition_participants_count"),
+        scope: bucket.scope,
+        value_numeric: participants,
+      },
+      {
+        metric_key: "recognition_participation_pct",
+        definition_version: currentVersion("recognition_participation_pct"),
+        scope: bucket.scope,
+        value_numeric: round((participants / active.length) * 100, 1),
+      },
+    );
+  }
+
+  // Top contributors: only people present on the resolved roster, so the report never
+  // names someone who was excluded or who left the roster.
+  const onRoster = new Map(company.rows.map((row) => [row.normalized_email.toLowerCase(), row]));
+  const ranked = [...perPerson.entries()]
+    .filter(([email, entry]) => entry.total > 0 && onRoster.has(email))
+    .sort((a, b) => b[1].total - a[1].total || a[1].name.localeCompare(b[1].name))
+    .slice(0, 10);
+  ranked.forEach(([email, entry], index) => {
+    const person = onRoster.get(email)!;
+    const where = person.franchise_label ?? deptLabel(person);
+    out.push({
+      metric_key: "top_contributor",
+      definition_version: currentVersion("top_contributor"),
+      scope: `rank:${index + 1}`,
+      value_numeric: entry.total,
+      value_text: where ? `${entry.name} — ${where}` : entry.name,
+    });
+  });
+  return out;
+}
 
 
 export function computeMetrics(input: ComputeInput): ComputedMetric[] {
@@ -529,6 +655,9 @@ export function computeMetrics(input: ComputeInput): ComputedMetric[] {
     out.push(...mood(bucket));
     out.push(...participation(bucket));
   }
+  out.push(
+    ...recognitionActivity(input.activity ?? [], company, franchises, departments, deptLabel),
+  );
 
   // Departures: prior Active -> current Inactive, matched on normalized_email only.
   const priorActive = new Set(

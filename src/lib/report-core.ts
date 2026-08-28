@@ -14,6 +14,7 @@ export type MetricRow = {
   definition_version: number;
   scope: string;
   value_numeric: number | string | null;
+  value_text?: string | null;
   period: string;
 };
 
@@ -25,6 +26,8 @@ export type MetricBook = {
   prior: (key: string, scope?: string) => number | null;
   /** Definition version behind the current-period value, for the trace line. */
   version: (key: string, scope?: string) => number | null;
+  /** Current-period text value, e.g. a named top contributor. */
+  text: (key: string, scope?: string) => string | null;
   /** Scopes present for a key, e.g. every `dept:` bucket with a recognition count. */
   scopesFor: (key: string, prefix: string) => string[];
 };
@@ -40,7 +43,7 @@ export function buildMetricBook(
   period: string,
   priorPeriod: string,
 ): MetricBook {
-  type Entry = { version: number; value: number | null };
+  type Entry = { version: number; value: number | null; text: string | null };
   const index = new Map<string, Entry>();
   const scopeIndex = new Map<string, Set<string>>();
 
@@ -50,7 +53,11 @@ export function buildMetricBook(
     const key = `${which}::${row.metric_key}::${row.scope}`;
     const existing = index.get(key);
     if (!existing || row.definition_version > existing.version) {
-      index.set(key, { version: row.definition_version, value: toNumber(row.value_numeric) });
+      index.set(key, {
+        version: row.definition_version,
+        value: toNumber(row.value_numeric),
+        text: row.value_text ?? null,
+      });
     }
     if (which === "now") {
       const set = scopeIndex.get(row.metric_key) ?? new Set<string>();
@@ -66,6 +73,7 @@ export function buildMetricBook(
     get: (key, scope = "company") => read("now", key, scope)?.value ?? null,
     prior: (key, scope = "company") => read("prior", key, scope)?.value ?? null,
     version: (key, scope = "company") => read("now", key, scope)?.version ?? null,
+    text: (key, scope = "company") => read("now", key, scope)?.text ?? null,
     scopesFor: (key, prefix) =>
       [...(scopeIndex.get(key) ?? [])].filter((scope) => scope.startsWith(prefix)).sort(),
   };
