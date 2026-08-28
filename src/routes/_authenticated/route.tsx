@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, redirect, Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import { ensureDomainAccess } from "@/lib/access.functions";
 import { FileSpreadsheet, GitMerge, BarChart3, FileText, LogOut, Building2, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -7,6 +8,17 @@ export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
+
+    const access = await ensureDomainAccess();
+    if (!access.allowed) {
+      await supabase.auth.signOut();
+      sessionStorage.setItem(
+        "auth_denied",
+        `Access is limited to @${access.domain} accounts.`,
+      );
+      throw redirect({ to: "/auth" });
+    }
+
     return { user: data.user };
   },
   component: AuthenticatedLayout,
