@@ -71,24 +71,6 @@ function ClientsScreen() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const grantMutation = useMutation({
-    mutationFn: (input: { clientId: string; email: string }) => grant({ data: input }),
-    onSuccess: () => {
-      toast.success("Access granted");
-      refresh();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const revokeMutation = useMutation({
-    mutationFn: (input: { grantId: string }) => revoke({ data: input }),
-    onSuccess: () => {
-      toast.success("Access removed");
-      refresh();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   const logoMutation = useMutation({
     mutationFn: (input: { clientId: string; logoUrl: string | null }) => saveLogo({ data: input }),
     onSuccess: () => {
