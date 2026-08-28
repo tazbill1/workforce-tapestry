@@ -875,27 +875,125 @@ function BulkExcludeCard({
             onChange={(event) => setRaw(event.target.value)}
           />
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Button
             size="sm"
-            disabled={busy || values.length === 0 || reason.trim().length < 3}
+            variant="outline"
+            disabled={previewing || values.length === 0}
+            onClick={async () => {
+              setPreviewing(true);
+              try {
+                const result = await onPreview(matchType, values);
+                setPreview(result);
+                setPreviewKey(currentKey);
+              } catch (error) {
+                toast.error((error as Error).message);
+              } finally {
+                setPreviewing(false);
+              }
+            }}
+          >
+            {previewing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Preview matches
+          </Button>
+          <Button
+            size="sm"
+            disabled={
+              busy ||
+              values.length === 0 ||
+              reason.trim().length < 3 ||
+              preview === null ||
+              previewStale
+            }
             onClick={async () => {
               setBusy(true);
               try {
                 await onSubmit(values, { matchType, category, reason });
                 setRaw("");
+                setPreview(null);
+                setPreviewKey("");
               } finally {
                 setBusy(false);
               }
             }}
           >
             {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Exclude {values.length || ""} {values.length === 1 ? "value" : "values"}
+            Confirm exclusion
           </Button>
-          {values.length ? (
-            <p className="text-xs text-muted-foreground">{values.join(", ")}</p>
+          {preview === null || previewStale ? (
+            <p className="text-xs text-muted-foreground">
+              {previewStale
+                ? "Values changed — preview again before confirming."
+                : "Preview the matches before confirming."}
+            </p>
           ) : null}
         </div>
+
+        {preview && !previewStale ? (
+          <div className="rounded-lg border">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b bg-muted/50 px-4 py-2 text-sm">
+              <span className="font-medium">
+                {preview.totalPeople} of {preview.peopleCount} people match
+              </span>
+              <span className="text-muted-foreground">
+                {preview.totalRecords} roster record{preview.totalRecords === 1 ? "" : "s"}
+              </span>
+              <span className="text-muted-foreground">
+                {preview.newlyExcluded} newly excluded ·{" "}
+                {preview.totalPeople - preview.newlyExcluded} already excluded
+              </span>
+            </div>
+            {preview.totalPeople === 0 ? (
+              <p className="p-4 text-sm text-muted-foreground">
+                Nothing in this period matches — check the spelling or the match type.
+              </p>
+            ) : (
+              <div className="max-h-96 overflow-auto">
+                {preview.groups.map((group) => (
+                  <div key={group.value}>
+                    <p className="bg-muted/30 px-4 py-1 font-mono text-xs">
+                      {group.value} — {group.people.length} match
+                      {group.people.length === 1 ? "" : "es"}
+                    </p>
+                    <Table>
+                      <TableBody>
+                        {group.people.map((person) => (
+                          <TableRow key={`${group.value}:${person.normalized_email}`}>
+                            <TableCell className="text-xs">
+                              <div className="font-medium">{person.name ?? "(no name)"}</div>
+                              <div className="font-mono text-muted-foreground">
+                                {person.normalized_email}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {person.title_raw ?? "—"} · {person.department_raw ?? "—"}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {person.statuses.join(", ")} · {person.recordCount} record
+                              {person.recordCount === 1 ? "" : "s"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {person.alreadyExcluded ? (
+                                <Badge variant="outline" className="text-[10px]">
+                                  already excluded
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="text-[10px]">
+                                  will be excluded
+                                </Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
+
       </CardContent>
     </Card>
   );
