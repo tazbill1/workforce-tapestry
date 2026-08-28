@@ -216,7 +216,25 @@ function DecisionsScreen() {
             </TabsList>
 
             <TabsContent value="exclusions" className="space-y-4 pt-4">
+              <BulkExcludeCard
+                onSubmit={async (values, payload) => {
+                  let count = 0;
+                  for (const matchValue of values) {
+                    try {
+                      await confirmExclusionFn({
+                        data: { clientId, period, matchValue, ...payload },
+                      });
+                      count += 1;
+                    } catch (error) {
+                      toast.error(`${matchValue}: ${(error as Error).message}`);
+                    }
+                  }
+                  if (count) toast.success(`${count} exclusion${count === 1 ? "" : "s"} confirmed`);
+                  review.refetch();
+                }}
+              />
               <Card>
+
                 <CardHeader>
                   <CardTitle>Exclusion candidates</CardTitle>
                   <CardDescription>
