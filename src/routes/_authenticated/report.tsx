@@ -211,6 +211,22 @@ function ReportPreview() {
     setViewingRunId(null);
   }, [clientId, period]);
 
+  const findings = checks.data ?? [];
+  const dangers = findings.filter((c) => c.level === "danger");
+  const warnings = findings.filter((c) => c.level === "warning");
+
+  const clientLabel =
+    (clients.data ?? []).find((c) => c.id === clientId)?.name ?? "this client";
+
+  /** Ask once before committing a version that our checks think is mis-filed. */
+  const confirmDespiteFindings = () => {
+    if (dangers.length === 0) return true;
+    return window.confirm(
+      `${dangers.length} problem${dangers.length > 1 ? "s" : ""} found with ${clientLabel} · ${period}:\n\n` +
+        dangers.map((d) => `• ${d.title} — ${d.detail}`).join("\n\n") +
+        "\n\nGenerate this report anyway?",
+    );
+  };
 
   const generate = useMutation({
     mutationFn: (target: ReportFormat) =>
