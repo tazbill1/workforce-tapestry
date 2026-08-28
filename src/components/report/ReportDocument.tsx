@@ -51,6 +51,7 @@ export const SECTIONS = [
   { id: "lowmood", label: "Checked in, low mood" },
   { id: "recognition", label: "Recognition and engagement" },
   { id: "people", label: "Anniversaries and new starters" },
+  { id: "insights", label: "Analyst insights" },
   { id: "action", label: "Action plan" },
   { id: "method", label: "Method and definitions" },
 ] as const;
