@@ -8,6 +8,24 @@ export const isRendererConfigured = createServerFn({ method: "GET" }).handler(
   () => Boolean(process.env["GOTENBERG_URL"]),
 );
 
+/** Advisory pre-flight: warns when a report looks like the wrong client or the wrong month. */
+export const checkReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { clientId: string; period: string }) =>
+    z
+      .object({
+        clientId: z.string().uuid(),
+        period: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { runReportChecks } = await import("./report-checks");
+    return runReportChecks(context.supabase, data.clientId, data.period);
+  });
+
+
+
 
 export const getReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
