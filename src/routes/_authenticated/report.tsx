@@ -135,6 +135,28 @@ function ReportPreview() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const [exporting, setExporting] = useState(false);
+
+  const exportPdf = async () => {
+    if (!report.data || exporting) return;
+    setExporting(true);
+    try {
+      if (rendererConfigured.data) {
+        const result = await generateFn({ data: { clientId, period, format } });
+        void queryClient.invalidateQueries({ queryKey: ["report-runs", clientId, period] });
+        const { url } = await downloadFn({ data: { runId: result.runId } });
+        window.open(url, "_blank", "noopener");
+        toast.success(`PDF ready · ${(result.byteSize / 1024).toFixed(0)} KB`);
+      } else {
+        window.print();
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const activeSections = formatSections.data?.[format];
   const sections = useMemo(
     () =>
@@ -339,6 +361,27 @@ function ReportPreview() {
             </p>
           )}
         </main>
+
+        {report.data && (
+          <Button
+            size="lg"
+            className="rp-no-print fixed bottom-6 right-6 z-30 shadow-lg"
+            onClick={() => void exportPdf()}
+            disabled={exporting}
+            title={
+              rendererConfigured.data
+                ? "Generate the PDF on the server and download it"
+                : "Open the print dialog to save as PDF"
+            }
+          >
+            {exporting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            {exporting ? "Exporting…" : "Export PDF"}
+          </Button>
+        )}
       </div>
     </div>
   );
