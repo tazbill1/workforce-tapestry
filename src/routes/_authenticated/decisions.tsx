@@ -757,7 +757,117 @@ function ExclusionCandidateRow({
   );
 }
 
+function BulkExcludeCard({
+  onSubmit,
+}: {
+  onSubmit: (
+    values: string[],
+    payload: {
+      matchType: (typeof MATCH_TYPES)[number];
+      category: (typeof CATEGORIES)[number];
+      reason: string;
+    },
+  ) => Promise<void>;
+}) {
+  const [matchType, setMatchType] = useState<(typeof MATCH_TYPES)[number]>("email_domain");
+  const [raw, setRaw] = useState("");
+  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("vendor");
+  const [reason, setReason] = useState("external vendor domain — not an employee");
+  const [busy, setBusy] = useState(false);
+
+  const values = [
+    ...new Set(
+      raw
+        .split(/[\s,;]+/)
+        .map((value) => value.trim().toLowerCase().replace(/^@/, ""))
+        .filter(Boolean),
+    ),
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Quick exclude</CardTitle>
+        <CardDescription>
+          Paste one or more values — whole email domains (akillion.us, scopicsoftware.com),
+          individual emails, or keywords. Each becomes its own exclusion effective from this
+          period, applied to every matching person automatically.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="space-y-1">
+            <Label className="text-xs">Match type</Label>
+            <Select value={matchType} onValueChange={(value) => setMatchType(value as typeof matchType)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MATCH_TYPES.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Category</Label>
+            <Select value={category} onValueChange={(value) => setCategory(value as typeof category)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CATEGORIES.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Reason (required)</Label>
+            <Input value={reason} onChange={(event) => setReason(event.target.value)} />
+          </div>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Values (one per line, or comma separated)</Label>
+          <Textarea
+            rows={3}
+            value={raw}
+            placeholder={"akillion.us\nscopicsoftware.com"}
+            onChange={(event) => setRaw(event.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <Button
+            size="sm"
+            disabled={busy || values.length === 0 || reason.trim().length < 3}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await onSubmit(values, { matchType, category, reason });
+                setRaw("");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Exclude {values.length || ""} {values.length === 1 ? "value" : "values"}
+          </Button>
+          {values.length ? (
+            <p className="text-xs text-muted-foreground">{values.join(", ")}</p>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function MergeCandidateRow({
+
   candidate,
   onConfirm,
   onSplit,
