@@ -259,7 +259,53 @@ function UsePanel({
         </div>
       </div>
 
-      {mode === "insight" ? (
+      {mode === "report" ? (
+        <>
+          <div className="space-y-1">
+            <Label className="text-xs">Insight title on the report page</Label>
+            <Input value={title} onChange={(event) => setTitle(event.target.value)} />
+          </div>
+          {turn.answer.steps.length > 0 ? (
+            <div className="space-y-1">
+              <Label className="text-xs">Attach a result table</Label>
+              <Select value={attachStep} onValueChange={setAttachStep}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No table</SelectItem>
+                  {turn.answer.steps.map((step, index) => (
+                    <SelectItem key={index} value={String(index)}>
+                      {step.tool} — {step.summary}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+          <p className="text-xs text-muted-foreground">
+            This pins the answer to {effectivePeriod || "the selected period"} and opens the report
+            preview, where you can page through it and save it as a PDF.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={() => buildReport.mutate()}
+              disabled={buildReport.isPending || !clientId || !effectivePeriod}
+            >
+              {buildReport.isPending ? (
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <FileText className="mr-1 h-3.5 w-3.5" />
+              )}
+              Build report
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setMode("none")}>
+              Cancel
+            </Button>
+          </div>
+        </>
+      ) : mode === "insight" ? (
         <>
           <div className="space-y-1">
             <Label className="text-xs">Title</Label>
