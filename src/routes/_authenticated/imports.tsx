@@ -244,7 +244,12 @@ function ImportScreen() {
           flagSummaryFn({ data: { importId } }),
           diffFn({ data: { importId } }),
         ]);
-        return { summary: { ...summary, totalRows: extracted.length }, diff: diffResult, importId };
+        return {
+          summary: { ...summary, totalRows: extracted.length },
+          diff: diffResult,
+          importId,
+          totalRows: extracted.length,
+        };
       } catch (error) {
         const message = error instanceof Error ? error.message : "Parse failed";
         await finalizeFn({
