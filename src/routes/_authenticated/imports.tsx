@@ -106,6 +106,10 @@ function ImportScreen() {
   const [step, setStep] = useState<Step>(null);
   const [flagSummary, setFlagSummary] = useState<(FlagSummary & { totalRows: number }) | null>(null);
   const [diff, setDiff] = useState<DiffResult | null>(null);
+  const [statedFor, setStatedFor] = useState<string | null>(null);
+  const [statedPreview, setStatedPreview] = useState<
+    { period: string; filename: string; figures: { metric_key: string; label: string; value: number; unit: string | null; raw_label: string }[] } | null
+  >(null);
   const [sniff, setSniff] = useState<Sniff | null>(null);
   const [advice, setAdvice] = useState<UploadAdvice | null>(null);
   const [detecting, setDetecting] = useState(false);
@@ -669,6 +673,7 @@ function ImportScreen() {
                         <TableHead>Rows</TableHead>
                         <TableHead>Columns</TableHead>
                         <TableHead>State</TableHead>
+                        <TableHead className="text-right">Stated figures</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -685,6 +690,21 @@ function ImportScreen() {
                             <Badge variant={row.state === "failed" ? "destructive" : "secondary"}>
                               {row.state}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {row.state === "parsed" ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={statedFor === row.id && (stated.isPending || saveStated.isPending)}
+                                onClick={() => {
+                                  setStatedFor(row.id);
+                                  stated.mutate(row.id);
+                                }}
+                              >
+                                Read
+                              </Button>
+                            ) : null}
                           </TableCell>
                         </TableRow>
                       ))}
