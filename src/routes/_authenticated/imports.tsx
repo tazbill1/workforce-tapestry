@@ -312,6 +312,7 @@ function ImportScreen() {
             rowCount: result.rowCount,
             periodHint: result.periodHint,
             heuristicKind: result.guess?.kind ?? null,
+            signals: result.signals.map((signal) => ({ id: signal.id, label: signal.label })),
             selectedClientId: clientId || null,
             selectedPeriod: period,
           },
@@ -521,6 +522,108 @@ function ImportScreen() {
               </Button>
             </div>
 
+
+
+            {detecting ? (
+              <p className="flex items-center text-sm text-muted-foreground">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Reading the file to see what is in it…
+              </p>
+            ) : null}
+
+            {!detecting && sniff ? (
+              <div className="space-y-3 rounded-lg border bg-background p-4">
+                <p className="flex items-center text-sm font-medium">
+                  <Sparkles className="mr-2 h-4 w-4 text-primary" /> What this file looks like
+                </p>
+
+                {sniff.signals.length ? (
+                  <div className="space-y-1">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Data found</p>
+                    <ul className="space-y-1 text-sm">
+                      {sniff.signals.map((signal) => (
+                        <li key={signal.id}>
+                          {signal.label}{" "}
+                          <span className="text-muted-foreground">
+                            ({signal.columns.join(", ")})
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No familiar columns were recognised. Pick the kind yourself.
+                  </p>
+                )}
+
+                {advice?.combinedNote ? (
+                  <p className="text-sm text-muted-foreground">{advice.combinedNote}</p>
+                ) : null}
+
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  {advice?.suggestedKind ? (
+                    <>
+                      <span className="text-muted-foreground">Suggested kind:</span>
+                      <Badge variant="secondary">{KIND_LABELS[advice.suggestedKind]}</Badge>
+                      {advice.suggestedKind !== kind ? (
+                        <Button size="sm" variant="outline" onClick={() => setKind(advice.suggestedKind!)}>
+                          Use this kind
+                        </Button>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
+
+                {advice?.suggestedPeriod && advice.suggestedPeriod !== period ? (
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">Period in the file:</span>
+                    <Badge variant="secondary">{advice.suggestedPeriod}</Badge>
+                    <Button size="sm" variant="outline" onClick={() => setPeriod(advice.suggestedPeriod!)}>
+                      Use this period
+                    </Button>
+                  </div>
+                ) : null}
+
+                {advice?.clientMatches?.length ? (
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">People match:</span>
+                    {advice.clientMatches.map((match) => (
+                      <Badge key={match.clientId} variant="outline">
+                        {match.name} · {match.matched}
+                      </Badge>
+                    ))}
+                    {advice.suggestedClientId && advice.suggestedClientId !== clientId ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setClientId(advice.suggestedClientId!)}
+                      >
+                        Switch client
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {advice?.warnings?.length ? (
+                  <ul className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+                    {advice.warnings.map((warning) => (
+                      <li key={warning} className="flex gap-2">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                        <span>{warning}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                {advice?.aiNote ? (
+                  <p className="text-xs text-muted-foreground">{advice.aiNote}</p>
+                ) : null}
+
+                <p className="text-xs text-muted-foreground">
+                  Suggestions only — nothing is imported until you choose Upload and parse.
+                </p>
+              </div>
+            ) : null}
 
             {step ? (
               <div className="space-y-2">
