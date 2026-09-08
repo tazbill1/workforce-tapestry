@@ -145,3 +145,60 @@ export const listMetrics = createServerFn({ method: "POST" })
         })),
     };
   });
+
+/** Headline figures as they appeared in previously issued PDF reports, alongside the
+ * company-scope value the tool computes today. Baselines are never mixed into
+ * published_metrics: they carry their own provenance and are for trend comparison only. */
+const BASELINE_TO_METRIC: Record<string, string | null> = {
+  records_total: "roster_size",
+  headcount_active: "headcount_active",
+  headcount_inactive: "headcount_inactive",
+  turnover_pct: "turnover_pct",
+  mood_score: "mood_per_employee",
+  not_logged_in: null,
+};
+
+export const listBaselines = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { clientId: string }) =>
+    z.object({ clientId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const [baselines, published] = await Promise.all([
+      context.supabase
+        .from("historical_baselines")
+        .select("period, metric_key, label, value_numeric, unit, source, source_note")
+        .eq("client_id", data.clientId)
+        .order("period", { ascending: false })
+        .order("metric_key"),
+      context.supabase
+        .from("published_metrics")
+        .select("period, metric_key, definition_version, value_numeric, computed_at")
+        .eq("client_id", data.clientId)
+        .eq("scope", "company")
+        .limit(20000),
+    ]);
+    if (baselines.error) throw new Error(baselines.error.message);
+    if (published.error) throw new Error(published.error.message);
+
+    // Latest definition version wins for each period/metric.
+    const current = new Map<string, { value: number | null; version: number }>();
+    for (const row of published.data ?? []) {
+      const key = `${row.period}::${row.metric_key}`;
+      const seen = current.get(key);
+      if (!seen || row.definition_version >= seen.version) {
+        current.set(key, { value: row.value_numeric, version: row.definition_version });
+      }
+    }
+
+    return (baselines.data ?? []).map((row) => {
+      const mapped = BASELINE_TO_METRIC[row.metric_key] ?? null;
+      const hit = mapped ? current.get(`${row.period}::${mapped}`) : undefined;
+      const published_value = hit?.value ?? null;
+      const diff =
+        row.value_numeric === null || published_value === null
+          ? null
+          : Math.round((Number(published_value) - Number(row.value_numeric)) * 100) / 100;
+      return { ...row, tool_metric_key: mapped, tool_value: published_value, diff };
+    });
+  });
