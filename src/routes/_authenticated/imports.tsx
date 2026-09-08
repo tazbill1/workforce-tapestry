@@ -35,6 +35,7 @@ import { parseEngagementSheet } from "@/lib/engagement-parse";
 import { insertRecognitionActivity } from "@/lib/engagement.functions";
 import { sniffGrid, KIND_LABELS, type Sniff } from "@/lib/detect-import";
 import { analyzeUpload, type UploadAdvice } from "@/lib/detect.functions";
+import { previewStatedFigures, saveStatedFigures } from "@/lib/stated.functions";
 import {
   checkDuplicate,
   createImport,
@@ -96,6 +97,8 @@ function ImportScreen() {
   const diffFn = useServerFn(getDiff);
   const analyzeFn = useServerFn(analyzeUpload);
   const insertRecognitionFn = useServerFn(insertRecognitionActivity);
+  const previewStatedFn = useServerFn(previewStatedFigures);
+  const saveStatedFn = useServerFn(saveStatedFigures);
 
   const [clientId, setClientId] = useState<string>("");
   const [period, setPeriod] = useState<string>(() => new Date().toISOString().slice(0, 7));
@@ -106,6 +109,10 @@ function ImportScreen() {
   const [step, setStep] = useState<Step>(null);
   const [flagSummary, setFlagSummary] = useState<(FlagSummary & { totalRows: number }) | null>(null);
   const [diff, setDiff] = useState<DiffResult | null>(null);
+  const [statedFor, setStatedFor] = useState<string | null>(null);
+  const [statedPreview, setStatedPreview] = useState<
+    { period: string; filename: string; figures: { metric_key: string; label: string; value: number; unit: string | null; raw_label: string }[] } | null
+  >(null);
   const [sniff, setSniff] = useState<Sniff | null>(null);
   const [advice, setAdvice] = useState<UploadAdvice | null>(null);
   const [detecting, setDetecting] = useState(false);
@@ -367,6 +374,31 @@ function ImportScreen() {
     await supabase.auth.signOut();
     navigate({ to: "/auth" });
   };
+
+  const stated = useMutation({
+    mutationFn: (importId: string) => previewStatedFn({ data: { importId } }),
+    onSuccess: (result) => {
+      setStatedPreview(result);
+      if (result.figures.length === 0) {
+        toast.info("No headline numbers were recognised in that file.");
+      }
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const saveStated = useMutation({
+    mutationFn: (importId: string) => saveStatedFn({ data: { importId } }),
+    onSuccess: (result) => {
+      if (result.ok) {
+        toast.success(result.message);
+        setStatedPreview(null);
+        setStatedFor(null);
+      } else {
+        toast.error(result.message);
+      }
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
 
   const busy = run.isPending;
 
@@ -647,6 +679,55 @@ function ImportScreen() {
 
         {diff ? <DiffPanel diff={diff} /> : null}
 
+        {statedPreview && statedPreview.figures.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Stated figures in {statedPreview.filename}</CardTitle>
+              <CardDescription>
+                This file is already summarised. Save these numbers as supplied figures for{" "}
+                {statedPreview.period} — they sit beside what the tool works out, and the Metrics
+                screen flags any that disagree.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="overflow-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Figure</TableHead>
+                      <TableHead>As written on the sheet</TableHead>
+                      <TableHead className="text-right">Value</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {statedPreview.figures.map((figure) => (
+                      <TableRow key={figure.metric_key}>
+                        <TableCell>{figure.label}</TableCell>
+                        <TableCell className="text-muted-foreground">{figure.raw_label}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {figure.value}
+                          {figure.unit === "%" ? "%" : ""}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => statedFor && saveStated.mutate(statedFor)}
+                  disabled={saveStated.isPending}
+                >
+                  {saveStated.isPending ? "Saving…" : "Save these figures"}
+                </Button>
+                <Button variant="ghost" onClick={() => setStatedPreview(null)}>
+                  Discard
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+
         {clientId ? (
           <Card>
             <CardHeader>
@@ -669,6 +750,7 @@ function ImportScreen() {
                         <TableHead>Rows</TableHead>
                         <TableHead>Columns</TableHead>
                         <TableHead>State</TableHead>
+                        <TableHead className="text-right">Stated figures</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -685,6 +767,21 @@ function ImportScreen() {
                             <Badge variant={row.state === "failed" ? "destructive" : "secondary"}>
                               {row.state}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {row.state === "parsed" ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={statedFor === row.id && (stated.isPending || saveStated.isPending)}
+                                onClick={() => {
+                                  setStatedFor(row.id);
+                                  stated.mutate(row.id);
+                                }}
+                              >
+                                Read
+                              </Button>
+                            ) : null}
                           </TableCell>
                         </TableRow>
                       ))}

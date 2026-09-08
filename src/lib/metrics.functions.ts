@@ -156,6 +156,12 @@ const BASELINE_TO_METRIC: Record<string, string | null> = {
   turnover_pct: "turnover_pct",
   mood_score: "mood_per_employee",
   not_logged_in: null,
+  users_logged_in: "engagement_logins",
+  users_with_mood: null,
+  users_without_mood: null,
+  users_on_login_sheet: null,
+  mood_users_below_100: null,
+  mood_users_at_100: null,
 };
 
 export const listBaselines = createServerFn({ method: "POST" })
