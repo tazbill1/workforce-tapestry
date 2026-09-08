@@ -35,6 +35,7 @@ import { parseEngagementSheet } from "@/lib/engagement-parse";
 import { insertRecognitionActivity } from "@/lib/engagement.functions";
 import { sniffGrid, KIND_LABELS, type Sniff } from "@/lib/detect-import";
 import { analyzeUpload, type UploadAdvice } from "@/lib/detect.functions";
+import { previewStatedFigures, saveStatedFigures } from "@/lib/stated.functions";
 import {
   checkDuplicate,
   createImport,
@@ -96,6 +97,8 @@ function ImportScreen() {
   const diffFn = useServerFn(getDiff);
   const analyzeFn = useServerFn(analyzeUpload);
   const insertRecognitionFn = useServerFn(insertRecognitionActivity);
+  const previewStatedFn = useServerFn(previewStatedFigures);
+  const saveStatedFn = useServerFn(saveStatedFigures);
 
   const [clientId, setClientId] = useState<string>("");
   const [period, setPeriod] = useState<string>(() => new Date().toISOString().slice(0, 7));
@@ -371,6 +374,31 @@ function ImportScreen() {
     await supabase.auth.signOut();
     navigate({ to: "/auth" });
   };
+
+  const stated = useMutation({
+    mutationFn: (importId: string) => previewStatedFn({ data: { importId } }),
+    onSuccess: (result) => {
+      setStatedPreview(result);
+      if (result.figures.length === 0) {
+        toast.info("No headline numbers were recognised in that file.");
+      }
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const saveStated = useMutation({
+    mutationFn: (importId: string) => saveStatedFn({ data: { importId } }),
+    onSuccess: (result) => {
+      if (result.ok) {
+        toast.success(result.message);
+        setStatedPreview(null);
+        setStatedFor(null);
+      } else {
+        toast.error(result.message);
+      }
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
 
   const busy = run.isPending;
 
@@ -650,6 +678,55 @@ function ImportScreen() {
         ) : null}
 
         {diff ? <DiffPanel diff={diff} /> : null}
+
+        {statedPreview && statedPreview.figures.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Stated figures in {statedPreview.filename}</CardTitle>
+              <CardDescription>
+                This file is already summarised. Save these numbers as supplied figures for{" "}
+                {statedPreview.period} — they sit beside what the tool works out, and the Metrics
+                screen flags any that disagree.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="overflow-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Figure</TableHead>
+                      <TableHead>As written on the sheet</TableHead>
+                      <TableHead className="text-right">Value</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {statedPreview.figures.map((figure) => (
+                      <TableRow key={figure.metric_key}>
+                        <TableCell>{figure.label}</TableCell>
+                        <TableCell className="text-muted-foreground">{figure.raw_label}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {figure.value}
+                          {figure.unit === "%" ? "%" : ""}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => statedFor && saveStated.mutate(statedFor)}
+                  disabled={saveStated.isPending}
+                >
+                  {saveStated.isPending ? "Saving…" : "Save these figures"}
+                </Button>
+                <Button variant="ghost" onClick={() => setStatedPreview(null)}>
+                  Discard
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
 
         {clientId ? (
           <Card>
