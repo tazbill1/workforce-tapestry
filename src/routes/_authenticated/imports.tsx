@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { UploadCloud, FileSpreadsheet, LogOut, Loader2 } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, LogOut, Loader2, Sparkles, AlertTriangle } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
