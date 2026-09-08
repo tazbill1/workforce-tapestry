@@ -649,13 +649,35 @@ function recognitionActivity(
   ranked.forEach(([email, entry], index) => {
     const person = onRoster.get(email)!;
     const where = person.franchise_label ?? deptLabel(person);
-    out.push({
-      metric_key: "top_contributor",
-      definition_version: currentVersion("top_contributor"),
-      scope: `rank:${index + 1}`,
-      value_numeric: entry.total,
-      value_text: where ? `${entry.name} — ${where}` : entry.name,
-    });
+    const scope = `rank:${index + 1}`;
+    out.push(
+      {
+        metric_key: "top_contributor",
+        definition_version: currentVersion("top_contributor"),
+        scope,
+        value_numeric: entry.total,
+        value_text: where ? `${entry.name} — ${where}` : entry.name,
+      },
+      {
+        metric_key: "top_contributor_posts",
+        definition_version: currentVersion("top_contributor_posts"),
+        scope,
+        value_numeric: entry.posts,
+      },
+      {
+        metric_key: "top_contributor_comments",
+        definition_version: currentVersion("top_contributor_comments"),
+        scope,
+        value_numeric: entry.comments,
+      },
+      {
+        metric_key: "top_contributor_likes",
+        definition_version: currentVersion("top_contributor_likes"),
+        scope,
+        value_numeric: entry.likes,
+      },
+    );
+
   });
   return out;
 }
