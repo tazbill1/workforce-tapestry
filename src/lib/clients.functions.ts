@@ -26,9 +26,27 @@ export const listClientsAdmin = createServerFn({ method: "GET" })
     };
   });
 
+/** "@Acme.com, mail.acme.com" -> ["acme.com", "mail.acme.com"] */
+export function normalizeDomains(raw: string[]): string[] {
+  const out: string[] = [];
+  for (const entry of raw) {
+    for (const piece of entry.split(/[\s,;]+/)) {
+      const cleaned = piece
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\//, "")
+        .replace(/^@/, "")
+        .replace(/^www\./, "")
+        .replace(/\/.*$/, "");
+      if (cleaned.includes(".") && !out.includes(cleaned)) out.push(cleaned);
+    }
+  }
+  return out.slice(0, 25);
+}
+
 export const createClient = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { name: string; code: string }) =>
+  .inputValidator((input: { name: string; code: string; domains?: string[] }) =>
     z
       .object({
         name: z.string().trim().min(1).max(120),
@@ -38,6 +56,7 @@ export const createClient = createServerFn({ method: "POST" })
           .min(2)
           .max(40)
           .regex(/^[A-Za-z0-9_-]+$/, "Code may contain letters, numbers, _ and - only"),
+        domains: z.array(z.string().max(200)).max(25).default([]),
       })
       .parse(input),
   )
@@ -45,11 +64,34 @@ export const createClient = createServerFn({ method: "POST" })
     await assertAnalyst(context);
     const { data: row, error } = await context.supabase
       .from("clients")
-      .insert({ name: data.name, code: data.code.toUpperCase(), active: true })
+      .insert({
+        name: data.name,
+        code: data.code.toUpperCase(),
+        active: true,
+        expected_domains: normalizeDomains(data.domains ?? []),
+      })
       .select("id, name, code, active")
       .single();
     if (error) throw new Error(error.message);
     return row;
+  });
+
+export const setClientDomains = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { clientId: string; domains: string[] }) =>
+    z
+      .object({ clientId: z.string().uuid(), domains: z.array(z.string().max(200)).max(25) })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnalyst(context);
+    const domains = normalizeDomains(data.domains);
+    const { error } = await context.supabase
+      .from("clients")
+      .update({ expected_domains: domains })
+      .eq("id", data.clientId);
+    if (error) throw new Error(error.message);
+    return { domains };
   });
 
 export const setClientActive = createServerFn({ method: "POST" })
