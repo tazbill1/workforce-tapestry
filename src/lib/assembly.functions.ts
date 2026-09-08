@@ -39,7 +39,14 @@ export const rebuildPersonPeriod = createServerFn({ method: "POST" })
       data.period,
     );
     if (parts.length === 0) {
-      throw new Error("No parsed, non-superseded roster import exists for that client and period.");
+      return {
+        ok: false as const,
+        message:
+          "There is no parsed people file for that client and month yet. Upload a roster on the Imports screen first, then rebuild.",
+        inserted: 0,
+        skippedNoEmail: 0,
+        overlaps: [] as { normalized_email: string; parts: string[] }[],
+      };
     }
     const built = buildPersonPeriod(input);
     const inserted = await persistPersonPeriod(
@@ -49,6 +56,8 @@ export const rebuildPersonPeriod = createServerFn({ method: "POST" })
       built.rows,
     );
     return {
+      ok: true as const,
+      message: null,
       inserted,
       skippedNoEmail: built.skippedNoEmail,
       overlaps: built.overlaps.map((overlap) => ({
