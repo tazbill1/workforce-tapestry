@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
+import { useActiveClient } from "@/lib/active-client";
 import { toast } from "sonner";
 import { Gauge, Loader2, RefreshCw } from "lucide-react";
 
