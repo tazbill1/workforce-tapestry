@@ -16,7 +16,7 @@ export const listClientsAdmin = createServerFn({ method: "GET" })
     });
     const { data: clients, error } = await context.supabase
       .from("clients")
-      .select("id, name, code, active, created_at, logo_url")
+      .select("id, name, code, active, created_at, logo_url, expected_domains")
       .order("name");
     if (error) throw new Error(error.message);
 
