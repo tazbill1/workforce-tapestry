@@ -11,6 +11,15 @@ export type DetectedKind =
   | "recognition_counts"
   | "recognition_activity";
 
+export type SignalId = "people" | "mood" | "logins" | "recognition" | "totals";
+
+/** A kind of data actually present in the sheet. One file can carry several. */
+export type DataSignal = {
+  id: SignalId;
+  label: string;
+  columns: string[];
+};
+
 export type Sniff = {
   columns: string[];
   headerRowIndex: number;
