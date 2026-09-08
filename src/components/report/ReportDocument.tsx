@@ -217,7 +217,11 @@ export function ReportDocument({
       rank: Number(scope.slice("rank:".length)),
       name: m.text("top_contributor", scope) ?? DASH,
       total: m.get("top_contributor", scope),
+      posts: m.get("top_contributor_posts", scope),
+      comments: m.get("top_contributor_comments", scope),
+      likes: m.get("top_contributor_likes", scope),
     }))
+
     .sort((a, b) => a.rank - b.rank);
   const moodScopes = franchises.length > 0 ? franchises : m.scopesFor("mood_per_employee", "dept:");
 
