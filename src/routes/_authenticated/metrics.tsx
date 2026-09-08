@@ -105,6 +105,12 @@ function MetricsScreen() {
     queryKey: ["metric-definitions"],
     queryFn: () => definitionsFn({}),
   });
+  const baselines = useQuery({
+    queryKey: ["metric-baselines", clientId],
+    enabled: Boolean(clientId),
+    queryFn: () => baselinesFn({ data: { clientId } }),
+  });
+
 
   const rebuild = useMutation({
     mutationFn: () => rebuildFn({ data: { clientId, period } }),
