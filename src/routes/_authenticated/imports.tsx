@@ -111,6 +111,7 @@ function ImportScreen() {
   const [diff, setDiff] = useState<DiffResult | null>(null);
   const [sheetOptions, setSheetOptions] = useState<{ name: string; rows: number; detail: boolean }[]>([]);
   const [sheetName, setSheetName] = useState<string>("");
+  const [sheetSniffs, setSheetSniffs] = useState<Record<string, Sniff>>({});
   const [statedFor, setStatedFor] = useState<string | null>(null);
   const [statedPreview, setStatedPreview] = useState<
     { period: string; filename: string; figures: { metric_key: string; label: string; value: number; unit: string | null; raw_label: string }[] } | null
@@ -299,6 +300,7 @@ function ImportScreen() {
       setAdvice(null);
       setSheetOptions([]);
       setSheetName("");
+      setSheetSniffs({});
 
       setDetecting(true);
       try {
@@ -334,6 +336,7 @@ function ImportScreen() {
             detail: entry.detail,
           })),
         );
+        setSheetSniffs(Object.fromEntries(scanned.map((entry) => [entry.name, entry.sniffed])));
         setSheetName(best.name);
         const result = best.sniffed;
         setSniff(result);
@@ -596,6 +599,37 @@ function ImportScreen() {
                 <p className="flex items-center text-sm font-medium">
                   <Sparkles className="mr-2 h-4 w-4 text-primary" /> What this file looks like
                 </p>
+
+                {sheetOptions.length > 1 ? (
+                  <div className="space-y-1">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Tab to import
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {sheetOptions.map((option) => (
+                        <Button
+                          key={option.name}
+                          type="button"
+                          size="sm"
+                          variant={option.name === sheetName ? "default" : "outline"}
+                          onClick={() => {
+                            setSheetName(option.name);
+                            const next = sheetSniffs[option.name];
+                            if (next) setSniff(next);
+                          }}
+                        >
+                          {option.name}
+                          <span className="ml-2 text-xs opacity-70">
+                            {option.rows} rows{option.detail ? " • per person" : ""}
+                          </span>
+                        </Button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      This file has several tabs. The one with a row per person is selected.
+                    </p>
+                  </div>
+                ) : null}
 
                 {sniff.signals.length ? (
                   <div className="space-y-1">
