@@ -334,6 +334,28 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     effective_from: "2026-08-01",
   },
   {
+    key: "top_contributor_posts",
+    version: 1,
+    description: "Posts by the person at this rank in the top-contributor list.",
+    formula_note: "Same rank scope as top_contributor.",
+    effective_from: "2026-08-01",
+  },
+  {
+    key: "top_contributor_comments",
+    version: 1,
+    description: "Comments by the person at this rank in the top-contributor list.",
+    formula_note: "Same rank scope as top_contributor.",
+    effective_from: "2026-08-01",
+  },
+  {
+    key: "top_contributor_likes",
+    version: 1,
+    description: "Likes given by the person at this rank in the top-contributor list.",
+    formula_note: "Same rank scope as top_contributor.",
+    effective_from: "2026-08-01",
+  },
+  {
+
     key: "roster_size",
     version: 1,
     description: "People on the resolved roster for the period, after exclusions.",
@@ -568,7 +590,10 @@ function recognitionActivity(
   const matched = activity.filter((row) => row.matched_email);
 
   // Roll up repeated rows for the same person (multi-part exports).
-  const perPerson = new Map<string, { total: number; name: string }>();
+  const perPerson = new Map<
+    string,
+    { total: number; name: string; posts: number; comments: number; likes: number }
+  >();
   for (const row of matched) {
     const email = row.matched_email!.toLowerCase();
     const existing = perPerson.get(email);
@@ -576,8 +601,12 @@ function recognitionActivity(
     perPerson.set(email, {
       total: (existing?.total ?? 0) + total(row),
       name: existing?.name ?? name,
+      posts: (existing?.posts ?? 0) + (row.posts ?? 0),
+      comments: (existing?.comments ?? 0) + (row.comments ?? 0),
+      likes: (existing?.likes ?? 0) + (row.likes ?? 0),
     });
   }
+
 
   out.push({
     metric_key: "recognition_activity_matched_pct",
@@ -620,13 +649,35 @@ function recognitionActivity(
   ranked.forEach(([email, entry], index) => {
     const person = onRoster.get(email)!;
     const where = person.franchise_label ?? deptLabel(person);
-    out.push({
-      metric_key: "top_contributor",
-      definition_version: currentVersion("top_contributor"),
-      scope: `rank:${index + 1}`,
-      value_numeric: entry.total,
-      value_text: where ? `${entry.name} — ${where}` : entry.name,
-    });
+    const scope = `rank:${index + 1}`;
+    out.push(
+      {
+        metric_key: "top_contributor",
+        definition_version: currentVersion("top_contributor"),
+        scope,
+        value_numeric: entry.total,
+        value_text: where ? `${entry.name} — ${where}` : entry.name,
+      },
+      {
+        metric_key: "top_contributor_posts",
+        definition_version: currentVersion("top_contributor_posts"),
+        scope,
+        value_numeric: entry.posts,
+      },
+      {
+        metric_key: "top_contributor_comments",
+        definition_version: currentVersion("top_contributor_comments"),
+        scope,
+        value_numeric: entry.comments,
+      },
+      {
+        metric_key: "top_contributor_likes",
+        definition_version: currentVersion("top_contributor_likes"),
+        scope,
+        value_numeric: entry.likes,
+      },
+    );
+
   });
   return out;
 }
