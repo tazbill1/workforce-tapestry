@@ -1027,26 +1027,32 @@ export function ReportDocument({
             </table>
 
             <p className="rp-subheading" style={{ marginTop: "10pt" }}>
-              Top contributors
+              Most engaged people
             </p>
             <table className="rp-table rp-tight">
               <thead>
                 <tr>
                   <th className="rp-num">#</th>
                   <th>Person</th>
-                  <th className="rp-num">Activity</th>
+                  <th className="rp-num">Posts</th>
+                  <th className="rp-num">Comments</th>
+                  <th className="rp-num">Likes</th>
+                  <th className="rp-num">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {topContributors.length === 0 ? (
                   <tr>
-                    <td colSpan={3}>No matched recognition activity for this period.</td>
+                    <td colSpan={6}>No matched recognition activity for this period.</td>
                   </tr>
                 ) : (
                   topContributors.map((entry) => (
                     <tr key={entry.scope}>
                       <td className="rp-num">{entry.rank}</td>
                       <td>{entry.name}</td>
+                      <td className="rp-num">{fmtInt(entry.posts)}</td>
+                      <td className="rp-num">{fmtInt(entry.comments)}</td>
+                      <td className="rp-num">{fmtInt(entry.likes)}</td>
                       <td className="rp-num">{fmtInt(entry.total)}</td>
                     </tr>
                   ))
@@ -1054,8 +1060,10 @@ export function ReportDocument({
               </tbody>
             </table>
             <p className="rp-footnote">
-              Posts, comments and likes combined, for people on the resolved roster.
+              Posts, comments and likes for people on the resolved roster; ranked by the combined
+              total.
             </p>
+
           </div>
         </div>
       </Page>
