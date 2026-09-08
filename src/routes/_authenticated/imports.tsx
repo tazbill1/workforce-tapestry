@@ -260,9 +260,11 @@ function ImportScreen() {
     },
     onSuccess: (result) => {
       setStep(null);
-      setFlagSummary(result.summary as FlagSummary & { totalRows: number });
-      setDiff(result.diff as DiffResult);
-      toast.success(`Imported ${result.summary.totalRows} rows.`);
+      setFlagSummary(
+        result.summary ? (result.summary as FlagSummary & { totalRows: number }) : null,
+      );
+      setDiff(result.diff ? (result.diff as DiffResult) : null);
+      toast.success(`Imported ${result.totalRows} rows.`);
       queryClient.invalidateQueries({ queryKey: ["imports", clientId] });
     },
     onError: (error: Error) => {
@@ -271,17 +273,63 @@ function ImportScreen() {
     },
   });
 
-  const acceptFile = useCallback((candidate: File | null | undefined) => {
-    if (!candidate) return;
-    const ok = /\.(xlsx|xls|csv)$/i.test(candidate.name);
-    if (!ok) {
-      toast.error("Only .xlsx, .xls or .csv files can be imported.");
-      return;
-    }
-    setFile(candidate);
-    setFlagSummary(null);
-    setDiff(null);
-  }, []);
+  const acceptFile = useCallback(
+    async (candidate: File | null | undefined) => {
+      if (!candidate) return;
+      const ok = /\.(xlsx|xls|csv)$/i.test(candidate.name);
+      if (!ok) {
+        toast.error("Only .xlsx, .xls or .csv files can be imported.");
+        return;
+      }
+      setFile(candidate);
+      setFlagSummary(null);
+      setDiff(null);
+      setSniff(null);
+      setAdvice(null);
+
+      setDetecting(true);
+      try {
+        const XLSX = await import("xlsx");
+        const buffer = await candidate.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+        const sheetName = workbook.SheetNames[0];
+        if (!sheetName) throw new Error("The workbook has no sheets.");
+        const grid = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheetName]!, {
+          header: 1,
+          defval: null,
+          raw: false,
+        }) as unknown[][];
+        const result = sniffGrid(candidate.name, grid);
+        setSniff(result);
+
+        const detected = await analyzeFn({
+          data: {
+            filename: candidate.name,
+            columns: result.columns.slice(0, 80),
+            sampleRows: result.sampleRows,
+            preamble: result.preamble,
+            emails: result.emails,
+            rowCount: result.rowCount,
+            periodHint: result.periodHint,
+            heuristicKind: result.guess?.kind ?? null,
+            selectedClientId: clientId || null,
+            selectedPeriod: period,
+          },
+        });
+        setAdvice(detected as UploadAdvice);
+      } catch (error) {
+        setAdvice(null);
+        toast.message(
+          error instanceof Error
+            ? `Could not read the file for suggestions: ${error.message}`
+            : "Could not read the file for suggestions.",
+        );
+      } finally {
+        setDetecting(false);
+      }
+    },
+    [analyzeFn, clientId, period],
+  );
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
