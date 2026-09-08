@@ -82,7 +82,46 @@ export const analyzeUpload = createServerFn({ method: "POST" })
       }
     }
 
-    const suggestedClientId = clientMatches[0]?.clientId ?? null;
+    // --- Do the email domains belong to a client we already expect them for? ---
+    let domainClientId: string | null = null;
+    if (data.emails.length > 0) {
+      const domainTally = new Map<string, number>();
+      for (const email of data.emails) {
+        const domain = email.split("@")[1]?.trim().toLowerCase();
+        if (domain) domainTally.set(domain, (domainTally.get(domain) ?? 0) + 1);
+      }
+      const { data: allClients } = await supabase
+        .from("clients")
+        .select("id, name, expected_domains");
+      let best: { id: string; name: string; hits: number } | null = null;
+      for (const client of allClients ?? []) {
+        const expected: string[] = client.expected_domains ?? [];
+        if (expected.length === 0) continue;
+        let hits = 0;
+        for (const [domain, count] of domainTally) {
+          if (expected.some((d) => domain === d || domain.endsWith(`.${d}`))) hits += count;
+        }
+        if (hits > 0 && (!best || hits > best.hits)) best = { id: client.id, name: client.name, hits };
+      }
+      if (best) {
+        domainClientId = best.id;
+        const existing = clientMatches.find((m) => m.clientId === best!.id);
+        if (existing) existing.matched = Math.max(existing.matched, best.hits);
+        else clientMatches.unshift({ clientId: best.id, name: best.name, matched: best.hits });
+        if (data.selectedClientId && data.selectedClientId !== best.id) {
+          warnings.push(
+            `The email addresses in this file belong to ${best.name}'s expected domains (${best.hits} of them), not the client selected.`,
+          );
+        }
+      } else if (domainTally.size > 0) {
+        const unexpected = [...domainTally.keys()].slice(0, 4).join(", ");
+        warnings.push(
+          `None of the email domains in this file (${unexpected}) are listed as expected for any client. Add them on the Clients screen if they are correct.`,
+        );
+      }
+    }
+
+    const suggestedClientId = domainClientId ?? clientMatches[0]?.clientId ?? null;
     if (
       suggestedClientId &&
       data.selectedClientId &&
