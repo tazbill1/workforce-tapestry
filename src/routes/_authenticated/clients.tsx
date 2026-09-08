@@ -59,11 +59,21 @@ function ClientsScreen() {
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["clients-admin"] });
 
   const addMutation = useMutation({
-    mutationFn: (input: { name: string; code: string }) => add({ data: input }),
+    mutationFn: (input: { name: string; code: string; domains: string[] }) => add({ data: input }),
     onSuccess: () => {
       toast.success("Client added");
       setName("");
       setCode("");
+      setDomains("");
+      refresh();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const domainMutation = useMutation({
+    mutationFn: (input: { clientId: string; domains: string[] }) => saveDomains({ data: input }),
+    onSuccess: () => {
+      toast.success("Email domains saved");
       refresh();
     },
     onError: (e: Error) => toast.error(e.message),
