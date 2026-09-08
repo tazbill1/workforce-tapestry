@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useActiveClient } from "@/lib/active-client";
 import { toast } from "sonner";
 import { UploadCloud, FileSpreadsheet, LogOut, Loader2, Sparkles, AlertTriangle } from "lucide-react";
 
@@ -100,7 +101,7 @@ function ImportScreen() {
   const previewStatedFn = useServerFn(previewStatedFigures);
   const saveStatedFn = useServerFn(saveStatedFigures);
 
-  const [clientId, setClientId] = useState<string>("");
+  const { clientId, setClientId } = useActiveClient();
   const [period, setPeriod] = useState<string>(() => new Date().toISOString().slice(0, 7));
   const [kind, setKind] = useState<string>("roster");
   const [file, setFile] = useState<File | null>(null);

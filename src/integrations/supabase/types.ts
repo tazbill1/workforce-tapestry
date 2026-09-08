@@ -81,6 +81,7 @@ export type Database = {
           active: boolean
           code: string
           created_at: string
+          expected_domains: string[]
           id: string
           logo_url: string | null
           name: string
@@ -89,6 +90,7 @@ export type Database = {
           active?: boolean
           code: string
           created_at?: string
+          expected_domains?: string[]
           id?: string
           logo_url?: string | null
           name: string
@@ -97,6 +99,7 @@ export type Database = {
           active?: boolean
           code?: string
           created_at?: string
+          expected_domains?: string[]
           id?: string
           logo_url?: string | null
           name?: string

@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
+import { useActiveClient } from "@/lib/active-client";
 import { toast } from "sonner";
 import { Layers, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
 
@@ -68,7 +69,7 @@ function Stat({ label, value, hint }: { label: string; value: number | string; h
 }
 
 function AssemblyScreen() {
-  const [clientId, setClientId] = useState<string>("");
+  const { clientId, setClientId } = useActiveClient();
   const [period, setPeriod] = useState<string>("");
   const [overlaps, setOverlaps] = useState<Overlap[]>([]);
 

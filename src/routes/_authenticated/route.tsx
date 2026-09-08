@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect, Link } from "@tanstack/react-router"
 import { supabase } from "@/integrations/supabase/client";
 import { ensureDomainAccess } from "@/lib/access.functions";
 import { LayoutDashboard, FileSpreadsheet, GitMerge, BarChart3, FileText, LogOut, Building2, Sparkles, Users } from "lucide-react";
+import { ClientSwitcher } from "@/components/ClientSwitcher";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -59,7 +60,8 @@ function AuthenticatedLayout() {
               {label}
             </Link>
           ))}
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <ClientSwitcher />
             <button
               type="button"
               onClick={() => supabase.auth.signOut()}

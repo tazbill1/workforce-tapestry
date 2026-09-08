@@ -15,6 +15,7 @@ import {
   createClient,
   listClientsAdmin,
   setClientActive,
+  setClientDomains,
   setClientLogo,
 } from "@/lib/clients.functions";
 import { LOGO_MAX_H, LOGO_MAX_W, resizeLogo } from "@/lib/logo-resize";
@@ -47,19 +48,32 @@ function ClientsScreen() {
   const add = useServerFn(createClient);
   const toggle = useServerFn(setClientActive);
   const saveLogo = useServerFn(setClientLogo);
+  const saveDomains = useServerFn(setClientDomains);
 
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
+  const [domains, setDomains] = useState("");
+  const [domainDrafts, setDomainDrafts] = useState<Record<string, string>>({});
 
   const { data, isLoading } = useQuery({ queryKey: ["clients-admin"], queryFn: () => load() });
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["clients-admin"] });
 
   const addMutation = useMutation({
-    mutationFn: (input: { name: string; code: string }) => add({ data: input }),
+    mutationFn: (input: { name: string; code: string; domains: string[] }) => add({ data: input }),
     onSuccess: () => {
       toast.success("Client added");
       setName("");
       setCode("");
+      setDomains("");
+      refresh();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const domainMutation = useMutation({
+    mutationFn: (input: { clientId: string; domains: string[] }) => saveDomains({ data: input }),
+    onSuccess: () => {
+      toast.success("Email domains saved");
       refresh();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -116,7 +130,7 @@ function ClientsScreen() {
               className="flex flex-wrap items-end gap-3"
               onSubmit={(e) => {
                 e.preventDefault();
-                addMutation.mutate({ name, code });
+                addMutation.mutate({ name, code, domains: [domains] });
               }}
             >
               <div className="grid gap-1.5">
@@ -137,6 +151,15 @@ function ClientsScreen() {
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
                   placeholder="WEAUTO_MI"
                   required
+                />
+              </div>
+              <div className="grid min-w-[18rem] flex-1 gap-1.5">
+                <Label htmlFor="client-domains">Email domains to expect</Label>
+                <Input
+                  id="client-domains"
+                  value={domains}
+                  onChange={(e) => setDomains(e.target.value)}
+                  placeholder="weautomi.com, werkandme.com"
                 />
               </div>
               <Button type="submit" disabled={addMutation.isPending}>
@@ -226,6 +249,43 @@ function ClientsScreen() {
                   )}
                 </div>
 
+                <div className="space-y-2 rounded-md border p-3">
+                  <Label htmlFor={`domains-${client.id}`}>Email domains to expect</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Files whose email addresses use these domains are matched to {client.name}, and
+                    you get a warning if they are added under a different client.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input
+                      id={`domains-${client.id}`}
+                      className="max-w-md"
+                      disabled={!isAnalyst}
+                      value={
+                        domainDrafts[client.id] ??
+                        ((client as { expected_domains?: string[] }).expected_domains ?? []).join(", ")
+                      }
+                      onChange={(e) =>
+                        setDomainDrafts((prev) => ({ ...prev, [client.id]: e.target.value }))
+                      }
+                      placeholder="weautomi.com, dealergroup.com"
+                    />
+                    {isAnalyst && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={domainMutation.isPending || domainDrafts[client.id] === undefined}
+                        onClick={() =>
+                          domainMutation.mutate({
+                            clientId: client.id,
+                            domains: [domainDrafts[client.id] ?? ""],
+                          })
+                        }
+                      >
+                        Save domains
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
             );
           })}
