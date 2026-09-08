@@ -123,6 +123,45 @@ export function sniffGrid(filename: string, grid: unknown[][]): Sniff {
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
 
+  // --- What data does this sheet actually carry? Several answers are allowed. ---
+  const matchCols = (test: (k: string) => boolean) =>
+    columns.filter((_, i) => test(keys[i] ?? ""));
+
+  const signals: DataSignal[] = [];
+  const addSignal = (id: SignalId, label: string, cols: string[]) => {
+    if (cols.length) signals.push({ id, label, columns: cols.slice(0, 6) });
+  };
+
+  addSignal(
+    "people",
+    "People (identity and employment details)",
+    matchCols(
+      (k) =>
+        k.includes("email") ||
+        k === "name" ||
+        k.includes("fullname") ||
+        k.includes("status") ||
+        k.includes("title") ||
+        k.includes("department") ||
+        k.includes("hire"),
+    ),
+  );
+  addSignal(
+    "mood",
+    "Mood or check-in scores",
+    matchCols((k) => k.includes("mood") || k.includes("checkin") || k.includes("pulse") || k.includes("sentiment")),
+  );
+  addSignal(
+    "logins",
+    "Login activity",
+    matchCols((k) => k.includes("lastlogin") || k.includes("lastsignin") || k.includes("lastaccess") || k.includes("logins")),
+  );
+  addSignal(
+    "recognition",
+    "Recognition activity (posts, comments, likes)",
+    matchCols((k) => ["posts", "comments", "likes"].includes(k) || k.includes("recognition")),
+  );
+
   const scores: Score[] = [];
   const push = (kind: DetectedKind, score: number, reasons: string[]) => {
     if (score > 0) scores.push({ kind, score, reasons });
