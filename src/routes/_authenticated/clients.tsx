@@ -249,6 +249,43 @@ function ClientsScreen() {
                   )}
                 </div>
 
+                <div className="space-y-2 rounded-md border p-3">
+                  <Label htmlFor={`domains-${client.id}`}>Email domains to expect</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Files whose email addresses use these domains are matched to {client.name}, and
+                    you get a warning if they are added under a different client.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input
+                      id={`domains-${client.id}`}
+                      className="max-w-md"
+                      disabled={!isAnalyst}
+                      value={
+                        domainDrafts[client.id] ??
+                        ((client as { expected_domains?: string[] }).expected_domains ?? []).join(", ")
+                      }
+                      onChange={(e) =>
+                        setDomainDrafts((prev) => ({ ...prev, [client.id]: e.target.value }))
+                      }
+                      placeholder="weautomi.com, dealergroup.com"
+                    />
+                    {isAnalyst && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={domainMutation.isPending || domainDrafts[client.id] === undefined}
+                        onClick={() =>
+                          domainMutation.mutate({
+                            clientId: client.id,
+                            domains: [domainDrafts[client.id] ?? ""],
+                          })
+                        }
+                      >
+                        Save domains
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
             );
           })}
