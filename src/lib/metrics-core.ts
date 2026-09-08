@@ -590,7 +590,10 @@ function recognitionActivity(
   const matched = activity.filter((row) => row.matched_email);
 
   // Roll up repeated rows for the same person (multi-part exports).
-  const perPerson = new Map<string, { total: number; name: string }>();
+  const perPerson = new Map<
+    string,
+    { total: number; name: string; posts: number; comments: number; likes: number }
+  >();
   for (const row of matched) {
     const email = row.matched_email!.toLowerCase();
     const existing = perPerson.get(email);
@@ -598,8 +601,12 @@ function recognitionActivity(
     perPerson.set(email, {
       total: (existing?.total ?? 0) + total(row),
       name: existing?.name ?? name,
+      posts: (existing?.posts ?? 0) + (row.posts ?? 0),
+      comments: (existing?.comments ?? 0) + (row.comments ?? 0),
+      likes: (existing?.likes ?? 0) + (row.likes ?? 0),
     });
   }
+
 
   out.push({
     metric_key: "recognition_activity_matched_pct",
