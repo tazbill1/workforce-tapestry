@@ -48,9 +48,12 @@ function ClientsScreen() {
   const add = useServerFn(createClient);
   const toggle = useServerFn(setClientActive);
   const saveLogo = useServerFn(setClientLogo);
+  const saveDomains = useServerFn(setClientDomains);
 
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
+  const [domains, setDomains] = useState("");
+  const [domainDrafts, setDomainDrafts] = useState<Record<string, string>>({});
 
   const { data, isLoading } = useQuery({ queryKey: ["clients-admin"], queryFn: () => load() });
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["clients-admin"] });
