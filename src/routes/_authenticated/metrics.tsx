@@ -29,11 +29,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { listMyClients } from "@/lib/imports.functions";
 import {
+  listBaselines,
   listMetricDefinitions,
   listMetricPeriods,
   listMetrics,
   rebuildMetrics,
 } from "@/lib/metrics.functions";
+
 
 export const Route = createFileRoute("/_authenticated/metrics")({
   head: () => ({
@@ -87,6 +89,8 @@ function MetricsScreen() {
   const metricsFn = useServerFn(listMetrics);
   const definitionsFn = useServerFn(listMetricDefinitions);
   const rebuildFn = useServerFn(rebuildMetrics);
+  const baselinesFn = useServerFn(listBaselines);
+
 
   const clients = useQuery({ queryKey: ["clients"], queryFn: () => clientsFn({}) });
   const periods = useQuery({
@@ -103,6 +107,12 @@ function MetricsScreen() {
     queryKey: ["metric-definitions"],
     queryFn: () => definitionsFn({}),
   });
+  const baselines = useQuery({
+    queryKey: ["metric-baselines", clientId],
+    enabled: Boolean(clientId),
+    queryFn: () => baselinesFn({ data: { clientId } }),
+  });
+
 
   const rebuild = useMutation({
     mutationFn: () => rebuildFn({ data: { clientId, period } }),
@@ -225,8 +235,69 @@ function MetricsScreen() {
       <Tabs defaultValue="values">
         <TabsList>
           <TabsTrigger value="values">Computed metrics</TabsTrigger>
+          <TabsTrigger value="baselines">As published</TabsTrigger>
           <TabsTrigger value="definitions">Definitions</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="baselines">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Historic report figures</CardTitle>
+              <CardDescription>
+                Headline numbers exactly as they appeared in previously issued PDF reports, kept
+                separate from computed metrics. Small gaps are expected where decisions changed
+                after a report was sent.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              {baselines.isLoading ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : (baselines.data ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No historic figures recorded for this client yet.
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Period</TableHead>
+                      <TableHead>Figure</TableHead>
+                      <TableHead className="text-right">As published</TableHead>
+                      <TableHead className="text-right">Tool today</TableHead>
+                      <TableHead className="text-right">Difference</TableHead>
+                      <TableHead>Source</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(baselines.data ?? []).map((row) => (
+                      <TableRow key={`${row.period}-${row.metric_key}-${row.source}`}>
+                        <TableCell>{row.period}</TableCell>
+                        <TableCell className="font-medium">{row.label}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {fmt(row.value_numeric)}
+                          {row.unit === "%" ? "%" : ""}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          {row.tool_metric_key === null ? "not tracked" : fmt(row.tool_value)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          <Delta
+                            current={row.tool_value === null ? null : Number(row.tool_value)}
+                            prior={row.value_numeric === null ? null : Number(row.value_numeric)}
+                          />
+                        </TableCell>
+                        <TableCell className="max-w-72 text-xs text-muted-foreground">
+                          {row.source_note}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
 
         <TabsContent value="values" className="space-y-4">
           <div className="flex items-center gap-3">

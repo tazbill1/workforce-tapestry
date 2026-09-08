@@ -264,6 +264,56 @@ export type Database = {
           },
         ]
       }
+      historical_baselines: {
+        Row: {
+          client_id: string
+          entered_at: string
+          entered_by: string | null
+          id: string
+          label: string
+          metric_key: string
+          period: string
+          source: string
+          source_note: string | null
+          unit: string | null
+          value_numeric: number | null
+        }
+        Insert: {
+          client_id: string
+          entered_at?: string
+          entered_by?: string | null
+          id?: string
+          label: string
+          metric_key: string
+          period: string
+          source?: string
+          source_note?: string | null
+          unit?: string | null
+          value_numeric?: number | null
+        }
+        Update: {
+          client_id?: string
+          entered_at?: string
+          entered_by?: string | null
+          id?: string
+          label?: string
+          metric_key?: string
+          period?: string
+          source?: string
+          source_note?: string | null
+          unit?: string | null
+          value_numeric?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historical_baselines_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       metric_definitions: {
         Row: {
           description: string | null
