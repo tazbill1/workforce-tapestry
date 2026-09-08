@@ -106,6 +106,9 @@ function ImportScreen() {
   const [step, setStep] = useState<Step>(null);
   const [flagSummary, setFlagSummary] = useState<(FlagSummary & { totalRows: number }) | null>(null);
   const [diff, setDiff] = useState<DiffResult | null>(null);
+  const [sniff, setSniff] = useState<Sniff | null>(null);
+  const [advice, setAdvice] = useState<UploadAdvice | null>(null);
+  const [detecting, setDetecting] = useState(false);
 
   const clients = useQuery({ queryKey: ["clients"], queryFn: () => clientsFn() });
 
