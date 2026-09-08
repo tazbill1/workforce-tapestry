@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { UploadCloud, FileSpreadsheet, LogOut, Loader2 } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, LogOut, Loader2, Sparkles, AlertTriangle } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,10 @@ import {
 import { DiffPanel, type DiffResult } from "@/components/import/DiffPanel";
 import { FlagSummaryPanel, type FlagSummary } from "@/components/import/FlagSummaryPanel";
 import { buildHeaderMap, extractRow, sha256Hex, type SourceRow } from "@/lib/roster-parse";
+import { parseEngagementSheet } from "@/lib/engagement-parse";
+import { insertRecognitionActivity } from "@/lib/engagement.functions";
+import { sniffGrid, KIND_LABELS, type Sniff } from "@/lib/detect-import";
+import { analyzeUpload, type UploadAdvice } from "@/lib/detect.functions";
 import {
   checkDuplicate,
   createImport,
@@ -48,6 +52,7 @@ const KINDS = [
   { value: "login_report", label: "Login report" },
   { value: "engagement_totals", label: "Engagement totals" },
   { value: "recognition_counts", label: "Recognition counts" },
+  { value: "recognition_activity", label: "Recognition activity" },
 ] as const;
 
 const BATCH_SIZE = 200;
@@ -89,6 +94,8 @@ function ImportScreen() {
   const finalizeFn = useServerFn(finalizeImport);
   const flagSummaryFn = useServerFn(getFlagSummary);
   const diffFn = useServerFn(getDiff);
+  const analyzeFn = useServerFn(analyzeUpload);
+  const insertRecognitionFn = useServerFn(insertRecognitionActivity);
 
   const [clientId, setClientId] = useState<string>("");
   const [period, setPeriod] = useState<string>(() => new Date().toISOString().slice(0, 7));
@@ -99,6 +106,9 @@ function ImportScreen() {
   const [step, setStep] = useState<Step>(null);
   const [flagSummary, setFlagSummary] = useState<(FlagSummary & { totalRows: number }) | null>(null);
   const [diff, setDiff] = useState<DiffResult | null>(null);
+  const [sniff, setSniff] = useState<Sniff | null>(null);
+  const [advice, setAdvice] = useState<UploadAdvice | null>(null);
+  const [detecting, setDetecting] = useState(false);
 
   const clients = useQuery({ queryKey: ["clients"], queryFn: () => clientsFn() });
 
@@ -159,6 +169,44 @@ function ImportScreen() {
         const sheetName = workbook.SheetNames[0];
         if (!sheetName) throw new Error("The workbook has no sheets.");
         const sheet = workbook.Sheets[sheetName]!;
+
+        if (kind === "recognition_activity") {
+          const grid = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
+          const parsed = parseEngagementSheet(grid as unknown[][]);
+          for (let i = 0; i < parsed.rows.length; i += BATCH_SIZE) {
+            const batch = parsed.rows.slice(i, i + BATCH_SIZE);
+            setStep({
+              label: `Writing rows ${i + 1}–${Math.min(i + BATCH_SIZE, parsed.rows.length)} of ${parsed.rows.length}`,
+              progress: 45 + Math.round((i / Math.max(parsed.rows.length, 1)) * 40),
+            });
+            await insertRecognitionFn({
+              data: {
+                importId,
+                clientId,
+                period: periodDate,
+                windowFrom: parsed.windowFrom,
+                windowTo: parsed.windowTo,
+                rows: batch,
+              },
+            });
+          }
+          setStep({ label: "Finalising import", progress: 90 });
+          await finalizeFn({
+            data: {
+              importId,
+              rowCount: parsed.rows.length,
+              columnNames: parsed.columnNames,
+              state: "parsed",
+            },
+          });
+          return {
+            summary: null,
+            diff: null,
+            importId,
+            totalRows: parsed.rows.length,
+          };
+        }
+
         const rows = XLSX.utils.sheet_to_json<SourceRow>(sheet, { defval: null, raw: true });
 
         const columnNames = Array.from(
@@ -196,7 +244,12 @@ function ImportScreen() {
           flagSummaryFn({ data: { importId } }),
           diffFn({ data: { importId } }),
         ]);
-        return { summary: { ...summary, totalRows: extracted.length }, diff: diffResult, importId };
+        return {
+          summary: { ...summary, totalRows: extracted.length },
+          diff: diffResult,
+          importId,
+          totalRows: extracted.length,
+        };
       } catch (error) {
         const message = error instanceof Error ? error.message : "Parse failed";
         await finalizeFn({
@@ -207,9 +260,11 @@ function ImportScreen() {
     },
     onSuccess: (result) => {
       setStep(null);
-      setFlagSummary(result.summary as FlagSummary & { totalRows: number });
-      setDiff(result.diff as DiffResult);
-      toast.success(`Imported ${result.summary.totalRows} rows.`);
+      setFlagSummary(
+        result.summary ? (result.summary as FlagSummary & { totalRows: number }) : null,
+      );
+      setDiff(result.diff ? (result.diff as DiffResult) : null);
+      toast.success(`Imported ${result.totalRows} rows.`);
       queryClient.invalidateQueries({ queryKey: ["imports", clientId] });
     },
     onError: (error: Error) => {
@@ -218,17 +273,64 @@ function ImportScreen() {
     },
   });
 
-  const acceptFile = useCallback((candidate: File | null | undefined) => {
-    if (!candidate) return;
-    const ok = /\.(xlsx|xls|csv)$/i.test(candidate.name);
-    if (!ok) {
-      toast.error("Only .xlsx, .xls or .csv files can be imported.");
-      return;
-    }
-    setFile(candidate);
-    setFlagSummary(null);
-    setDiff(null);
-  }, []);
+  const acceptFile = useCallback(
+    async (candidate: File | null | undefined) => {
+      if (!candidate) return;
+      const ok = /\.(xlsx|xls|csv)$/i.test(candidate.name);
+      if (!ok) {
+        toast.error("Only .xlsx, .xls or .csv files can be imported.");
+        return;
+      }
+      setFile(candidate);
+      setFlagSummary(null);
+      setDiff(null);
+      setSniff(null);
+      setAdvice(null);
+
+      setDetecting(true);
+      try {
+        const XLSX = await import("xlsx");
+        const buffer = await candidate.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+        const sheetName = workbook.SheetNames[0];
+        if (!sheetName) throw new Error("The workbook has no sheets.");
+        const grid = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheetName]!, {
+          header: 1,
+          defval: null,
+          raw: false,
+        }) as unknown[][];
+        const result = sniffGrid(candidate.name, grid);
+        setSniff(result);
+
+        const detected = await analyzeFn({
+          data: {
+            filename: candidate.name,
+            columns: result.columns.slice(0, 80),
+            sampleRows: result.sampleRows,
+            preamble: result.preamble,
+            emails: result.emails,
+            rowCount: result.rowCount,
+            periodHint: result.periodHint,
+            heuristicKind: result.guess?.kind ?? null,
+            signals: result.signals.map((signal) => ({ id: signal.id, label: signal.label })),
+            selectedClientId: clientId || null,
+            selectedPeriod: period,
+          },
+        });
+        setAdvice(detected as UploadAdvice);
+      } catch (error) {
+        setAdvice(null);
+        toast.message(
+          error instanceof Error
+            ? `Could not read the file for suggestions: ${error.message}`
+            : "Could not read the file for suggestions.",
+        );
+      } finally {
+        setDetecting(false);
+      }
+    },
+    [analyzeFn, clientId, period],
+  );
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
@@ -420,6 +522,108 @@ function ImportScreen() {
               </Button>
             </div>
 
+
+
+            {detecting ? (
+              <p className="flex items-center text-sm text-muted-foreground">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Reading the file to see what is in it…
+              </p>
+            ) : null}
+
+            {!detecting && sniff ? (
+              <div className="space-y-3 rounded-lg border bg-background p-4">
+                <p className="flex items-center text-sm font-medium">
+                  <Sparkles className="mr-2 h-4 w-4 text-primary" /> What this file looks like
+                </p>
+
+                {sniff.signals.length ? (
+                  <div className="space-y-1">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Data found</p>
+                    <ul className="space-y-1 text-sm">
+                      {sniff.signals.map((signal) => (
+                        <li key={signal.id}>
+                          {signal.label}{" "}
+                          <span className="text-muted-foreground">
+                            ({signal.columns.join(", ")})
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No familiar columns were recognised. Pick the kind yourself.
+                  </p>
+                )}
+
+                {advice?.combinedNote ? (
+                  <p className="text-sm text-muted-foreground">{advice.combinedNote}</p>
+                ) : null}
+
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  {advice?.suggestedKind ? (
+                    <>
+                      <span className="text-muted-foreground">Suggested kind:</span>
+                      <Badge variant="secondary">{KIND_LABELS[advice.suggestedKind]}</Badge>
+                      {advice.suggestedKind !== kind ? (
+                        <Button size="sm" variant="outline" onClick={() => setKind(advice.suggestedKind!)}>
+                          Use this kind
+                        </Button>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
+
+                {advice?.suggestedPeriod && advice.suggestedPeriod !== period ? (
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">Period in the file:</span>
+                    <Badge variant="secondary">{advice.suggestedPeriod}</Badge>
+                    <Button size="sm" variant="outline" onClick={() => setPeriod(advice.suggestedPeriod!)}>
+                      Use this period
+                    </Button>
+                  </div>
+                ) : null}
+
+                {advice?.clientMatches?.length ? (
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">People match:</span>
+                    {advice.clientMatches.map((match) => (
+                      <Badge key={match.clientId} variant="outline">
+                        {match.name} · {match.matched}
+                      </Badge>
+                    ))}
+                    {advice.suggestedClientId && advice.suggestedClientId !== clientId ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setClientId(advice.suggestedClientId!)}
+                      >
+                        Switch client
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {advice?.warnings?.length ? (
+                  <ul className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+                    {advice.warnings.map((warning) => (
+                      <li key={warning} className="flex gap-2">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                        <span>{warning}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                {advice?.aiNote ? (
+                  <p className="text-xs text-muted-foreground">{advice.aiNote}</p>
+                ) : null}
+
+                <p className="text-xs text-muted-foreground">
+                  Suggestions only — nothing is imported until you choose Upload and parse.
+                </p>
+              </div>
+            ) : null}
 
             {step ? (
               <div className="space-y-2">
