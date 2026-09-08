@@ -269,6 +269,7 @@ export function sniffGrid(filename: string, grid: unknown[][]): Sniff {
       ? { kind: top.kind, confidence: Math.min(99, top.score), reasons: top.reasons }
       : null,
     runnerUp: second ? { kind: second.kind, confidence: Math.min(99, second.score) } : null,
+    signals,
     periodHint,
     preamble: preamble.slice(0, 4),
   };
