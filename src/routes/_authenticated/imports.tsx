@@ -169,6 +169,44 @@ function ImportScreen() {
         const sheetName = workbook.SheetNames[0];
         if (!sheetName) throw new Error("The workbook has no sheets.");
         const sheet = workbook.Sheets[sheetName]!;
+
+        if (kind === "recognition_activity") {
+          const grid = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
+          const parsed = parseEngagementSheet(grid as unknown[][]);
+          for (let i = 0; i < parsed.rows.length; i += BATCH_SIZE) {
+            const batch = parsed.rows.slice(i, i + BATCH_SIZE);
+            setStep({
+              label: `Writing rows ${i + 1}–${Math.min(i + BATCH_SIZE, parsed.rows.length)} of ${parsed.rows.length}`,
+              progress: 45 + Math.round((i / Math.max(parsed.rows.length, 1)) * 40),
+            });
+            await insertRecognitionFn({
+              data: {
+                importId,
+                clientId,
+                period: periodDate,
+                windowFrom: parsed.windowFrom,
+                windowTo: parsed.windowTo,
+                rows: batch,
+              },
+            });
+          }
+          setStep({ label: "Finalising import", progress: 90 });
+          await finalizeFn({
+            data: {
+              importId,
+              rowCount: parsed.rows.length,
+              columnNames: parsed.columnNames,
+              state: "parsed",
+            },
+          });
+          return {
+            summary: null,
+            diff: null,
+            importId,
+            totalRows: parsed.rows.length,
+          };
+        }
+
         const rows = XLSX.utils.sheet_to_json<SourceRow>(sheet, { defval: null, raw: true });
 
         const columnNames = Array.from(
