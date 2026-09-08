@@ -346,6 +346,9 @@ export function buildPersonPeriod(input: BuildInput): BuildResult {
     const status = canonicalStatus(winner.status_raw).label;
     const isInactive = canonicalStatus(winner.status_raw).rank === 2;
 
+    const hire = dateOnly(winner.hire_date);
+    if (!hire) flags.push("no_hire_date");
+
     // Departure proxy: modified date on an inactive record, unless it equals created.
     let departure: string | null = null;
     if (isInactive) {
@@ -355,18 +358,20 @@ export function buildPersonPeriod(input: BuildInput): BuildResult {
         flags.push("no_usable_departure_date");
       } else if (created && modified === created) {
         flags.push("no_usable_departure_date");
+      } else if (hire && modified < hire) {
+        // Impossible: the proxy departure precedes the hire date. Drop the date rather than
+        // counting an impossible departure; the row stays and is flagged.
+        flags.push("departure_before_hire");
+        flags.push("no_usable_departure_date");
       } else {
         departure = modified;
       }
     }
 
-    const hire = dateOnly(winner.hire_date);
-    if (!hire) flags.push("no_hire_date");
     const tenureEnd = departure ? new Date(`${departure}T00:00:00Z`) : end;
     const tenure = hire ? yearsBetween(hire, tenureEnd) : null;
-    // Impossible tenure: the proxy departure date precedes the hire date. Kept and flagged as a
-    // data-quality signal; the tenure metric drops these rows rather than averaging a negative.
     if (tenure !== null && tenure < 0) flags.push("negative_tenure");
+
 
     // Department rules.
     const rule = input.departmentRules.find((item) =>
