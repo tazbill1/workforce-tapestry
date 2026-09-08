@@ -20,6 +20,7 @@ export type Sniff = {
   rowCount: number;
   guess: { kind: DetectedKind; confidence: number; reasons: string[] } | null;
   runnerUp: { kind: DetectedKind; confidence: number } | null;
+  signals: DataSignal[];
   periodHint: string | null;
   preamble: string[];
 };
