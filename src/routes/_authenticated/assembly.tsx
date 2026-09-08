@@ -94,6 +94,10 @@ function AssemblyScreen() {
   const rebuild = useMutation({
     mutationFn: () => rebuildFn({ data: { clientId, period } }),
     onSuccess: (result) => {
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
       setOverlaps(result.overlaps);
       toast.success(`Rebuilt ${result.inserted} rows for ${period}`);
       summary.refetch();
