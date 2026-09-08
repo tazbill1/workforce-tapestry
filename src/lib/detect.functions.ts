@@ -23,6 +23,7 @@ const inputSchema = z.object({
   rowCount: z.number().int().min(0),
   periodHint: z.string().regex(/^\d{4}-\d{2}$/).nullable(),
   heuristicKind: z.enum(KINDS).nullable(),
+  signals: z.array(z.object({ id: z.string().max(40), label: z.string().max(120) })).max(6).default([]),
   selectedClientId: z.string().uuid().nullable(),
   selectedPeriod: z.string().regex(/^\d{4}-\d{2}$/),
 });
@@ -34,6 +35,7 @@ export type UploadAdvice = {
   suggestedClientId: string | null;
   aiNote: string | null;
   warnings: string[];
+  combinedNote: string | null;
 };
 
 /**
@@ -133,6 +135,7 @@ export const analyzeUpload = createServerFn({ method: "POST" })
         `File name: ${data.filename}`,
         data.preamble.length ? `Lines above the header: ${data.preamble.join(" | ")}` : "",
         `Columns: ${data.columns.join(" | ")}`,
+        data.signals.length ? `Data present: ${data.signals.map((s) => s.label).join("; ")}` : "",
         `Data rows: ${data.rowCount}`,
         data.sampleRows.length
           ? `Sample rows:\n${data.sampleRows.map((r) => r.join(" | ")).join("\n")}`
@@ -201,6 +204,11 @@ export const analyzeUpload = createServerFn({ method: "POST" })
       );
     }
 
+    const combinedNote =
+      data.signals.length > 1
+        ? `This file carries ${data.signals.map((s) => s.label.toLowerCase()).join(" and ")}. Import it once under the kind that matters most; the other columns are still stored with the rows and stay available.`
+        : null;
+
     return {
       suggestedKind: suggestedKind ?? null,
       suggestedPeriod: suggestedPeriod ?? null,
@@ -208,5 +216,6 @@ export const analyzeUpload = createServerFn({ method: "POST" })
       suggestedClientId,
       aiNote,
       warnings,
+      combinedNote,
     };
   });
