@@ -89,6 +89,8 @@ function MetricsScreen() {
   const metricsFn = useServerFn(listMetrics);
   const definitionsFn = useServerFn(listMetricDefinitions);
   const rebuildFn = useServerFn(rebuildMetrics);
+  const baselinesFn = useServerFn(listBaselines);
+
 
   const clients = useQuery({ queryKey: ["clients"], queryFn: () => clientsFn({}) });
   const periods = useQuery({
