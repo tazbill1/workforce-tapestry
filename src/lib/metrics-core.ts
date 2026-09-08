@@ -334,6 +334,28 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     effective_from: "2026-08-01",
   },
   {
+    key: "top_contributor_posts",
+    version: 1,
+    description: "Posts by the person at this rank in the top-contributor list.",
+    formula_note: "Same rank scope as top_contributor.",
+    effective_from: "2026-08-01",
+  },
+  {
+    key: "top_contributor_comments",
+    version: 1,
+    description: "Comments by the person at this rank in the top-contributor list.",
+    formula_note: "Same rank scope as top_contributor.",
+    effective_from: "2026-08-01",
+  },
+  {
+    key: "top_contributor_likes",
+    version: 1,
+    description: "Likes given by the person at this rank in the top-contributor list.",
+    formula_note: "Same rank scope as top_contributor.",
+    effective_from: "2026-08-01",
+  },
+  {
+
     key: "roster_size",
     version: 1,
     description: "People on the resolved roster for the period, after exclusions.",
