@@ -123,6 +123,7 @@ export const analyzeUpload = createServerFn({ method: "POST" })
 
     const suggestedClientId = domainClientId ?? clientMatches[0]?.clientId ?? null;
     if (
+      !domainClientId &&
       suggestedClientId &&
       data.selectedClientId &&
       suggestedClientId !== data.selectedClientId &&
