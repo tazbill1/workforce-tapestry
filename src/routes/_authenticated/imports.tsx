@@ -94,6 +94,8 @@ function ImportScreen() {
   const finalizeFn = useServerFn(finalizeImport);
   const flagSummaryFn = useServerFn(getFlagSummary);
   const diffFn = useServerFn(getDiff);
+  const analyzeFn = useServerFn(analyzeUpload);
+  const insertRecognitionFn = useServerFn(insertRecognitionActivity);
 
   const [clientId, setClientId] = useState<string>("");
   const [period, setPeriod] = useState<string>(() => new Date().toISOString().slice(0, 7));
