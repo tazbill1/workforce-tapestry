@@ -130,7 +130,7 @@ function ClientsScreen() {
               className="flex flex-wrap items-end gap-3"
               onSubmit={(e) => {
                 e.preventDefault();
-                addMutation.mutate({ name, code });
+                addMutation.mutate({ name, code, domains: [domains] });
               }}
             >
               <div className="grid gap-1.5">
@@ -151,6 +151,15 @@ function ClientsScreen() {
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
                   placeholder="WEAUTO_MI"
                   required
+                />
+              </div>
+              <div className="grid min-w-[18rem] flex-1 gap-1.5">
+                <Label htmlFor="client-domains">Email domains to expect</Label>
+                <Input
+                  id="client-domains"
+                  value={domains}
+                  onChange={(e) => setDomains(e.target.value)}
+                  placeholder="weautomi.com, werkandme.com"
                 />
               </div>
               <Button type="submit" disabled={addMutation.isPending}>
