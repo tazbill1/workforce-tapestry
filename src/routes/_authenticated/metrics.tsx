@@ -29,11 +29,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { listMyClients } from "@/lib/imports.functions";
 import {
+  listBaselines,
   listMetricDefinitions,
   listMetricPeriods,
   listMetrics,
   rebuildMetrics,
 } from "@/lib/metrics.functions";
+
 
 export const Route = createFileRoute("/_authenticated/metrics")({
   head: () => ({
