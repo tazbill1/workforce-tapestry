@@ -101,7 +101,7 @@ function ReportPreview() {
 
 
 
-  const [clientId, setClientId] = useState<string>(search.client ?? "");
+  const { clientId, setClientId } = useActiveClient();
   const [period, setPeriod] = useState<string>(search.period ?? "");
   const [format, setFormat] = useState<ReportFormat>("landscape");
   const [activeSection, setActiveSection] = useState<string>("cover");
@@ -111,8 +111,9 @@ function ReportPreview() {
   const clients = useQuery({ queryKey: ["my-clients"], queryFn: () => clientsFn() });
 
   useEffect(() => {
-    if (!clientId && clients.data?.[0]) setClientId(clients.data[0].id);
-  }, [clients.data, clientId]);
+    if (search.client && search.client !== clientId) setClientId(search.client);
+    else if (!clientId && clients.data?.[0]) setClientId(clients.data[0].id);
+  }, [clients.data, clientId, search.client, setClientId]);
 
   const periods = useQuery({
     queryKey: ["metric-periods", clientId],
