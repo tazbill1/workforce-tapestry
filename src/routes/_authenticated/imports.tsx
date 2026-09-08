@@ -31,6 +31,10 @@ import {
 import { DiffPanel, type DiffResult } from "@/components/import/DiffPanel";
 import { FlagSummaryPanel, type FlagSummary } from "@/components/import/FlagSummaryPanel";
 import { buildHeaderMap, extractRow, sha256Hex, type SourceRow } from "@/lib/roster-parse";
+import { parseEngagementSheet } from "@/lib/engagement-parse";
+import { insertRecognitionActivity } from "@/lib/engagement.functions";
+import { sniffGrid, KIND_LABELS, type Sniff } from "@/lib/detect-import";
+import { analyzeUpload, type UploadAdvice } from "@/lib/detect.functions";
 import {
   checkDuplicate,
   createImport,
@@ -48,6 +52,7 @@ const KINDS = [
   { value: "login_report", label: "Login report" },
   { value: "engagement_totals", label: "Engagement totals" },
   { value: "recognition_counts", label: "Recognition counts" },
+  { value: "recognition_activity", label: "Recognition activity" },
 ] as const;
 
 const BATCH_SIZE = 200;
