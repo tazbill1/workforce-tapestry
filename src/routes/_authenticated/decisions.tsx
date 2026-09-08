@@ -67,7 +67,7 @@ const CATEGORIES = ["test", "demo", "vendor", "platform", "internal", "legacy", 
 const MATCH_TYPES = ["email", "email_domain", "name", "employee_id", "keyword"] as const;
 
 function DecisionsScreen() {
-  const [clientId, setClientId] = useState("");
+  const { clientId, setClientId } = useActiveClient();
   const [period, setPeriod] = useState("");
   const [tab, setTab] = useState("exclusions");
   const tabsRef = useRef<HTMLDivElement>(null);

@@ -80,7 +80,7 @@ function Delta({ current, prior }: { current: number | null; prior: number | nul
 }
 
 function MetricsScreen() {
-  const [clientId, setClientId] = useState("");
+  const { clientId, setClientId } = useActiveClient();
   const [period, setPeriod] = useState("");
   const [filter, setFilter] = useState("");
 

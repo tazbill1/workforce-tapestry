@@ -100,7 +100,7 @@ function ImportScreen() {
   const previewStatedFn = useServerFn(previewStatedFigures);
   const saveStatedFn = useServerFn(saveStatedFigures);
 
-  const [clientId, setClientId] = useState<string>("");
+  const { clientId, setClientId } = useActiveClient();
   const [period, setPeriod] = useState<string>(() => new Date().toISOString().slice(0, 7));
   const [kind, setKind] = useState<string>("roster");
   const [file, setFile] = useState<File | null>(null);

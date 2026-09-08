@@ -68,7 +68,7 @@ function Stat({ label, value, hint }: { label: string; value: number | string; h
 }
 
 function AssemblyScreen() {
-  const [clientId, setClientId] = useState<string>("");
+  const { clientId, setClientId } = useActiveClient();
   const [period, setPeriod] = useState<string>("");
   const [overlaps, setOverlaps] = useState<Overlap[]>([]);
 
