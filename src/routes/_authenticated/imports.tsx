@@ -109,6 +109,8 @@ function ImportScreen() {
   const [step, setStep] = useState<Step>(null);
   const [flagSummary, setFlagSummary] = useState<(FlagSummary & { totalRows: number }) | null>(null);
   const [diff, setDiff] = useState<DiffResult | null>(null);
+  const [sheetOptions, setSheetOptions] = useState<{ name: string; rows: number; detail: boolean }[]>([]);
+  const [sheetName, setSheetName] = useState<string>("");
   const [statedFor, setStatedFor] = useState<string | null>(null);
   const [statedPreview, setStatedPreview] = useState<
     { period: string; filename: string; figures: { metric_key: string; label: string; value: number; unit: string | null; raw_label: string }[] } | null
@@ -173,9 +175,11 @@ function ImportScreen() {
         setStep({ label: "Reading spreadsheet", progress: 42 });
         const XLSX = await import("xlsx");
         const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-        const sheetName = workbook.SheetNames[0];
-        if (!sheetName) throw new Error("The workbook has no sheets.");
-        const sheet = workbook.Sheets[sheetName]!;
+        const chosen =
+          (sheetName && workbook.SheetNames.includes(sheetName) ? sheetName : null) ??
+          workbook.SheetNames[0];
+        if (!chosen) throw new Error("The workbook has no sheets.");
+        const sheet = workbook.Sheets[chosen]!;
 
         if (kind === "recognition_activity") {
           const grid = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
@@ -293,20 +297,45 @@ function ImportScreen() {
       setDiff(null);
       setSniff(null);
       setAdvice(null);
+      setSheetOptions([]);
+      setSheetName("");
 
       setDetecting(true);
       try {
         const XLSX = await import("xlsx");
         const buffer = await candidate.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-        const sheetName = workbook.SheetNames[0];
-        if (!sheetName) throw new Error("The workbook has no sheets.");
-        const grid = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheetName]!, {
-          header: 1,
-          defval: null,
-          raw: false,
-        }) as unknown[][];
-        const result = sniffGrid(candidate.name, grid);
+        if (workbook.SheetNames.length === 0) throw new Error("The workbook has no sheets.");
+
+        // Workbooks often hide the real per-person list on a later tab behind a
+        // Summary tab. Look at every sheet and pick the one with actual records.
+        const scanned = workbook.SheetNames.map((name) => {
+          const grid = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[name]!, {
+            header: 1,
+            defval: null,
+            raw: false,
+          }) as unknown[][];
+          const sniffed = sniffGrid(candidate.name, grid);
+          const detail =
+            sniffed.rowCount >= 5 &&
+            sniffed.signals.some((signal) => signal.id === "people" || signal.id === "recognition");
+          return { name, grid, sniffed, detail };
+        });
+        const best =
+          [...scanned].sort(
+            (a, b) =>
+              Number(b.detail) - Number(a.detail) || b.sniffed.rowCount - a.sniffed.rowCount,
+          )[0] ?? scanned[0]!;
+
+        setSheetOptions(
+          scanned.map((entry) => ({
+            name: entry.name,
+            rows: entry.sniffed.rowCount,
+            detail: entry.detail,
+          })),
+        );
+        setSheetName(best.name);
+        const result = best.sniffed;
         setSniff(result);
 
         const detected = await analyzeFn({
