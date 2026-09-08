@@ -15,6 +15,7 @@ import {
   createClient,
   listClientsAdmin,
   setClientActive,
+  setClientDomains,
   setClientLogo,
 } from "@/lib/clients.functions";
 import { LOGO_MAX_H, LOGO_MAX_W, resizeLogo } from "@/lib/logo-resize";
