@@ -206,6 +206,21 @@ function UsersScreen() {
                       <p className="mt-1 text-xs text-muted-foreground">{ROLE_HELP[current]}</p>
                     </TableCell>
                     <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={!u.disabled}
+                          disabled={!canManage || (isSelf && !u.disabled) || activeMutation.isPending}
+                          onCheckedChange={(checked) =>
+                            activeMutation.mutate({ userId: u.id, active: checked })
+                          }
+                          aria-label="Access"
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {u.disabled ? "Off" : "On"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
                       <span className={u.lastSignInAt ? "" : "text-muted-foreground"}>
                         {relative(u.lastSignInAt)}
                       </span>
