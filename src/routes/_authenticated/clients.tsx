@@ -180,6 +180,7 @@ function ClientsScreen() {
         </CardHeader>
         <CardContent className="space-y-6">
           {(data?.clients ?? []).map((client) => {
+            const savedDomains = (client as { expected_domains?: string[] }).expected_domains ?? [];
             return (
               <div key={client.id} className="space-y-3 rounded-lg border p-4">
                 <div className="flex flex-wrap items-center gap-2">
@@ -200,6 +201,21 @@ function ClientsScreen() {
                       {client.active ? "Deactivate" : "Reactivate"}
                     </Button>
                   )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">Expected email domains</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {savedDomains.length > 0 ? (
+                      savedDomains.map((d) => (
+                        <Badge key={d} variant="outline" className="font-normal">
+                          {d}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No domains saved</span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4 rounded-md border bg-muted/40 p-3">
