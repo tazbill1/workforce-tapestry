@@ -210,6 +210,21 @@ function ClientsScreen() {
                       savedDomains.map((d) => (
                         <Badge key={d} variant="outline" className="font-normal">
                           {d}
+                          {isAnalyst && (
+                            <button
+                              type="button"
+                              aria-label={`Remove ${d}`}
+                              className="ml-1.5 text-muted-foreground hover:text-foreground"
+                              onClick={() =>
+                                domainMutation.mutate({
+                                  clientId: client.id,
+                                  domains: savedDomains.filter((x) => x !== d),
+                                })
+                              }
+                            >
+                              ×
+                            </button>
+                          )}
                         </Badge>
                       ))
                     ) : (
