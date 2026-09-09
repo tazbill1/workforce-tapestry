@@ -163,6 +163,8 @@ function ImportScreen() {
   const diffFn = useServerFn(getDiff);
   const analyzeFn = useServerFn(analyzeUpload);
   const insertRecognitionFn = useServerFn(insertRecognitionActivity);
+  const createSurveyFn = useServerFn(createSurvey);
+  const insertSurveyResponsesFn = useServerFn(insertSurveyResponses);
   const previewStatedFn = useServerFn(previewStatedFigures);
   const saveStatedFn = useServerFn(saveStatedFigures);
 
