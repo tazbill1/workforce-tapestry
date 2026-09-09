@@ -9,7 +9,8 @@ export type DetectedKind =
   | "login_report"
   | "engagement_totals"
   | "recognition_counts"
-  | "recognition_activity";
+  | "recognition_activity"
+  | "survey";
 
 export type SignalId = "people" | "mood" | "logins" | "recognition" | "totals";
 
@@ -167,6 +168,18 @@ export function sniffGrid(filename: string, grid: unknown[][]): Sniff {
     if (score > 0) scores.push({ kind, score, reasons });
   };
 
+  // Survey export: one row per answer, with Question and Answer columns.
+  {
+    const reasons: string[] = [];
+    let score = 0;
+    if (has("question") && has("answer")) {
+      score = 92;
+      reasons.push("Has Question and Answer columns");
+      if (has("participant")) reasons.push("Answers are attributed to a participant");
+    }
+    push("survey", score, reasons);
+  }
+
   // Recognition activity: Name plus any of posts / comments / likes.
   {
     const reasons: string[] = [];
@@ -282,4 +295,5 @@ export const KIND_LABELS: Record<DetectedKind, string> = {
   engagement_totals: "Engagement totals",
   recognition_counts: "Recognition counts",
   recognition_activity: "Recognition activity (posts, comments, likes)",
+  survey: "Survey answers",
 };

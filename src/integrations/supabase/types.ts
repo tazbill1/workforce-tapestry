@@ -1398,6 +1398,250 @@ export type Database = {
           },
         ]
       }
+      survey_questions: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          kind: string
+          position: number
+          question_text: string
+          response_count: number
+          survey_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          kind?: string
+          position: number
+          question_text: string
+          response_count?: number
+          survey_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          position?: number
+          question_text?: string
+          response_count?: number
+          survey_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_questions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_questions_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      survey_responses: {
+        Row: {
+          answer_numeric: number | null
+          answer_text: string | null
+          client_id: string
+          id: string
+          inserted_at: string
+          matched_email: string | null
+          normalized_name: string | null
+          overridden_at: string | null
+          overridden_by: string | null
+          participant_raw: string | null
+          period: string
+          question_id: string
+          row_number: number | null
+          sentiment: string | null
+          sentiment_confidence: number | null
+          sentiment_reason: string | null
+          sentiment_source: string | null
+          survey_id: string
+        }
+        Insert: {
+          answer_numeric?: number | null
+          answer_text?: string | null
+          client_id: string
+          id?: string
+          inserted_at?: string
+          matched_email?: string | null
+          normalized_name?: string | null
+          overridden_at?: string | null
+          overridden_by?: string | null
+          participant_raw?: string | null
+          period: string
+          question_id: string
+          row_number?: number | null
+          sentiment?: string | null
+          sentiment_confidence?: number | null
+          sentiment_reason?: string | null
+          sentiment_source?: string | null
+          survey_id: string
+        }
+        Update: {
+          answer_numeric?: number | null
+          answer_text?: string | null
+          client_id?: string
+          id?: string
+          inserted_at?: string
+          matched_email?: string | null
+          normalized_name?: string | null
+          overridden_at?: string | null
+          overridden_by?: string | null
+          participant_raw?: string | null
+          period?: string
+          question_id?: string
+          row_number?: number | null
+          sentiment?: string | null
+          sentiment_confidence?: number | null
+          sentiment_reason?: string | null
+          sentiment_source?: string | null
+          survey_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_responses_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "survey_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      survey_summaries: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          client_id: string
+          created_at: string
+          draft_md: string
+          edited_md: string | null
+          id: string
+          survey_id: string
+          themes: Json
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          client_id: string
+          created_at?: string
+          draft_md: string
+          edited_md?: string | null
+          id?: string
+          survey_id: string
+          themes?: Json
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          client_id?: string
+          created_at?: string
+          draft_md?: string
+          edited_md?: string | null
+          id?: string
+          survey_id?: string
+          themes?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_summaries_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_summaries_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: true
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      surveys: {
+        Row: {
+          anonymous: boolean
+          client_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          import_id: string | null
+          include_in_report: boolean
+          period: string
+          question_count: number
+          respondent_count: number
+          title: string
+        }
+        Insert: {
+          anonymous?: boolean
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          import_id?: string | null
+          include_in_report?: boolean
+          period: string
+          question_count?: number
+          respondent_count?: number
+          title: string
+        }
+        Update: {
+          anonymous?: boolean
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          import_id?: string | null
+          include_in_report?: boolean
+          period?: string
+          question_count?: number
+          respondent_count?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "surveys_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surveys_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "raw_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_clients: {
         Row: {
           client_id: string
@@ -1497,6 +1741,7 @@ export type Database = {
         | "recognition_counts"
         | "screenshot"
         | "recognition_activity"
+        | "survey"
       import_state: "uploaded" | "parsed" | "failed" | "superseded"
       report_format: "portrait" | "landscape" | "wide" | "exec"
     }
@@ -1651,6 +1896,7 @@ export const Constants = {
         "recognition_counts",
         "screenshot",
         "recognition_activity",
+        "survey",
       ],
       import_state: ["uploaded", "parsed", "failed", "superseded"],
       report_format: ["portrait", "landscape", "wide", "exec"],

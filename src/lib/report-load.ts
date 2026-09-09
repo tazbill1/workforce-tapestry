@@ -121,6 +121,125 @@ export type InsightBlock = {
   created_at: string;
 };
 
+/** A survey whose written summary an analyst read and accepted for this period's report. */
+export type SurveyBlock = {
+  id: string;
+  title: string;
+  respondents: number;
+  questions: number;
+  anonymous: boolean;
+  summary_md: string;
+  themes: { label: string; sentiment: string; detail: string }[];
+  sentiment: { positive: number; neutral: number; negative: number; scored: number };
+  highlights: { question: string; answers: { label: string; count: number }[] }[];
+};
+
+/** Approved survey summaries only: an unaccepted draft never reaches a report. */
+async function loadSurveys(
+  supabase: Client,
+  clientId: string,
+  period: string,
+): Promise<SurveyBlock[]> {
+  const { data: surveys, error } = await supabase
+    .from("surveys")
+    .select("id, title, respondent_count, question_count, anonymous")
+    .eq("client_id", clientId)
+    .eq("period", period)
+    .eq("include_in_report", true)
+    .order("created_at");
+  if (error) throw new Error(error.message);
+  if (!surveys || surveys.length === 0) return [];
+
+  const ids = surveys.map((survey) => survey.id);
+  const [summaries, questions, responses] = await Promise.all([
+    supabase
+      .from("survey_summaries")
+      .select("survey_id, draft_md, edited_md, themes, accepted_at")
+      .in("survey_id", ids)
+      .not("accepted_at", "is", null),
+    supabase
+      .from("survey_questions")
+      .select("id, survey_id, position, question_text, kind")
+      .in("survey_id", ids)
+      .order("position"),
+    supabase
+      .from("survey_responses")
+      .select("survey_id, question_id, answer_text, sentiment")
+      .in("survey_id", ids)
+      .limit(20000),
+  ]);
+  for (const result of [summaries, questions, responses]) {
+    if (result.error) throw new Error(result.error.message);
+  }
+
+  const summaryBySurvey = new Map((summaries.data ?? []).map((row) => [row.survey_id, row]));
+
+  return surveys.flatMap((survey) => {
+    const summary = summaryBySurvey.get(survey.id);
+    if (!summary) return [];
+
+    const rows = (responses.data ?? []).filter((row) => row.survey_id === survey.id);
+    const sentiment = { positive: 0, neutral: 0, negative: 0, scored: 0 };
+    for (const row of rows) {
+      if (row.sentiment === "positive") sentiment.positive += 1;
+      else if (row.sentiment === "neutral") sentiment.neutral += 1;
+      else if (row.sentiment === "negative") sentiment.negative += 1;
+      else continue;
+      sentiment.scored += 1;
+    }
+
+    // Countable questions print as a tally; written answers are represented by the summary.
+    const highlights = (questions.data ?? [])
+      .filter((question) => question.survey_id === survey.id && question.kind !== "text")
+      .slice(0, 4)
+      .map((question) => {
+        const tally = new Map<string, number>();
+        for (const row of rows.filter((entry) => entry.question_id === question.id)) {
+          const value = (row.answer_text ?? "").trim();
+          if (!value) continue;
+          tally.set(value, (tally.get(value) ?? 0) + 1);
+        }
+        return {
+          question: question.question_text,
+          answers: [...tally.entries()]
+            .map(([label, count]) => ({ label, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 6),
+        };
+      })
+      .filter((entry) => entry.answers.length > 0);
+
+    const themes = Array.isArray(summary.themes)
+      ? (summary.themes as unknown[]).flatMap((theme) => {
+          const row = theme as Record<string, unknown>;
+          const label = typeof row["label"] === "string" ? row["label"] : "";
+          if (!label) return [];
+          return [
+            {
+              label,
+              sentiment: typeof row["sentiment"] === "string" ? row["sentiment"] : "neutral",
+              detail: typeof row["detail"] === "string" ? row["detail"] : "",
+            },
+          ];
+        })
+      : [];
+
+    return [
+      {
+        id: survey.id,
+        title: survey.title,
+        respondents: survey.respondent_count,
+        questions: survey.question_count,
+        anonymous: survey.anonymous,
+        summary_md: summary.edited_md?.trim() ? summary.edited_md : summary.draft_md,
+        themes,
+        sentiment,
+        highlights,
+      },
+    ];
+  });
+}
+
 export async function buildReport(supabase: Client, clientId: string, period: string) {
   const priorPeriod = priorPeriodOf(period);
   const end = periodEnd(period);
@@ -158,6 +277,8 @@ export async function buildReport(supabase: Client, clientId: string, period: st
     loadPeople(supabase, clientId, period),
     loadPeople(supabase, clientId, priorPeriod),
   ]);
+
+  const surveys = await loadSurveys(supabase, clientId, period);
 
   if (clientResult.error) throw new Error(clientResult.error.message);
   if (metricsResult.error) throw new Error(metricsResult.error.message);
@@ -296,6 +417,7 @@ export async function buildReport(supabase: Client, clientId: string, period: st
     actionPlan: planResult.data ?? [],
     notes: (noteResult.data ?? []) as NoteBlock[],
     insights: (insightResult.data ?? []) as unknown as InsightBlock[],
+    surveys,
     lists: {
       departures,
       invited,
