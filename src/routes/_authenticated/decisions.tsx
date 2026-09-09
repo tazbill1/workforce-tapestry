@@ -40,6 +40,12 @@ import {
   saveEngagementTotals,
   saveRoleMapping,
 } from "@/lib/decisions.functions";
+import {
+  suggestDepartmentRules,
+  suggestRoleMappings,
+  type DepartmentSuggestion,
+  type RoleSuggestion,
+} from "@/lib/mapping-ai.functions";
 
 export const Route = createFileRoute("/_authenticated/decisions")({
   head: () => ({
