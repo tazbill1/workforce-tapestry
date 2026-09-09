@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
-import { CheckCircle2, Loader2, MessageSquare, Sparkles, Trash2 } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { CheckCircle2, Loader2, MessageSquare, Sparkles, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -17,12 +18,20 @@ import {
 } from "@/components/ui/select";
 
 import { useActiveClient } from "@/lib/active-client";
-import { listMyClients } from "@/lib/imports.functions";
-import { QUESTION_KIND_LABELS, type QuestionKind, type Sentiment } from "@/lib/survey-parse";
 import {
+  checkDuplicate,
+  createImport,
+  finalizeImport,
+  listMyClients,
+} from "@/lib/imports.functions";
+import { QUESTION_KIND_LABELS, type QuestionKind, type Sentiment } from "@/lib/survey-parse";
+import { uploadSurveyFile } from "@/lib/survey-upload";
+import {
+  createSurvey,
   deleteSurvey,
   draftSurveySummary,
   getSurvey,
+  insertSurveyResponses,
   listSurveys,
   saveSurveySummary,
   scoreSurveyText,
@@ -81,9 +90,18 @@ function SurveysScreen() {
   const saveFn = useServerFn(saveSurveySummary);
   const includeFn = useServerFn(setSurveyIncluded);
   const deleteFn = useServerFn(deleteSurvey);
+  const checkDuplicateFn = useServerFn(checkDuplicate);
+  const createImportFn = useServerFn(createImport);
+  const finalizeFn = useServerFn(finalizeImport);
+  const createSurveyFn = useServerFn(createSurvey);
+  const insertResponsesFn = useServerFn(insertSurveyResponses);
 
   const [selected, setSelected] = useState<string | null>(null);
   const [draftText, setDraftText] = useState<string | null>(null);
+  const [period, setPeriod] = useState<string>(() => new Date().toISOString().slice(0, 7));
+  const [progress, setProgressState] = useState<{ label: string; value: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
 
   useQuery({ queryKey: ["clients"], queryFn: () => clientsFn() });
 
@@ -105,6 +123,39 @@ function SurveysScreen() {
     void queryClient.invalidateQueries({ queryKey: ["surveys", clientId] });
     void queryClient.invalidateQueries({ queryKey: ["survey", activeId] });
   };
+
+  const upload = useMutation({
+    mutationFn: async (files: File[]) => {
+      const results: string[] = [];
+      for (const file of files) {
+        const result = await uploadSurveyFile({
+          file,
+          clientId,
+          period,
+          fns: {
+            checkDuplicate: checkDuplicateFn as never,
+            createImport: createImportFn as never,
+            createSurvey: createSurveyFn as never,
+            insertSurveyResponses: insertResponsesFn as never,
+            finalizeImport: finalizeFn as never,
+          },
+          onProgress: (label, value) => setProgressState({ label: `${file.name}: ${label}`, value }),
+        });
+        results.push(`${result.title} (${result.answers} answers)`);
+        setSelected(result.surveyId);
+      }
+      return results;
+    },
+    onSuccess: (results) => {
+      setProgressState(null);
+      toast.success(`Uploaded ${results.join(", ")}.`);
+      void queryClient.invalidateQueries({ queryKey: ["surveys", clientId] });
+    },
+    onError: (error: Error) => {
+      setProgressState(null);
+      toast.error(error.message);
+    },
+  });
 
   const score = useMutation({
     mutationFn: () => scoreFn({ data: { surveyId: activeId! } }),
@@ -205,10 +256,63 @@ function SurveysScreen() {
           <MessageSquare className="h-5 w-5" /> Surveys
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Upload survey files on the Imports screen. Here you can see how people answered, check
-          how each written answer was read, and approve the wording that prints on the report.
+          Upload a survey here, see how people answered, check how each written answer was read,
+          and approve the wording that prints on the report.
         </p>
       </header>
+
+      <section className="space-y-3 rounded-md border p-4">
+        <h2 className="text-base font-semibold">Upload a survey</h2>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground" htmlFor="survey-period">
+              Month
+            </label>
+            <Input
+              id="survey-period"
+              type="month"
+              value={period}
+              onChange={(event) => setPeriod(event.target.value)}
+              className="w-[170px]"
+            />
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            multiple
+            className="hidden"
+            onChange={(event) => {
+              const files = Array.from(event.target.files ?? []);
+              event.target.value = "";
+              if (files.length > 0) upload.mutate(files);
+            }}
+          />
+          <Button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={upload.isPending || !period}
+          >
+            {upload.isPending ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <Upload className="mr-1.5 h-4 w-4" />
+            )}
+            Choose survey files
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Spreadsheets with a Question and Answer column (a Participant column is optional).
+          </p>
+        </div>
+        {progress ? (
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">{progress.label}</p>
+            <div className="h-1.5 w-full overflow-hidden rounded bg-muted">
+              <div className="h-full bg-primary" style={{ width: `${progress.value}%` }} />
+            </div>
+          </div>
+        ) : null}
+      </section>
+
 
       {surveys.isLoading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
