@@ -44,7 +44,7 @@ export const exportClientData = createServerFn({ method: "POST" })
       "period_readiness",
     ] as const;
 
-    const sections: Record<string, unknown[]> = {};
+    const sections: Record<string, any[]> = {};
     for (const table of tables) {
       const { data: rows, error: tableError } = await (supabase as any)
         .from(table)
