@@ -256,10 +256,63 @@ function SurveysScreen() {
           <MessageSquare className="h-5 w-5" /> Surveys
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Upload survey files on the Imports screen. Here you can see how people answered, check
-          how each written answer was read, and approve the wording that prints on the report.
+          Upload a survey here, see how people answered, check how each written answer was read,
+          and approve the wording that prints on the report.
         </p>
       </header>
+
+      <section className="space-y-3 rounded-md border p-4">
+        <h2 className="text-base font-semibold">Upload a survey</h2>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground" htmlFor="survey-period">
+              Month
+            </label>
+            <Input
+              id="survey-period"
+              type="month"
+              value={period}
+              onChange={(event) => setPeriod(event.target.value)}
+              className="w-[170px]"
+            />
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            multiple
+            className="hidden"
+            onChange={(event) => {
+              const files = Array.from(event.target.files ?? []);
+              event.target.value = "";
+              if (files.length > 0) upload.mutate(files);
+            }}
+          />
+          <Button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={upload.isPending || !period}
+          >
+            {upload.isPending ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <Upload className="mr-1.5 h-4 w-4" />
+            )}
+            Choose survey files
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Spreadsheets with a Question and Answer column (a Participant column is optional).
+          </p>
+        </div>
+        {progress ? (
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">{progress.label}</p>
+            <div className="h-1.5 w-full overflow-hidden rounded bg-muted">
+              <div className="h-full bg-primary" style={{ width: `${progress.value}%` }} />
+            </div>
+          </div>
+        ) : null}
+      </section>
+
 
       {surveys.isLoading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
