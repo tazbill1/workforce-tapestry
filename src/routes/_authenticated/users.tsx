@@ -34,7 +34,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { listConsoleUsers, setUserRole, deleteConsoleUser } from "@/lib/users.functions";
+import { Switch } from "@/components/ui/switch";
+import {
+  listConsoleUsers,
+  setUserRole,
+  deleteConsoleUser,
+  setUserActive,
+} from "@/lib/users.functions";
 
 export const Route = createFileRoute("/_authenticated/users")({
   head: () => ({
@@ -82,6 +88,7 @@ function UsersScreen() {
   const load = useServerFn(listConsoleUsers);
   const changeRole = useServerFn(setUserRole);
   const removeUser = useServerFn(deleteConsoleUser);
+  const changeActive = useServerFn(setUserActive);
 
   const [pendingDelete, setPendingDelete] = useState<{ id: string; email: string } | null>(null);
 
@@ -101,6 +108,15 @@ function UsersScreen() {
     onSuccess: () => {
       toast.success("Account removed");
       setPendingDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["console-users"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const activeMutation = useMutation({
+    mutationFn: (vars: { userId: string; active: boolean }) => changeActive({ data: vars }),
+    onSuccess: (_r, vars) => {
+      toast.success(vars.active ? "Access switched on" : "Access switched off");
       queryClient.invalidateQueries({ queryKey: ["console-users"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -139,6 +155,7 @@ function UsersScreen() {
               <TableRow>
                 <TableHead>Email</TableHead>
                 <TableHead className="w-44">Role</TableHead>
+                <TableHead className="w-28">Access</TableHead>
                 <TableHead className="w-40">Last sign-in</TableHead>
                 <TableHead className="w-28 text-right">Joined</TableHead>
                 <TableHead className="w-16" />
@@ -147,7 +164,7 @@ function UsersScreen() {
             <TableBody>
               {!isLoading && users.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-muted-foreground">
+                  <TableCell colSpan={6} className="text-muted-foreground">
                     No accounts to show.
                   </TableCell>
                 </TableRow>
@@ -187,6 +204,21 @@ function UsersScreen() {
                         </SelectContent>
                       </Select>
                       <p className="mt-1 text-xs text-muted-foreground">{ROLE_HELP[current]}</p>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={!u.disabled}
+                          disabled={!canManage || (isSelf && !u.disabled) || activeMutation.isPending}
+                          onCheckedChange={(checked) =>
+                            activeMutation.mutate({ userId: u.id, active: checked })
+                          }
+                          aria-label="Access"
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {u.disabled ? "Off" : "On"}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <span className={u.lastSignInAt ? "" : "text-muted-foreground"}>

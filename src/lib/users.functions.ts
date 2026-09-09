@@ -8,6 +8,7 @@ export type ConsoleUser = {
   createdAt: string | null;
   lastSignInAt: string | null;
   provider: string | null;
+  disabled: boolean;
 };
 
 /** Supabase caps listUsers at one page, so walk every page. */
@@ -51,6 +52,7 @@ export const listConsoleUsers = createServerFn({ method: "GET" })
       createdAt: u.created_at ?? null,
       lastSignInAt: u.last_sign_in_at ?? null,
       provider: u.app_metadata?.provider ?? null,
+      disabled: Boolean(u.banned_until && Date.parse(u.banned_until) > Date.now()),
     }));
 
     mapped.sort((a, b) => {
@@ -138,6 +140,42 @@ export const deleteConsoleUser = createServerFn({ method: "POST" })
     await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
     const { error: delError } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
     if (delError) throw new Error(delError.message);
+
+    return { ok: true };
+  });
+
+/** Turn access on or off without deleting the account or their history. */
+export const setUserActive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { userId: string; active: boolean }) => {
+    if (typeof input?.userId !== "string" || !input.userId) throw new Error("userId required");
+    if (typeof input?.active !== "boolean") throw new Error("active required");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    await assertAnalyst(context);
+    if (data.userId === context.userId && !data.active) {
+      throw new Error("You cannot deactivate your own account.");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    if (!data.active) {
+      const { data: analysts, error } = await supabaseAdmin
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "analyst");
+      if (error) throw new Error(error.message);
+      const ids = (analysts ?? []).map((r: { user_id: string }) => r.user_id);
+      if (ids.length <= 1 && ids.includes(data.userId)) {
+        throw new Error("This is the last analyst — promote someone else first.");
+      }
+    }
+
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+      ban_duration: data.active ? "none" : "876000h",
+    } as any);
+    if (updateError) throw new Error(updateError.message);
 
     return { ok: true };
   });

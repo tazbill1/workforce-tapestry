@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Building2, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Building2, Image as ImageIcon, Loader2, Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ import {
   setClientLogo,
 } from "@/lib/clients.functions";
 import { LOGO_MAX_H, LOGO_MAX_W, resizeLogo } from "@/lib/logo-resize";
+import { exportClientData } from "@/lib/export.functions";
 
 export const Route = createFileRoute("/_authenticated/clients")({
   head: () => ({
@@ -54,6 +55,27 @@ function ClientsScreen() {
   const [code, setCode] = useState("");
   const [domains, setDomains] = useState("");
   const [domainDrafts, setDomainDrafts] = useState<Record<string, string>>({});
+  const [exportingId, setExportingId] = useState<string | null>(null);
+
+  const runExportFn = useServerFn(exportClientData);
+  const runExport = async (clientId: string, code: string) => {
+    setExportingId(clientId);
+    try {
+      const payload = await runExportFn({ data: { clientId } });
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${code}-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Download started");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setExportingId(null);
+    }
+  };
 
   const { data, isLoading } = useQuery({ queryKey: ["clients-admin"], queryFn: () => load() });
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["clients-admin"] });
@@ -329,6 +351,24 @@ function ClientsScreen() {
                       </Button>
                     )}
                   </div>
+                </div>
+
+                <div className="flex items-center gap-2 border-t pt-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={exportingId === client.id}
+                    onClick={() => runExport(client.id, client.code)}
+                  >
+                    {exportingId === client.id && (
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                    )}
+                    <Download className="mr-2 h-3.5 w-3.5" />
+                    Download all data
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    Everything on file for this client, as one backup file.
+                  </span>
                 </div>
               </div>
             );
