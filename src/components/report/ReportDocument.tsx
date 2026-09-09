@@ -54,6 +54,7 @@ export const SECTIONS = [
   { id: "people", label: "Anniversaries and new starters" },
   { id: "insights", label: "Analyst insights" },
   { id: "action", label: "Action plan" },
+  { id: "notes", label: "Additional comments" },
   { id: "method", label: "Method and definitions" },
 ] as const;
 
@@ -163,7 +164,9 @@ export function ReportDocument({
   const insights = data.insights ?? [];
   /** The insights section only exists when an analyst pinned something to this period. */
   const isEnabled = (id: string) =>
-    (id !== "insights" || insights.length > 0) && (enabledIds ? enabledIds.has(id) : true);
+    (id !== "insights" || insights.length > 0) &&
+    (id !== "notes" || (data.notes?.length ?? 0) > 0) &&
+    (enabledIds ? enabledIds.has(id) : true);
 
   /** Chart heights are declared at landscape scale and shrunk for the shorter formats. */
   const ch = (height: number) => Math.round(height * spec.chartScale);
@@ -186,6 +189,7 @@ export function ReportDocument({
     watchlist: watchlistChunks.length - 1,
     lowmood: lowMoodChunks.length - 1,
     insights: Math.max(0, insights.length - 1),
+    notes: Math.max(0, (data.notes?.length ?? 0) - 1),
   };
 
   const pageNumbers = new Map<string, number>();
@@ -1211,6 +1215,25 @@ export function ReportDocument({
           <p className="rp-footnote">
             Action plan content is authored in the workspace for this client and period; empty
             blocks print at fixed height so the page count never moves.
+          </p>
+        </Page>
+      ))}
+
+      {/* 13b — Additional comments written for this period, one page each */}
+      {(data.notes ?? []).map((note, index) => (
+        <Page
+          key={note.id}
+          id={index === 0 ? "notes" : `notes-${index}`}
+          title="Additional comments"
+          {...page}
+        >
+          <span className="rp-action-number">Additional comments</span>
+          <h2 className="rp-heading" style={{ marginTop: "6pt", fontSize: "16pt" }}>
+            {note.heading || "Notes from your analyst"}
+          </h2>
+          <p style={{ marginTop: "8pt", whiteSpace: "pre-wrap" }}>{note.body}</p>
+          <p className="rp-footnote">
+            Written in the workspace for {clientName}, {period}.
           </p>
         </Page>
       ))}

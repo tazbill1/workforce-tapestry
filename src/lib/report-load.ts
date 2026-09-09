@@ -102,6 +102,14 @@ export type AnniversaryRow = {
 
 const MILESTONES = new Set([1, 3, 5, 10, 15, 20, 25, 30]);
 
+/** A free-text comment written for this client and period and marked for the report. */
+export type NoteBlock = {
+  id: string;
+  position: number;
+  heading: string | null;
+  body: string;
+};
+
 /** An answer from the Ask screen that an analyst pinned to this client and period. */
 export type InsightBlock = {
   id: string;
@@ -117,7 +125,7 @@ export async function buildReport(supabase: Client, clientId: string, period: st
   const priorPeriod = priorPeriodOf(period);
   const end = periodEnd(period);
 
-  const [clientResult, metricsResult, planResult, insightResult, people, priorPeople] = await Promise.all([
+  const [clientResult, metricsResult, planResult, insightResult, noteResult, people, priorPeople] = await Promise.all([
     supabase.from("clients").select("id, name, code, logo_url").eq("id", clientId).maybeSingle(),
     supabase
       .from("published_metrics")
@@ -139,6 +147,14 @@ export async function buildReport(supabase: Client, clientId: string, period: st
       .eq("period", period)
       .eq("include_in_report", true)
       .order("created_at"),
+    // Free-text comments written on the Plan screen and marked for the report.
+    supabase
+      .from("period_notes")
+      .select("id, position, heading, body")
+      .eq("client_id", clientId)
+      .eq("period", period)
+      .eq("include_in_report", true)
+      .order("position"),
     loadPeople(supabase, clientId, period),
     loadPeople(supabase, clientId, priorPeriod),
   ]);
@@ -147,6 +163,7 @@ export async function buildReport(supabase: Client, clientId: string, period: st
   if (metricsResult.error) throw new Error(metricsResult.error.message);
   if (planResult.error) throw new Error(planResult.error.message);
   if (insightResult.error) throw new Error(insightResult.error.message);
+  if (noteResult.error) throw new Error(noteResult.error.message);
   if (!clientResult.data) throw new Error("Client not found");
 
   const included = people.filter((person) => !person.is_excluded);
@@ -277,6 +294,7 @@ export async function buildReport(supabase: Client, clientId: string, period: st
     priorPeriod,
     metrics: (metricsResult.data ?? []) as MetricRow[],
     actionPlan: planResult.data ?? [],
+    notes: (noteResult.data ?? []) as NoteBlock[],
     insights: (insightResult.data ?? []) as unknown as InsightBlock[],
     lists: {
       departures,

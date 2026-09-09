@@ -19,6 +19,7 @@ import { Route as AuthenticatedDecisionsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
 import { Route as AuthenticatedImportsRouteImport } from './routes/_authenticated/imports'
 import { Route as AuthenticatedMetricsRouteImport } from './routes/_authenticated/metrics'
+import { Route as AuthenticatedPlanRouteImport } from './routes/_authenticated/plan'
 import { Route as AuthenticatedReportRouteImport } from './routes/_authenticated/report'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedSharedTokenRouteImport } from './routes/_authenticated/shared.$token'
@@ -72,6 +73,11 @@ const AuthenticatedMetricsRoute = AuthenticatedMetricsRouteImport.update({
   path: '/metrics',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPlanRoute = AuthenticatedPlanRouteImport.update({
+  id: '/plan',
+  path: '/plan',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedReportRoute = AuthenticatedReportRouteImport.update({
   id: '/report',
   path: '/report',
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/home': typeof AuthenticatedHomeRoute
   '/imports': typeof AuthenticatedImportsRoute
   '/metrics': typeof AuthenticatedMetricsRoute
+  '/plan': typeof AuthenticatedPlanRoute
   '/report': typeof AuthenticatedReportRoute
   '/users': typeof AuthenticatedUsersRoute
   '/shared/$token': typeof AuthenticatedSharedTokenRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByTo {
   '/home': typeof AuthenticatedHomeRoute
   '/imports': typeof AuthenticatedImportsRoute
   '/metrics': typeof AuthenticatedMetricsRoute
+  '/plan': typeof AuthenticatedPlanRoute
   '/report': typeof AuthenticatedReportRoute
   '/users': typeof AuthenticatedUsersRoute
   '/shared/$token': typeof AuthenticatedSharedTokenRoute
@@ -129,6 +137,7 @@ export interface FileRoutesById {
   '/_authenticated/home': typeof AuthenticatedHomeRoute
   '/_authenticated/imports': typeof AuthenticatedImportsRoute
   '/_authenticated/metrics': typeof AuthenticatedMetricsRoute
+  '/_authenticated/plan': typeof AuthenticatedPlanRoute
   '/_authenticated/report': typeof AuthenticatedReportRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/shared/$token': typeof AuthenticatedSharedTokenRoute
@@ -145,6 +154,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/imports'
     | '/metrics'
+    | '/plan'
     | '/report'
     | '/users'
     | '/shared/$token'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/imports'
     | '/metrics'
+    | '/plan'
     | '/report'
     | '/users'
     | '/shared/$token'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/_authenticated/home'
     | '/_authenticated/imports'
     | '/_authenticated/metrics'
+    | '/_authenticated/plan'
     | '/_authenticated/report'
     | '/_authenticated/users'
     | '/_authenticated/shared/$token'
@@ -257,6 +269,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMetricsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/plan': {
+      id: '/_authenticated/plan'
+      path: '/plan'
+      fullPath: '/plan'
+      preLoaderRoute: typeof AuthenticatedPlanRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/report': {
       id: '/_authenticated/report'
       path: '/report'
@@ -289,6 +308,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
   AuthenticatedImportsRoute: typeof AuthenticatedImportsRoute
   AuthenticatedMetricsRoute: typeof AuthenticatedMetricsRoute
+  AuthenticatedPlanRoute: typeof AuthenticatedPlanRoute
   AuthenticatedReportRoute: typeof AuthenticatedReportRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedSharedTokenRoute: typeof AuthenticatedSharedTokenRoute
@@ -302,6 +322,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
   AuthenticatedImportsRoute: AuthenticatedImportsRoute,
   AuthenticatedMetricsRoute: AuthenticatedMetricsRoute,
+  AuthenticatedPlanRoute: AuthenticatedPlanRoute,
   AuthenticatedReportRoute: AuthenticatedReportRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedSharedTokenRoute: AuthenticatedSharedTokenRoute,
