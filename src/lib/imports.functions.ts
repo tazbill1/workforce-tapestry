@@ -8,6 +8,7 @@ const importKind = z.enum([
   "login_report",
   "engagement_totals",
   "recognition_counts",
+  "recognition_activity",
   "screenshot",
 ]);
 
