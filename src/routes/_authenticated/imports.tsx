@@ -409,69 +409,6 @@ function ImportScreen() {
         if (!chosen) throw new Error("The workbook has no sheets.");
         const sheet = workbook.Sheets[chosen]!;
 
-        if (item.kind === "survey") {
-          const grid = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
-            header: 1,
-            defval: null,
-            raw: false,
-          });
-          const parsed = parseSurveyGrid(item.file.name, grid as unknown[][]);
-          setProgress("Saving survey questions", 55);
-          const created = await createSurveyFn({
-            data: {
-              clientId,
-              period: periodDate,
-              title: parsed.title,
-              importId,
-              anonymous: parsed.anonymous,
-              respondentCount: parsed.participants.length,
-              questions: parsed.questions.map((question) => ({
-                position: question.position,
-                questionText: question.question_text,
-                kind: question.kind,
-                responseCount: question.answers.length,
-              })),
-            },
-          });
-
-          const answers = parsed.questions.flatMap((question) =>
-            question.answers.map((answer) => ({
-              questionId: created.questionIds[question.position]!,
-              rowNumber: answer.row_number,
-              participantRaw: answer.participant_raw,
-              normalizedName: answer.normalized_name,
-              answerText: answer.answer_text,
-              answerNumeric: answer.answer_numeric,
-              sentiment: answer.sentiment,
-              sentimentSource: answer.sentiment_source,
-            })),
-          );
-          for (let i = 0; i < answers.length; i += BATCH_SIZE) {
-            setProgress(
-              `Writing answers ${i + 1}–${Math.min(i + BATCH_SIZE, answers.length)} of ${answers.length}`,
-              60 + Math.round((i / Math.max(answers.length, 1)) * 28),
-            );
-            await insertSurveyResponsesFn({
-              data: {
-                surveyId: created.surveyId,
-                clientId,
-                period: periodDate,
-                rows: answers.slice(i, i + BATCH_SIZE),
-              },
-            });
-          }
-
-          setProgress("Finalising import", 92);
-          await finalizeFn({
-            data: {
-              importId,
-              rowCount: answers.length,
-              columnNames: parsed.columnNames,
-              state: "parsed",
-            },
-          });
-          return { summary: null, diff: null, totalRows: answers.length };
-        }
 
         if (item.kind === "recognition_activity") {
           const grid = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
