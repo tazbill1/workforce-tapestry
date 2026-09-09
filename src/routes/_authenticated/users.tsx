@@ -113,6 +113,15 @@ function UsersScreen() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const activeMutation = useMutation({
+    mutationFn: (vars: { userId: string; active: boolean }) => changeActive({ data: vars }),
+    onSuccess: (_r, vars) => {
+      toast.success(vars.active ? "Access switched on" : "Access switched off");
+      queryClient.invalidateQueries({ queryKey: ["console-users"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const users = data?.users ?? [];
   const canManage = data?.isAnalyst === true;
 
