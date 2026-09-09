@@ -27,15 +27,18 @@ export const ensureDomainAccess = createServerFn({ method: "POST" })
       .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
 
+    // Everyone from the company domain joins as a normal user; the owner is the admin.
+    const defaultRole = email === OWNER_EMAIL ? ("analyst" as const) : ("viewer" as const);
+
     if (!existing || existing.length === 0) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error: insertError } = await supabaseAdmin
         .from("user_roles")
-        .insert({ user_id: context.userId, role: "analyst" });
+        .insert({ user_id: context.userId, role: defaultRole });
       if (insertError && !insertError.message.includes("duplicate")) {
         throw new Error(insertError.message);
       }
-      return { allowed: true as const, email, provisioned: true, role: "analyst" as const };
+      return { allowed: true as const, email, provisioned: true, role: defaultRole };
     }
 
     return {
