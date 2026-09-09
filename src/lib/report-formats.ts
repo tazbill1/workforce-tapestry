@@ -119,5 +119,6 @@ export const ALL_SECTION_IDS = [
   "recognition",
   "people",
   "action",
+  "notes",
   "method",
 ] as const;

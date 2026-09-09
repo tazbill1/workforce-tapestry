@@ -395,6 +395,53 @@ export type Database = {
           },
         ]
       }
+      period_notes: {
+        Row: {
+          authored_by: string | null
+          body: string
+          client_id: string
+          created_at: string
+          heading: string | null
+          id: string
+          include_in_report: boolean
+          period: string
+          position: number
+          updated_at: string
+        }
+        Insert: {
+          authored_by?: string | null
+          body?: string
+          client_id: string
+          created_at?: string
+          heading?: string | null
+          id?: string
+          include_in_report?: boolean
+          period: string
+          position?: number
+          updated_at?: string
+        }
+        Update: {
+          authored_by?: string | null
+          body?: string
+          client_id?: string
+          created_at?: string
+          heading?: string | null
+          id?: string
+          include_in_report?: boolean
+          period?: string
+          position?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "period_notes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       period_readiness: {
         Row: {
           client_id: string
