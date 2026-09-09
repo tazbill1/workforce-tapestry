@@ -250,6 +250,13 @@ function ImportScreen() {
 
         const applied: string[] = [];
         const nextKind = detected.suggestedKind ?? result.guess?.kind ?? item.kind;
+        if (nextKind === "survey") {
+          patch(item.id, {
+            status: "error",
+            message: "This looks like a survey. Upload it on the Surveys tab instead.",
+          });
+          return;
+        }
         if (nextKind !== item.kind) applied.push(`kind set to ${kindLabel(nextKind)}`);
         const nextPeriod = detected.suggestedPeriod ?? item.period;
         if (nextPeriod !== item.period) applied.push(`month set to ${nextPeriod}`);
