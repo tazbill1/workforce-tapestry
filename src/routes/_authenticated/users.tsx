@@ -34,7 +34,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { listConsoleUsers, setUserRole, deleteConsoleUser } from "@/lib/users.functions";
+import { Switch } from "@/components/ui/switch";
+import {
+  listConsoleUsers,
+  setUserRole,
+  deleteConsoleUser,
+  setUserActive,
+} from "@/lib/users.functions";
 
 export const Route = createFileRoute("/_authenticated/users")({
   head: () => ({
