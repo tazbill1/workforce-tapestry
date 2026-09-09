@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
-import { CheckCircle2, Loader2, MessageSquare, Sparkles, Trash2 } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { CheckCircle2, Loader2, MessageSquare, Sparkles, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -17,12 +18,20 @@ import {
 } from "@/components/ui/select";
 
 import { useActiveClient } from "@/lib/active-client";
-import { listMyClients } from "@/lib/imports.functions";
-import { QUESTION_KIND_LABELS, type QuestionKind, type Sentiment } from "@/lib/survey-parse";
 import {
+  checkDuplicate,
+  createImport,
+  finalizeImport,
+  listMyClients,
+} from "@/lib/imports.functions";
+import { QUESTION_KIND_LABELS, type QuestionKind, type Sentiment } from "@/lib/survey-parse";
+import { uploadSurveyFile } from "@/lib/survey-upload";
+import {
+  createSurvey,
   deleteSurvey,
   draftSurveySummary,
   getSurvey,
+  insertSurveyResponses,
   listSurveys,
   saveSurveySummary,
   scoreSurveyText,
