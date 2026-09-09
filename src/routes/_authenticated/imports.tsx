@@ -987,7 +987,9 @@ function ImportScreen() {
                 <Link to="/metrics">Rebuild the numbers</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link to="/report">Open the report</Link>
+                <Link to="/report" search={{ client: clientId, period: `${period}-01` }}>
+                  Open the report
+                </Link>
               </Button>
             </CardContent>
           </Card>
