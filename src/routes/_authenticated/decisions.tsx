@@ -1770,7 +1770,7 @@ function DepartmentSection({
           </CardContent>
         </Card>
       ) : null}
-      <Card>
+      <Card ref={formRef}>
         <CardHeader>
           <CardTitle>Define a department rule</CardTitle>
           <CardDescription>
