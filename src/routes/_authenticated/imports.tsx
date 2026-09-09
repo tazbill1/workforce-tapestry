@@ -68,7 +68,7 @@ const KINDS = [
   { value: "engagement_totals", label: "Engagement totals" },
   { value: "recognition_counts", label: "Recognition counts" },
   { value: "recognition_activity", label: "Recognition activity" },
-  { value: "survey", label: "Survey answers" },
+  
 ] as const;
 
 /** Files are imported in this order so the roster exists before anything joins to it. */
@@ -79,7 +79,7 @@ const KIND_ORDER = [
   "recognition_activity",
   "recognition_counts",
   "engagement_totals",
-  "survey",
+  
 ];
 
 /** What a complete month looks like, shown as a checklist so nothing is forgotten. */
