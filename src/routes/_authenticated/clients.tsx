@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Building2, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Building2, Image as ImageIcon, Loader2, Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -329,6 +329,24 @@ function ClientsScreen() {
                       </Button>
                     )}
                   </div>
+                </div>
+
+                <div className="flex items-center gap-2 border-t pt-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={exportingId === client.id}
+                    onClick={() => runExport(client.id, client.code)}
+                  >
+                    {exportingId === client.id && (
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                    )}
+                    <Download className="mr-2 h-3.5 w-3.5" />
+                    Download all data
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    Everything on file for this client, as one backup file.
+                  </span>
                 </div>
               </div>
             );
