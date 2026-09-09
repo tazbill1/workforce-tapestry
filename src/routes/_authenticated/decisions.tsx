@@ -1287,6 +1287,9 @@ function RoleSection({
   const [roleCode, setRoleCode] = useState(roles[0]?.code ?? "");
   const [precedence, setPrecedence] = useState("20");
   const formRef = useRef<HTMLDivElement | null>(null);
+  const suggestFn = useServerFn(suggestRoleMappings);
+  const [suggestions, setSuggestions] = useState<Record<string, RoleSuggestion>>({});
+  const [suggesting, setSuggesting] = useState(false);
 
   const unmapped = combos.filter((c) => c.unmapped);
   const unmappedPeople = unmapped.reduce((sum, c) => sum + c.headcount, 0);
@@ -1298,6 +1301,34 @@ function RoleSection({
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
+  const askAi = async () => {
+    setSuggesting(true);
+    try {
+      const result = await suggestFn({
+        data: {
+          combos: unmapped.slice(0, 60).map((combo) => ({
+            key: combo.key,
+            title: combo.title_raw,
+            department: combo.department_raw,
+            headcount: combo.headcount,
+          })),
+        },
+      });
+      const next: Record<string, RoleSuggestion> = {};
+      for (const item of result) next[item.key] = item;
+      setSuggestions(next);
+      toast.success(
+        result.length === 0
+          ? "The AI could not suggest anything for these titles."
+          : `${result.length} suggestion${result.length === 1 ? "" : "s"} ready — accept the ones that look right.`,
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "The suggestions could not be fetched.");
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
   return (
     <>
       {unmapped.length > 0 ? (
@@ -1307,33 +1338,108 @@ function RoleSection({
               {unmapped.length} job titles still need a role · {unmappedPeople} people
             </CardTitle>
             <CardDescription>
-              Pick one and click “Map this” — it fills in the form below for you.
+              Let the AI read the titles and propose a role for each one, then accept the ones you
+              agree with. Nothing is saved until you accept it. You can also click “Map this” to fill
+              in the form yourself.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-1">
-            {unmapped.map((combo) => (
-              <div
-                key={combo.key}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2"
-              >
-                <span className="text-sm">
-                  {combo.title_raw || <em>(no title)</em>}{" "}
-                  <span className="text-muted-foreground">
-                    · {combo.department_raw || "(no department)"}
-                  </span>
-                </span>
-                <span className="flex items-center gap-2">
-                  <Badge variant="outline">{combo.headcount} people</Badge>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => prefill(combo.title_raw, combo.department_raw)}
-                  >
-                    Map this
-                  </Button>
-                </span>
-              </div>
-            ))}
+          <CardContent className="space-y-2">
+            <Button size="sm" onClick={askAi} disabled={suggesting}>
+              {suggesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {suggesting ? "Reading the titles…" : "Suggest roles with AI"}
+            </Button>
+            {unmapped.map((combo) => {
+              const suggestion = suggestions[combo.key];
+              return (
+                <div key={combo.key} className="space-y-2 rounded-md border px-3 py-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm">
+                      {combo.title_raw || <em>(no title)</em>}{" "}
+                      <span className="text-muted-foreground">
+                        · {combo.department_raw || "(no department)"}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <Badge variant="outline">{combo.headcount} people</Badge>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => prefill(combo.title_raw, combo.department_raw)}
+                      >
+                        Map this
+                      </Button>
+                    </span>
+                  </div>
+                  {suggestion ? (
+                    <div className="rounded-md bg-muted/50 px-3 py-2 text-xs">
+                      <p>
+                        AI suggests counting these people as{" "}
+                        <strong>
+                          {roles.find((r) => r.code === suggestion.roleCode)?.label ??
+                            suggestion.roleCode}
+                        </strong>
+                        {suggestion.why ? ` — ${suggestion.why}` : ""}
+                      </p>
+                      <p className="mt-1 text-muted-foreground">
+                        Rule: job title contains “{suggestion.titlePattern}”
+                        {suggestion.departmentPattern
+                          ? ` and department contains “${suggestion.departmentPattern}”`
+                          : ""}
+                        {" · "}
+                        {suggestion.confidence} confidence
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            onSave({
+                              titlePattern: suggestion.titlePattern,
+                              departmentPattern: suggestion.departmentPattern,
+                              roleCode: suggestion.roleCode,
+                              precedence: suggestion.precedence,
+                              reason: suggestion.why || "AI suggestion accepted",
+                            });
+                            setSuggestions((current) => {
+                              const next = { ...current };
+                              delete next[combo.key];
+                              return next;
+                            });
+                          }}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setTitlePattern(suggestion.titlePattern);
+                            setDepartmentPattern(suggestion.departmentPattern ?? "");
+                            setRoleCode(suggestion.roleCode);
+                            setPrecedence(String(suggestion.precedence));
+                            formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                          }}
+                        >
+                          Edit first
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            setSuggestions((current) => {
+                              const next = { ...current };
+                              delete next[combo.key];
+                              return next;
+                            })
+                          }
+                        >
+                          Dismiss
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       ) : null}
