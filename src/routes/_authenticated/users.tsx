@@ -88,6 +88,7 @@ function UsersScreen() {
   const load = useServerFn(listConsoleUsers);
   const changeRole = useServerFn(setUserRole);
   const removeUser = useServerFn(deleteConsoleUser);
+  const changeActive = useServerFn(setUserActive);
 
   const [pendingDelete, setPendingDelete] = useState<{ id: string; email: string } | null>(null);
 
