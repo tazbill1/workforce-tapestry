@@ -556,11 +556,13 @@ function ImportScreen() {
       checkDuplicateFn,
       clientId,
       createImportFn,
+      createSurveyFn,
       diffFn,
       finalizeFn,
       flagSummaryFn,
       insertRecognitionFn,
       insertRecordsFn,
+      insertSurveyResponsesFn,
       patch,
     ],
   );
