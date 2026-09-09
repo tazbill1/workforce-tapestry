@@ -16,6 +16,7 @@ import {
   Printer,
   RefreshCw,
   Share2,
+  Wrench,
   X,
 } from "lucide-react";
 
@@ -50,6 +51,7 @@ import {
 
 
 
+import { FixPanel } from "@/components/FixPanel";
 import { FORMAT_SPECS, REPORT_FORMATS, type ReportFormat } from "@/lib/report-formats";
 import { ReportDocument, SECTIONS } from "@/components/report/ReportDocument";
 import "@/styles/report.css";
@@ -107,6 +109,7 @@ function ReportPreview() {
   const [format, setFormat] = useState<ReportFormat>("landscape");
   const [activeSection, setActiveSection] = useState<string>("cover");
   const [viewingRunId, setViewingRunId] = useState<string | null>(null);
+  const [fixOpen, setFixOpen] = useState(false);
 
 
   const clients = useQuery({ queryKey: ["my-clients"], queryFn: () => clientsFn() });
@@ -619,6 +622,23 @@ function ReportPreview() {
             </p>
           )}
         </main>
+
+        {displayData && !viewingRunId && (
+          <Button
+            size="lg"
+            variant="outline"
+            className="rp-no-print fixed bottom-6 right-52 z-30 shadow-lg"
+            onClick={() => setFixOpen(true)}
+            title="Describe something that looks wrong and let the assistant trace it"
+          >
+            <Wrench className="mr-2 h-4 w-4" />
+            Fix something
+          </Button>
+        )}
+
+        {fixOpen && clientId && period && (
+          <FixPanel clientId={clientId} period={period} onClose={() => setFixOpen(false)} />
+        )}
 
         {displayData && !viewingRunId && (
 

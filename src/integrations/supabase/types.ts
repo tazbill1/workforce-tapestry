@@ -267,6 +267,68 @@ export type Database = {
           },
         ]
       }
+      fix_actions: {
+        Row: {
+          applied_at: string
+          applied_by: string | null
+          client_id: string
+          created_at: string
+          diagnosis: string | null
+          id: string
+          period: string
+          proposal: Json
+          request_text: string
+          result: Json | null
+          status: string
+          undo: Json | null
+          undone_at: string | null
+          undone_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          applied_at?: string
+          applied_by?: string | null
+          client_id: string
+          created_at?: string
+          diagnosis?: string | null
+          id?: string
+          period: string
+          proposal: Json
+          request_text: string
+          result?: Json | null
+          status?: string
+          undo?: Json | null
+          undone_at?: string | null
+          undone_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          applied_at?: string
+          applied_by?: string | null
+          client_id?: string
+          created_at?: string
+          diagnosis?: string | null
+          id?: string
+          period?: string
+          proposal?: Json
+          request_text?: string
+          result?: Json | null
+          status?: string
+          undo?: Json | null
+          undone_at?: string | null
+          undone_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fix_actions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       historical_baselines: {
         Row: {
           client_id: string
