@@ -16,6 +16,7 @@ import {
   Printer,
   RefreshCw,
   Share2,
+  Wrench,
   X,
 } from "lucide-react";
 
@@ -50,6 +51,7 @@ import {
 
 
 
+import { FixPanel } from "@/components/FixPanel";
 import { FORMAT_SPECS, REPORT_FORMATS, type ReportFormat } from "@/lib/report-formats";
 import { ReportDocument, SECTIONS } from "@/components/report/ReportDocument";
 import "@/styles/report.css";
