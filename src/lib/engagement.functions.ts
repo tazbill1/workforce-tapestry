@@ -14,8 +14,9 @@ import { normalizeName } from "./engagement-parse";
 
 const rowSchema = z.object({
   row_number: z.number().int(),
-  name_raw: z.string().min(1).max(300),
-  normalized_name: z.string().min(1).max(300),
+  // Some exports carry an oversized cell (a footer or a merged note); keep the row, trim the text.
+  name_raw: z.string().min(1).transform((value) => value.slice(0, 300)),
+  normalized_name: z.string().min(1).transform((value) => value.slice(0, 300)),
   posts: z.number().int().min(0),
   comments: z.number().int().min(0),
   likes: z.number().int().min(0),
