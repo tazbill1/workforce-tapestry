@@ -124,6 +124,39 @@ function SurveysScreen() {
     void queryClient.invalidateQueries({ queryKey: ["survey", activeId] });
   };
 
+  const upload = useMutation({
+    mutationFn: async (files: File[]) => {
+      const results: string[] = [];
+      for (const file of files) {
+        const result = await uploadSurveyFile({
+          file,
+          clientId,
+          period,
+          fns: {
+            checkDuplicate: checkDuplicateFn as never,
+            createImport: createImportFn as never,
+            createSurvey: createSurveyFn as never,
+            insertSurveyResponses: insertResponsesFn as never,
+            finalizeImport: finalizeFn as never,
+          },
+          onProgress: (label, value) => setProgressState({ label: `${file.name}: ${label}`, value }),
+        });
+        results.push(`${result.title} (${result.answers} answers)`);
+        setSelected(result.surveyId);
+      }
+      return results;
+    },
+    onSuccess: (results) => {
+      setProgressState(null);
+      toast.success(`Uploaded ${results.join(", ")}.`);
+      void queryClient.invalidateQueries({ queryKey: ["surveys", clientId] });
+    },
+    onError: (error: Error) => {
+      setProgressState(null);
+      toast.error(error.message);
+    },
+  });
+
   const score = useMutation({
     mutationFn: () => scoreFn({ data: { surveyId: activeId! } }),
     onSuccess: (result) => {
