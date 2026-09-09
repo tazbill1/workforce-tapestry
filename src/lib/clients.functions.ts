@@ -86,12 +86,15 @@ export const setClientDomains = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAnalyst(context);
     const domains = normalizeDomains(data.domains);
-    const { error } = await context.supabase
+    const { data: row, error } = await context.supabase
       .from("clients")
       .update({ expected_domains: domains })
-      .eq("id", data.clientId);
+      .eq("id", data.clientId)
+      .select("id, expected_domains")
+      .maybeSingle();
     if (error) throw new Error(error.message);
-    return { domains };
+    if (!row) throw new Error("Could not save domains for that client.");
+    return { domains: (row.expected_domains as string[]) ?? domains };
   });
 
 export const setClientActive = createServerFn({ method: "POST" })
