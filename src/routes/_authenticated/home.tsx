@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { LayoutDashboard, CheckCircle2, CircleDashed } from "lucide-react";
+import { LayoutDashboard, CheckCircle2, CircleDashed, AlertTriangle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -110,6 +110,12 @@ function HomeScreen() {
                 <dd className="text-right font-medium">{fmtPeriod(c.latestPeriod)}</dd>
                 <dt className="text-muted-foreground">People included</dt>
                 <dd className="text-right font-medium">{c.headcount || "—"}</dd>
+                <dt className="text-muted-foreground">Turnover</dt>
+                <dd className="text-right font-medium">
+                  {c.turnoverPct === null ? "—" : `${c.turnoverPct}%`}
+                </dd>
+                <dt className="text-muted-foreground">Mood</dt>
+                <dd className="text-right font-medium">{c.moodPerEmployee ?? "—"}</dd>
                 <dt className="text-muted-foreground">Metrics published</dt>
                 <dd className="text-right font-medium">{c.metricCount || "—"}</dd>
                 <dt className="text-muted-foreground">Last upload</dt>
@@ -117,6 +123,25 @@ function HomeScreen() {
                 <dt className="text-muted-foreground">Last report</dt>
                 <dd className="text-right">{fmtDate(c.latestReportAt)}</dd>
               </dl>
+
+              {c.alerts.length > 0 && (
+                <ul className="space-y-1.5">
+                  {c.alerts.map((a, i) => (
+                    <li
+                      key={i}
+                      className={`flex items-start gap-2 rounded-md border p-2 text-xs ${
+                        a.level === "warn"
+                          ? "border-destructive/40 bg-destructive/5 text-destructive"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span>{a.message}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
               <div className="flex gap-2">
                 <Button asChild size="sm" variant="outline">
                   <Link to="/decisions">Review</Link>
