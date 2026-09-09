@@ -8,6 +8,7 @@ export type ConsoleUser = {
   createdAt: string | null;
   lastSignInAt: string | null;
   provider: string | null;
+  disabled: boolean;
 };
 
 /** Supabase caps listUsers at one page, so walk every page. */
@@ -51,6 +52,7 @@ export const listConsoleUsers = createServerFn({ method: "GET" })
       createdAt: u.created_at ?? null,
       lastSignInAt: u.last_sign_in_at ?? null,
       provider: u.app_metadata?.provider ?? null,
+      disabled: Boolean(u.banned_until && Date.parse(u.banned_until) > Date.now()),
     }));
 
     mapped.sort((a, b) => {

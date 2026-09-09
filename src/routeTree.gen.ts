@@ -21,6 +21,7 @@ import { Route as AuthenticatedImportsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedMetricsRouteImport } from './routes/_authenticated/metrics'
 import { Route as AuthenticatedPlanRouteImport } from './routes/_authenticated/plan'
 import { Route as AuthenticatedReportRouteImport } from './routes/_authenticated/report'
+import { Route as AuthenticatedTrendsRouteImport } from './routes/_authenticated/trends'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedSharedTokenRouteImport } from './routes/_authenticated/shared.$token'
 
@@ -83,6 +84,11 @@ const AuthenticatedReportRoute = AuthenticatedReportRouteImport.update({
   path: '/report',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTrendsRoute = AuthenticatedTrendsRouteImport.update({
+  id: '/trends',
+  path: '/trends',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
   id: '/users',
   path: '/users',
@@ -107,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/metrics': typeof AuthenticatedMetricsRoute
   '/plan': typeof AuthenticatedPlanRoute
   '/report': typeof AuthenticatedReportRoute
+  '/trends': typeof AuthenticatedTrendsRoute
   '/users': typeof AuthenticatedUsersRoute
   '/shared/$token': typeof AuthenticatedSharedTokenRoute
 }
@@ -122,6 +129,7 @@ export interface FileRoutesByTo {
   '/metrics': typeof AuthenticatedMetricsRoute
   '/plan': typeof AuthenticatedPlanRoute
   '/report': typeof AuthenticatedReportRoute
+  '/trends': typeof AuthenticatedTrendsRoute
   '/users': typeof AuthenticatedUsersRoute
   '/shared/$token': typeof AuthenticatedSharedTokenRoute
 }
@@ -139,6 +147,7 @@ export interface FileRoutesById {
   '/_authenticated/metrics': typeof AuthenticatedMetricsRoute
   '/_authenticated/plan': typeof AuthenticatedPlanRoute
   '/_authenticated/report': typeof AuthenticatedReportRoute
+  '/_authenticated/trends': typeof AuthenticatedTrendsRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/shared/$token': typeof AuthenticatedSharedTokenRoute
 }
@@ -156,6 +165,7 @@ export interface FileRouteTypes {
     | '/metrics'
     | '/plan'
     | '/report'
+    | '/trends'
     | '/users'
     | '/shared/$token'
   fileRoutesByTo: FileRoutesByTo
@@ -171,6 +181,7 @@ export interface FileRouteTypes {
     | '/metrics'
     | '/plan'
     | '/report'
+    | '/trends'
     | '/users'
     | '/shared/$token'
   id:
@@ -187,6 +198,7 @@ export interface FileRouteTypes {
     | '/_authenticated/metrics'
     | '/_authenticated/plan'
     | '/_authenticated/report'
+    | '/_authenticated/trends'
     | '/_authenticated/users'
     | '/_authenticated/shared/$token'
   fileRoutesById: FileRoutesById
@@ -283,6 +295,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReportRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/trends': {
+      id: '/_authenticated/trends'
+      path: '/trends'
+      fullPath: '/trends'
+      preLoaderRoute: typeof AuthenticatedTrendsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/users': {
       id: '/_authenticated/users'
       path: '/users'
@@ -310,6 +329,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMetricsRoute: typeof AuthenticatedMetricsRoute
   AuthenticatedPlanRoute: typeof AuthenticatedPlanRoute
   AuthenticatedReportRoute: typeof AuthenticatedReportRoute
+  AuthenticatedTrendsRoute: typeof AuthenticatedTrendsRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedSharedTokenRoute: typeof AuthenticatedSharedTokenRoute
 }
@@ -324,6 +344,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMetricsRoute: AuthenticatedMetricsRoute,
   AuthenticatedPlanRoute: AuthenticatedPlanRoute,
   AuthenticatedReportRoute: AuthenticatedReportRoute,
+  AuthenticatedTrendsRoute: AuthenticatedTrendsRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedSharedTokenRoute: AuthenticatedSharedTokenRoute,
 }
