@@ -12,6 +12,7 @@ const KINDS = [
   "engagement_totals",
   "recognition_counts",
   "recognition_activity",
+  "survey",
 ] as const;
 
 const inputSchema = z.object({
