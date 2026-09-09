@@ -55,6 +55,7 @@ export const SECTIONS = [
   { id: "insights", label: "Analyst insights" },
   { id: "action", label: "Action plan" },
   { id: "notes", label: "Additional comments" },
+  { id: "surveys", label: "Survey results" },
   { id: "method", label: "Method and definitions" },
 ] as const;
 
@@ -162,10 +163,12 @@ export function ReportDocument({
   const spec = FORMAT_SPECS[format];
   const enabledIds = sections && sections.length > 0 ? new Set(sections) : null;
   const insights = data.insights ?? [];
+  const surveys = data.surveys ?? [];
   /** The insights section only exists when an analyst pinned something to this period. */
   const isEnabled = (id: string) =>
     (id !== "insights" || insights.length > 0) &&
     (id !== "notes" || (data.notes?.length ?? 0) > 0) &&
+    (id !== "surveys" || surveys.length > 0) &&
     (enabledIds ? enabledIds.has(id) : true);
 
   /** Chart heights are declared at landscape scale and shrunk for the shorter formats. */
@@ -190,6 +193,7 @@ export function ReportDocument({
     lowmood: lowMoodChunks.length - 1,
     insights: Math.max(0, insights.length - 1),
     notes: Math.max(0, (data.notes?.length ?? 0) - 1),
+    surveys: Math.max(0, surveys.length - 1),
   };
 
   const pageNumbers = new Map<string, number>();
@@ -1234,6 +1238,78 @@ export function ReportDocument({
           <p style={{ marginTop: "8pt", whiteSpace: "pre-wrap" }}>{note.body}</p>
           <p className="rp-footnote">
             Written in the workspace for {clientName}, {period}.
+          </p>
+        </Page>
+      ))}
+
+      {/* 13c — Survey results, one page per approved survey summary */}
+      {surveys.map((survey, index) => (
+        <Page
+          key={survey.id}
+          id={index === 0 ? "surveys" : `surveys-${index}`}
+          title="Survey results"
+          {...page}
+        >
+          <span className="rp-action-number">
+            Survey · {index + 1} of {surveys.length}
+          </span>
+          <h2 className="rp-heading" style={{ marginTop: "6pt", fontSize: "16pt" }}>
+            {survey.title}
+          </h2>
+          <p className="rp-lede">
+            {survey.anonymous
+              ? `Anonymous survey · ${survey.questions} questions`
+              : `${survey.respondents} respondents · ${survey.questions} questions`}
+            {survey.sentiment.scored > 0
+              ? ` · ${survey.sentiment.positive} positive, ${survey.sentiment.neutral} neutral, ${survey.sentiment.negative} negative of ${survey.sentiment.scored} scored answers`
+              : ""}
+          </p>
+          <div className="rp-action-block">
+            <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{survey.summary_md}</p>
+          </div>
+          {survey.themes.length > 0 ? (
+            <table className="rp-table rp-tight">
+              <thead>
+                <tr>
+                  <th style={{ width: "28%" }}>Theme</th>
+                  <th style={{ width: "14%" }}>Feeling</th>
+                  <th>What people said</th>
+                </tr>
+              </thead>
+              <tbody>
+                {survey.themes.map((theme) => (
+                  <tr key={theme.label}>
+                    <td>{theme.label}</td>
+                    <td>{theme.sentiment}</td>
+                    <td>{theme.detail || DASH}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : null}
+          {survey.highlights.length > 0 ? (
+            <table className="rp-table rp-tight">
+              <thead>
+                <tr>
+                  <th style={{ width: "48%" }}>Question</th>
+                  <th>Answers</th>
+                </tr>
+              </thead>
+              <tbody>
+                {survey.highlights.slice(0, spec.tableRows).map((entry) => (
+                  <tr key={entry.question}>
+                    <td>{entry.question}</td>
+                    <td>
+                      {entry.answers.map((answer) => `${answer.label} (${answer.count})`).join("; ")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : null}
+          <p className="rp-footnote">
+            Written answers were labelled positive, neutral or negative and the wording above was
+            reviewed and approved in the workspace before printing.
           </p>
         </Page>
       ))}
