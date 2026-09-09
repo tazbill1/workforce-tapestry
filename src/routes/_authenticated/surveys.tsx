@@ -90,9 +90,18 @@ function SurveysScreen() {
   const saveFn = useServerFn(saveSurveySummary);
   const includeFn = useServerFn(setSurveyIncluded);
   const deleteFn = useServerFn(deleteSurvey);
+  const checkDuplicateFn = useServerFn(checkDuplicate);
+  const createImportFn = useServerFn(createImport);
+  const finalizeFn = useServerFn(finalizeImport);
+  const createSurveyFn = useServerFn(createSurvey);
+  const insertResponsesFn = useServerFn(insertSurveyResponses);
 
   const [selected, setSelected] = useState<string | null>(null);
   const [draftText, setDraftText] = useState<string | null>(null);
+  const [period, setPeriod] = useState<string>(() => new Date().toISOString().slice(0, 7));
+  const [progress, setProgressState] = useState<{ label: string; value: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
 
   useQuery({ queryKey: ["clients"], queryFn: () => clientsFn() });
 
