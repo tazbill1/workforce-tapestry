@@ -48,11 +48,18 @@ export function ClientSwitcher() {
         <DropdownMenuSeparator />
         {(clients.data ?? []).map((client) => (
           <DropdownMenuItem key={client.id} onSelect={() => setClientId(client.id)}>
-            <span className="truncate">
-              {client.name}{" "}
-              <span className="text-muted-foreground">({client.code})</span>
-            </span>
-            {client.id === clientId ? <Check className="ml-auto h-4 w-4" /> : null}
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate">
+                {client.name}{" "}
+                <span className="text-muted-foreground">({client.code})</span>
+              </span>
+              {(client as { expected_domains?: string[] }).expected_domains?.length ? (
+                <span className="truncate text-xs text-muted-foreground">
+                  {(client as { expected_domains?: string[] }).expected_domains!.join(", ")}
+                </span>
+              ) : null}
+            </div>
+            {client.id === clientId ? <Check className="ml-auto h-4 w-4 shrink-0" /> : null}
           </DropdownMenuItem>
         ))}
         {clients.data?.length === 0 ? (
