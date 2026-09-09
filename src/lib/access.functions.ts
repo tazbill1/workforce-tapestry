@@ -3,6 +3,9 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const ALLOWED_EMAIL_DOMAIN = "werkandme.com";
 
+/** The workspace owner. Always gets the full analyst (admin) role. */
+const OWNER_EMAIL = "tom@werkandme.com";
+
 /**
  * Gates the app to a single company domain and provisions the default role
  * for new company members on first sign-in.
