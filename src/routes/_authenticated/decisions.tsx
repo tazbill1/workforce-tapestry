@@ -1634,9 +1634,142 @@ function DepartmentSection({
   const [franchise, setFranchise] = useState("");
   const [functionLabel, setFunctionLabel] = useState("");
   const [isShared, setIsShared] = useState(false);
+  const suggestFn = useServerFn(suggestDepartmentRules);
+  const [suggestions, setSuggestions] = useState<DepartmentSuggestion[]>([]);
+  const [suggesting, setSuggesting] = useState(false);
+  const formRef = useRef<HTMLDivElement | null>(null);
+
+  const unresolved = departments.filter((entry) => entry.unmapped);
+
+  const askAi = async () => {
+    setSuggesting(true);
+    try {
+      const result = await suggestFn({
+        data: {
+          departments: unresolved.slice(0, 60).map((entry) => ({
+            department: entry.department_raw,
+            headcount: entry.headcount,
+          })),
+          existing: rules
+            .filter((rule) => rule.active)
+            .slice(0, 60)
+            .map((rule) => ({
+              pattern: rule.pattern,
+              franchiseLabel: rule.franchise_label,
+              functionLabel: rule.function_label,
+              isShared: rule.is_shared,
+            })),
+        },
+      });
+      setSuggestions(result);
+      toast.success(
+        result.length === 0
+          ? "The AI could not suggest anything for these departments."
+          : `${result.length} suggestion${result.length === 1 ? "" : "s"} ready — accept the ones that look right.`,
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "The suggestions could not be fetched.");
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
+  const drop = (key: string) =>
+    setSuggestions((current) => current.filter((item) => item.key !== key));
 
   return (
     <>
+      {unresolved.length > 0 ? (
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle className="text-destructive">
+              {unresolved.length} department{unresolved.length === 1 ? "" : "s"} still unresolved
+            </CardTitle>
+            <CardDescription>
+              The AI can read each department name and propose a rooftop, a function and whether it
+              is shared support. Nothing is saved until you accept it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Button size="sm" onClick={askAi} disabled={suggesting}>
+              {suggesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {suggesting ? "Reading the departments…" : "Suggest department rules with AI"}
+            </Button>
+            {suggestions.length === 0 ? (
+              <div className="space-y-1">
+                {unresolved.map((entry) => (
+                  <div
+                    key={entry.department_raw ?? "(blank)"}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+                  >
+                    <span>{entry.department_raw ?? <em>(blank)</em>}</span>
+                    <span className="flex items-center gap-2">
+                      <Badge variant="outline">{entry.headcount} people</Badge>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          setPattern(entry.department_raw ?? "");
+                          formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }}
+                      >
+                        Map this
+                      </Button>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {suggestions.map((item) => (
+                  <div key={item.key} className="rounded-md border px-3 py-2 text-xs">
+                    <p className="text-sm">
+                      “{item.pattern}” → {item.franchiseLabel ?? "no rooftop"} ·{" "}
+                      {item.functionLabel ?? "no function"} ·{" "}
+                      {item.isShared ? "shared support" : "not shared"}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      {item.why} · {item.confidence} confidence
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          onSave({
+                            pattern: item.pattern,
+                            franchiseLabel: item.franchiseLabel,
+                            functionLabel: item.functionLabel,
+                            isShared: item.isShared,
+                          });
+                          drop(item.key);
+                        }}
+                      >
+                        Accept
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setPattern(item.pattern);
+                          setFranchise(item.franchiseLabel ?? "");
+                          setFunctionLabel(item.functionLabel ?? "");
+                          setIsShared(item.isShared);
+                          formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }}
+                      >
+                        Edit first
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => drop(item.key)}>
+                        Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle>Define a department rule</CardTitle>
