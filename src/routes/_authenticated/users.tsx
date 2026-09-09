@@ -155,6 +155,7 @@ function UsersScreen() {
               <TableRow>
                 <TableHead>Email</TableHead>
                 <TableHead className="w-44">Role</TableHead>
+                <TableHead className="w-28">Access</TableHead>
                 <TableHead className="w-40">Last sign-in</TableHead>
                 <TableHead className="w-28 text-right">Joined</TableHead>
                 <TableHead className="w-16" />
@@ -163,7 +164,7 @@ function UsersScreen() {
             <TableBody>
               {!isLoading && users.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-muted-foreground">
+                  <TableCell colSpan={6} className="text-muted-foreground">
                     No accounts to show.
                   </TableCell>
                 </TableRow>
