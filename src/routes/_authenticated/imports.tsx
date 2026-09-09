@@ -45,8 +45,6 @@ import { FlagSummaryPanel, type FlagSummary } from "@/components/import/FlagSumm
 import { buildHeaderMap, extractRow, sha256Hex, type SourceRow } from "@/lib/roster-parse";
 import { parseEngagementSheet } from "@/lib/engagement-parse";
 import { insertRecognitionActivity } from "@/lib/engagement.functions";
-import { parseSurveyGrid } from "@/lib/survey-parse";
-import { createSurvey, insertSurveyResponses } from "@/lib/surveys.functions";
 import { sniffGrid, KIND_LABELS, type Sniff } from "@/lib/detect-import";
 import { analyzeUpload, type UploadAdvice } from "@/lib/detect.functions";
 import { previewStatedFigures, saveStatedFigures } from "@/lib/stated.functions";
@@ -163,8 +161,6 @@ function ImportScreen() {
   const diffFn = useServerFn(getDiff);
   const analyzeFn = useServerFn(analyzeUpload);
   const insertRecognitionFn = useServerFn(insertRecognitionActivity);
-  const createSurveyFn = useServerFn(createSurvey);
-  const insertSurveyResponsesFn = useServerFn(insertSurveyResponses);
   const previewStatedFn = useServerFn(previewStatedFigures);
   const saveStatedFn = useServerFn(saveStatedFigures);
 
@@ -500,13 +496,11 @@ function ImportScreen() {
       checkDuplicateFn,
       clientId,
       createImportFn,
-      createSurveyFn,
       diffFn,
       finalizeFn,
       flagSummaryFn,
       insertRecognitionFn,
       insertRecordsFn,
-      insertSurveyResponsesFn,
       patch,
     ],
   );
