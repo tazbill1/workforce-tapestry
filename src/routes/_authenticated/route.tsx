@@ -49,8 +49,9 @@ function AuthenticatedLayout() {
   return (
     <div className="min-h-screen bg-background">
       <nav className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur">
-        <div className="flex h-14 items-center gap-2 px-4">
+        <div className="flex min-h-14 flex-wrap items-center gap-2 px-4 py-2">
           <span className="mr-4 text-sm font-semibold tracking-tight">Client Reporting Console</span>
+
           {navItems.map(({ to, label, icon: Icon }) => (
             <Link
               key={to}
