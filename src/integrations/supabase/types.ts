@@ -987,6 +987,66 @@ export type Database = {
           },
         ]
       }
+      recognition_points: {
+        Row: {
+          client_id: string
+          department_raw: string | null
+          id: string
+          import_id: string
+          inserted_at: string
+          manager_name: string
+          manager_title: string | null
+          parse_flags: string[]
+          period: string
+          points_allocated: number | null
+          points_given: number | null
+          row_number: number | null
+        }
+        Insert: {
+          client_id: string
+          department_raw?: string | null
+          id?: string
+          import_id: string
+          inserted_at?: string
+          manager_name: string
+          manager_title?: string | null
+          parse_flags?: string[]
+          period: string
+          points_allocated?: number | null
+          points_given?: number | null
+          row_number?: number | null
+        }
+        Update: {
+          client_id?: string
+          department_raw?: string | null
+          id?: string
+          import_id?: string
+          inserted_at?: string
+          manager_name?: string
+          manager_title?: string | null
+          parse_flags?: string[]
+          period?: string
+          points_allocated?: number | null
+          points_given?: number | null
+          row_number?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recognition_points_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recognition_points_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "raw_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       record_merges: {
         Row: {
           active: boolean
@@ -1804,6 +1864,7 @@ export type Database = {
         | "screenshot"
         | "recognition_activity"
         | "survey"
+        | "recognition_points"
       import_state: "uploaded" | "parsed" | "failed" | "superseded"
       report_format: "portrait" | "landscape" | "wide" | "exec"
     }
@@ -1959,6 +2020,7 @@ export const Constants = {
         "screenshot",
         "recognition_activity",
         "survey",
+        "recognition_points",
       ],
       import_state: ["uploaded", "parsed", "failed", "superseded"],
       report_format: ["portrait", "landscape", "wide", "exec"],
