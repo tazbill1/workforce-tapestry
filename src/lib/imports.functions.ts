@@ -9,6 +9,7 @@ const importKind = z.enum([
   "engagement_totals",
   "recognition_counts",
   "recognition_activity",
+  "recognition_points",
   "survey",
   "screenshot",
 ]);

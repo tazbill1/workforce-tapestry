@@ -45,6 +45,8 @@ import { FlagSummaryPanel, type FlagSummary } from "@/components/import/FlagSumm
 import { buildHeaderMap, extractRow, sha256Hex, type SourceRow } from "@/lib/roster-parse";
 import { parseEngagementSheet } from "@/lib/engagement-parse";
 import { insertRecognitionActivity } from "@/lib/engagement.functions";
+import { parseRecognitionPointsSheet } from "@/lib/recognition-points-parse";
+import { insertRecognitionPoints } from "@/lib/recognition-points.functions";
 import { sniffGrid, KIND_LABELS, type Sniff } from "@/lib/detect-import";
 import { analyzeUpload, type UploadAdvice } from "@/lib/detect.functions";
 import { previewStatedFigures, saveStatedFigures } from "@/lib/stated.functions";
@@ -66,6 +68,7 @@ const KINDS = [
   { value: "engagement_totals", label: "Engagement totals" },
   { value: "recognition_counts", label: "Recognition counts" },
   { value: "recognition_activity", label: "Recognition activity" },
+  { value: "recognition_points", label: "Recognition points" },
   
 ] as const;
 
@@ -75,6 +78,7 @@ const KIND_ORDER = [
   "mood_matrix",
   "login_report",
   "recognition_activity",
+  "recognition_points",
   "recognition_counts",
   "engagement_totals",
   
@@ -90,6 +94,12 @@ const CHECKLIST: { kind: string; label: string; hint: string; required: boolean 
     label: "Recognition activity",
     hint: "Posts, comments and likes",
     required: true,
+  },
+  {
+    kind: "recognition_points",
+    label: "Recognition points",
+    hint: "Manager budgets and points given",
+    required: false,
   },
   {
     kind: "engagement_totals",
@@ -161,6 +171,7 @@ function ImportScreen() {
   const diffFn = useServerFn(getDiff);
   const analyzeFn = useServerFn(analyzeUpload);
   const insertRecognitionFn = useServerFn(insertRecognitionActivity);
+  const insertRecognitionPointsFn = useServerFn(insertRecognitionPoints);
   const previewStatedFn = useServerFn(previewStatedFigures);
   const saveStatedFn = useServerFn(saveStatedFigures);
 
@@ -442,6 +453,34 @@ function ImportScreen() {
           return { summary: null, diff: null, totalRows: parsed.rows.length };
         }
 
+        if (item.kind === "recognition_points") {
+          const grid = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+            header: 1,
+            defval: null,
+            raw: true,
+          });
+          const parsed = parseRecognitionPointsSheet(grid as unknown[][]);
+          for (let i = 0; i < parsed.rows.length; i += BATCH_SIZE) {
+            const batch = parsed.rows.slice(i, i + BATCH_SIZE);
+            setProgress(
+              `Writing rows ${i + 1}–${Math.min(i + BATCH_SIZE, parsed.rows.length)} of ${parsed.rows.length}`,
+              45 + Math.round((i / Math.max(parsed.rows.length, 1)) * 40),
+            );
+            await insertRecognitionPointsFn({
+              data: { importId, clientId, period: periodDate, rows: batch },
+            });
+          }
+          await finalizeFn({
+            data: {
+              importId,
+              rowCount: parsed.rows.length,
+              columnNames: parsed.columnNames,
+              state: "parsed",
+            },
+          });
+          return { summary: null, diff: null, totalRows: parsed.rows.length };
+        }
+
         const rows = XLSX.utils.sheet_to_json<SourceRow>(sheet, { defval: null, raw: true });
         const columnNames = Array.from(
           rows.reduce<Set<string>>((set, row) => {
@@ -500,6 +539,7 @@ function ImportScreen() {
       finalizeFn,
       flagSummaryFn,
       insertRecognitionFn,
+      insertRecognitionPointsFn,
       insertRecordsFn,
       patch,
     ],
