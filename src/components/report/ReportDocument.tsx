@@ -632,7 +632,6 @@ export function ReportDocument({
             { label: "No usable date", value: fmtInt(m.get("undated_inactive_count")) },
           ]}
         />
-        <p className="rp-lede">Engagement actions per active employee: <strong>{fmtNum(m.get("engagement_actions_per_employee"), 2)}</strong>. This combines likes, comments and recognitions; logins are excluded.</p>
         <table className="rp-table rp-tight">
           <thead>
             <tr>
@@ -957,6 +956,7 @@ export function ReportDocument({
             { label: "Comments", value: fmtInt(m.get("engagement_comments")) },
           ]}
         />
+        <p className="rp-lede">Engagement actions per active employee: <strong>{fmtNum(m.get("engagement_actions_per_employee"), 2)}</strong>. This combines likes, comments and recognitions; logins are excluded.</p>
         <div className="rp-two-col">
           <div className="rp-chart">
             <RankedBarChart
