@@ -763,6 +763,13 @@ export function ReportDocument({
           Participation is active people with at least one check-in over active headcount at
           period end.
         </p>
+        <p className="rp-subheading" style={{ marginTop: "8pt" }}>No check-in by department</p>
+        <table className="rp-table rp-tight">
+          <thead><tr><th>Department</th><th className="rp-num">Active</th><th className="rp-num">No check-in</th><th className="rp-num">Participation</th></tr></thead>
+          <tbody>
+            {m.scopesFor("not_checked_in_count", "dept:").map((scope) => <tr key={scope}><td>{scopeLabel(scope)}</td><td className="rp-num">{fmtInt(m.get("headcount_active", scope))}</td><td className="rp-num">{fmtInt(m.get("not_checked_in_count", scope))}</td><td className="rp-num">{fmtPct(m.get("checked_in_pct", scope))}</td></tr>)}
+          </tbody>
+        </table>
       </Page>
 
       {/* 9 — Mood */}
@@ -818,6 +825,13 @@ export function ReportDocument({
           Both mood metrics use active headcount at period end as the denominator, so people who
           checked in and then left do not inflate the figure.
         </p>
+        <p className="rp-subheading" style={{ marginTop: "8pt" }}>Mood by role</p>
+        <table className="rp-table rp-tight">
+          <thead><tr><th>Role</th><th className="rp-num">Mood per employee</th><th className="rp-num">Group mood</th><th className="rp-num">Low mood</th></tr></thead>
+          <tbody>
+            {roles.map((scope) => <tr key={scope}><td>{scopeLabel(scope)}</td><td className="rp-num">{fmtNum(m.get("mood_per_employee", scope), 1)}</td><td className="rp-num">{fmtNum(mood, 1)}</td><td className="rp-num">{fmtInt(m.get("low_mood_count", scope))}</td></tr>)}
+          </tbody>
+        </table>
       </Page>
 
       {/* 10 — Watch list */}
