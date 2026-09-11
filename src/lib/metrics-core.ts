@@ -36,6 +36,14 @@ export type ActivityRow = {
   likes: number | null;
 };
 
+export type RecognitionPointRow = {
+  manager_name: string;
+  manager_title: string | null;
+  department_raw: string | null;
+  points_allocated: number | null;
+  points_given: number | null;
+};
+
 export type MetricDefinition = {
   key: string;
   version: number;
@@ -241,6 +249,14 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     description: "Turnover among people hired within two years of period end.",
     formula_note: "inactive / (active + inactive) * 100 within the recent-hire cohort.",
     effective_from: "2026-06-01",
+    superseded: true,
+  },
+  {
+    key: "recent_hire_turnover_pct",
+    version: 2,
+    description: "Turnover among people hired within one year of period end.",
+    formula_note: "inactive / (active + inactive) * 100 within the under-one-year cohort.",
+    effective_from: "2026-08-01",
   },
   {
     key: "tenured_turnover_pct",
@@ -249,6 +265,15 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     formula_note:
       "inactive / (active + inactive) * 100 within the tenured cohort. Rows with no hire date fall into this cohort.",
     effective_from: "2026-06-01",
+    superseded: true,
+  },
+  {
+    key: "tenured_turnover_pct",
+    version: 2,
+    description: "Turnover among people hired at least one year before period end.",
+    formula_note:
+      "inactive / (active + inactive) * 100 within the one-year-and-over cohort. Rows with no hire date fall into this cohort.",
+    effective_from: "2026-08-01",
   },
   {
     key: "engagement_likes",
@@ -278,6 +303,33 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     description: "Recognitions for the period, from manually entered engagement totals.",
     formula_note: "Read from engagement_totals.",
     effective_from: "2026-06-01",
+  },
+  ...["likes", "comments", "logins", "recognitions"].map((kind): MetricDefinition => ({
+    key: `engagement_${kind}_per_employee`,
+    version: 1,
+    description: `${kind[0]?.toUpperCase() ?? ""}${kind.slice(1)} per active employee for the period.`,
+    formula_note: `engagement_${kind} / headcount_active. Stored so the report performs no arithmetic.`,
+    effective_from: "2026-08-01",
+  })),
+  ...[
+    ["recognition_points_allocated", "Recognition points allocated to managers for the period."],
+    ["recognition_points_given", "Recognition points given by managers for the period."],
+    ["recognition_points_utilization_pct", "Recognition points given over allocated points."],
+    ["recognition_points_manager_count", "Managers included in the recognition-points file."],
+    ["recognition_points_zero_use_count", "Managers who gave zero recognition points."],
+  ].map(([key, description]): MetricDefinition => ({
+    key: key ?? "",
+    version: 1,
+    description: description ?? "",
+    formula_note: "Computed from the approved recognition-points spreadsheet for the client and period.",
+    effective_from: "2026-08-01",
+  })),
+  {
+    key: "low_mood_count",
+    version: 1,
+    description: "Active people who checked in with mood below 75.",
+    formula_note: "Active people with checkin_count > 0 and mood_avg < 75.",
+    effective_from: "2026-08-01",
   },
   {
     key: "recognitions_per_employee",
@@ -569,6 +621,7 @@ export type ComputeInput = {
   recognitions: RecognitionRow[];
   /** Per-person recognition activity for the period, already name-matched where possible. */
   activity?: ActivityRow[];
+  recognitionPoints?: RecognitionPointRow[];
   benchmarks?: BenchmarkRow[];
 };
 
@@ -702,7 +755,7 @@ export function computeMetrics(input: ComputeInput): ComputedMetric[] {
   for (const bucket of [company, ...franchises, ...roles]) {
     out.push(...tenure(bucket));
   }
-  for (const bucket of [company, ...franchises, ...departments]) {
+  for (const bucket of [company, ...franchises, ...roles, ...departments]) {
     out.push(...mood(bucket));
     out.push(...participation(bucket));
   }
@@ -755,11 +808,11 @@ export function computeMetrics(input: ComputeInput): ComputedMetric[] {
     },
   );
 
-  // Tenure cohorts: hired within two years of period end vs earlier (or unknown).
-  const twoYearsBefore = new Date(end);
-  twoYearsBefore.setUTCFullYear(twoYearsBefore.getUTCFullYear() - 2);
+  // Tenure cohorts: hired within one year of period end vs earlier (or unknown).
+  const oneYearBefore = new Date(end);
+  oneYearBefore.setUTCFullYear(oneYearBefore.getUTCFullYear() - 1);
   const isRecent = (row: PersonRow) =>
-    row.hire_date !== null && new Date(row.hire_date) > twoYearsBefore;
+    row.hire_date !== null && new Date(row.hire_date) > oneYearBefore;
   const cohortRows = rows.filter((row) => (row.status ?? "").toLowerCase() !== "invited");
   const cohortPairs: Array<[string, string, PersonRow[]]> = [
     ["recent_hire_turnover_pct", "cohort:recent", cohortRows.filter(isRecent)],
@@ -805,7 +858,43 @@ export function computeMetrics(input: ComputeInput): ComputedMetric[] {
     for (const [key, value] of map) {
       if (value === null || value === undefined) continue;
       out.push({ metric_key: key, definition_version: currentVersion(key), scope: "company", value_numeric: value });
+      const active = company.rows.filter((row) => (row.status ?? "").toLowerCase() === "active").length;
+      if (active > 0) {
+        const perEmployeeKey = `${key}_per_employee`;
+        out.push({ metric_key: perEmployeeKey, definition_version: currentVersion(perEmployeeKey), scope: "company", value_numeric: round(value / active, 2) });
+      }
     }
+  }
+
+  const pointRows = input.recognitionPoints ?? [];
+  if (pointRows.length > 0) {
+    const valid = pointRows.filter((row) => row.points_allocated !== null || row.points_given !== null);
+    const publishPoints = (scope: string, source: RecognitionPointRow[]) => {
+      const allocated = source.reduce((sum, row) => sum + (row.points_allocated ?? 0), 0);
+      const given = source.reduce((sum, row) => sum + (row.points_given ?? 0), 0);
+      out.push(
+        { metric_key: "recognition_points_allocated", definition_version: currentVersion("recognition_points_allocated"), scope, value_numeric: allocated },
+        { metric_key: "recognition_points_given", definition_version: currentVersion("recognition_points_given"), scope, value_numeric: given },
+        { metric_key: "recognition_points_manager_count", definition_version: currentVersion("recognition_points_manager_count"), scope, value_numeric: source.length },
+        { metric_key: "recognition_points_zero_use_count", definition_version: currentVersion("recognition_points_zero_use_count"), scope, value_numeric: source.filter((row) => (row.points_given ?? 0) === 0).length },
+      );
+      if (allocated > 0) out.push({ metric_key: "recognition_points_utilization_pct", definition_version: currentVersion("recognition_points_utilization_pct"), scope, value_numeric: round((given / allocated) * 100, 1) });
+    };
+    publishPoints("company", valid);
+    const byDepartment = new Map<string, RecognitionPointRow[]>();
+    for (const row of valid) {
+      const label = row.department_raw?.trim() || "(blank)";
+      byDepartment.set(label, [...(byDepartment.get(label) ?? []), row]);
+    }
+    for (const [label, source] of byDepartment) publishPoints(`dept:${label}`, source);
+  }
+
+  for (const bucket of [company, ...franchises, ...roles, ...departments]) {
+    const lowMood = bucket.rows.filter((row) => {
+      const value = num(row.mood_avg);
+      return (row.status ?? "").toLowerCase() === "active" && (row.checkin_count ?? 0) > 0 && value !== null && value < 75;
+    }).length;
+    out.push({ metric_key: "low_mood_count", definition_version: currentVersion("low_mood_count"), scope: bucket.scope, value_numeric: lowMood });
   }
 
   // Recognitions, department scope: raw count and the per-employee rate.
