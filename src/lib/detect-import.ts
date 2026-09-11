@@ -10,9 +10,10 @@ export type DetectedKind =
   | "engagement_totals"
   | "recognition_counts"
   | "recognition_activity"
+  | "recognition_points"
   | "survey";
 
-export type SignalId = "people" | "mood" | "logins" | "recognition" | "totals";
+export type SignalId = "people" | "mood" | "logins" | "recognition" | "points" | "totals";
 
 /** A kind of data actually present in the sheet. One file can carry several. */
 export type DataSignal = {
@@ -148,6 +149,11 @@ export function sniffGrid(filename: string, grid: unknown[][]): Sniff {
     ),
   );
   addSignal(
+    "points",
+    "Manager recognition points",
+    matchCols((k) => k.includes("allocat") || k.includes("budget") || k.includes("pointsgiven") || k.includes("pointsused")),
+  );
+  addSignal(
     "mood",
     "Mood or check-in scores",
     matchCols((k) => k.includes("mood") || k.includes("checkin") || k.includes("pulse") || k.includes("sentiment")),
@@ -192,6 +198,20 @@ export function sniffGrid(filename: string, grid: unknown[][]): Sniff {
       }
     }
     push("recognition_activity", score, reasons);
+  }
+
+  // Recognition points: manager/name plus an allocation or usage column.
+  {
+    const reasons: string[] = [];
+    let score = 0;
+    const hasManager = has("manager") || has("managername") || has("leader") || has("name");
+    const hasAllocation = hasLike("allocat") || hasLike("budget") || has("availablepoints");
+    const hasGiven = hasLike("pointsgiven") || has("given") || hasLike("pointsused") || has("awarded");
+    if (hasManager && (hasAllocation || hasGiven)) {
+      score = 96;
+      reasons.push("Manager names with allocated or given recognition points");
+    }
+    push("recognition_points", score, reasons);
   }
 
   // Login report: a last-login style column.
@@ -295,5 +315,6 @@ export const KIND_LABELS: Record<DetectedKind, string> = {
   engagement_totals: "Engagement totals",
   recognition_counts: "Recognition counts",
   recognition_activity: "Recognition activity (posts, comments, likes)",
+  recognition_points: "Recognition points (manager budgets and usage)",
   survey: "Survey answers",
 };

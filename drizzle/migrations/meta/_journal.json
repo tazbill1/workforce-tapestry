@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789154620161,
+      "tag": "0000_add_recognition_points_import",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789154812636,
+      "tag": "0001_add_recognition_points_report_sections",
+      "breakpoints": true
+    }
+  ]
+}

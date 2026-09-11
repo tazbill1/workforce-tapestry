@@ -7,6 +7,7 @@ import {
   type EngagementRow,
   type PersonRow,
   type RecognitionRow,
+  type RecognitionPointRow,
 } from "./metrics-core";
 
 type Client = SupabaseClient<Database>;
@@ -89,6 +90,22 @@ export async function loadRecognitionActivity(
     if (!data || data.length < pageSize) break;
   }
   return rows;
+}
+
+export async function loadRecognitionPoints(
+  supabase: Client,
+  clientId: string,
+  period: string,
+): Promise<RecognitionPointRow[]> {
+  const { data, error } = await supabase
+    .from("recognition_points")
+    .select("manager_name, manager_title, department_raw, points_allocated, points_given")
+    .eq("client_id", clientId)
+    .eq("period", period)
+    .order("manager_name")
+    .limit(5000);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as RecognitionPointRow[];
 }
 
 /** Definitions are reference data; make sure every one the compute step needs exists. */

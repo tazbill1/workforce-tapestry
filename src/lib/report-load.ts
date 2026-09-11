@@ -100,6 +100,24 @@ export type AnniversaryRow = {
   milestone: boolean;
 };
 
+export type RecognitionPointDetail = {
+  manager_name: string;
+  manager_title: string | null;
+  department_raw: string | null;
+  points_allocated: number | null;
+  points_given: number | null;
+};
+
+export type PublishedBaseline = {
+  metric_key: string;
+  value_numeric: number | null;
+  label: string;
+  source: string;
+  source_note: string | null;
+};
+
+export type PeerAverage = { metric_key: string; value_numeric: number; client_count: number };
+
 const MILESTONES = new Set([1, 3, 5, 10, 15, 20, 25, 30]);
 
 /** A free-text comment written for this client and period and marked for the report. */
@@ -244,7 +262,7 @@ export async function buildReport(supabase: Client, clientId: string, period: st
   const priorPeriod = priorPeriodOf(period);
   const end = periodEnd(period);
 
-  const [clientResult, metricsResult, planResult, insightResult, noteResult, people, priorPeople] = await Promise.all([
+  const [clientResult, metricsResult, planResult, insightResult, noteResult, baselineResult, pointResult, peerResult, activeClientsResult, people, priorPeople] = await Promise.all([
     supabase.from("clients").select("id, name, code, logo_url").eq("id", clientId).maybeSingle(),
     supabase
       .from("published_metrics")
@@ -274,6 +292,25 @@ export async function buildReport(supabase: Client, clientId: string, period: st
       .eq("period", period)
       .eq("include_in_report", true)
       .order("position"),
+    supabase
+      .from("historical_baselines")
+      .select("metric_key, value_numeric, label, source, source_note")
+      .eq("client_id", clientId)
+      .eq("period", period),
+    supabase
+      .from("recognition_points")
+      .select("manager_name, manager_title, department_raw, points_allocated, points_given")
+      .eq("client_id", clientId)
+      .eq("period", period)
+      .order("points_given", { ascending: true }),
+    supabase
+      .from("published_metrics")
+      .select("client_id, metric_key, definition_version, value_numeric")
+      .eq("period", period)
+      .eq("scope", "company")
+      .in("metric_key", ["headcount_active", "turnover_pct", "mood_per_employee", "checked_in_pct", "engagement_recognitions_per_employee"])
+      .limit(20000),
+    supabase.from("clients").select("id").eq("active", true),
     loadPeople(supabase, clientId, period),
     loadPeople(supabase, clientId, priorPeriod),
   ]);
@@ -285,6 +322,10 @@ export async function buildReport(supabase: Client, clientId: string, period: st
   if (planResult.error) throw new Error(planResult.error.message);
   if (insightResult.error) throw new Error(insightResult.error.message);
   if (noteResult.error) throw new Error(noteResult.error.message);
+  if (baselineResult.error) throw new Error(baselineResult.error.message);
+  if (pointResult.error) throw new Error(pointResult.error.message);
+  if (peerResult.error) throw new Error(peerResult.error.message);
+  if (activeClientsResult.error) throw new Error(activeClientsResult.error.message);
   if (!clientResult.data) throw new Error("Client not found");
 
   const included = people.filter((person) => !person.is_excluded);
@@ -393,6 +434,25 @@ export async function buildReport(supabase: Client, clientId: string, period: st
       milestone: MILESTONES.has(entry.years),
     }));
 
+  const nextMonth = periodMonth === 12 ? 1 : periodMonth + 1;
+  const nextMonthYear = periodMonth === 12 ? periodYear + 1 : periodYear;
+  const upcomingAnniversaries: AnniversaryRow[] = activePeople
+    .filter((person) => person.hire_date !== null)
+    .map((person) => {
+      const hireYear = Number(person.hire_date!.slice(0, 4));
+      const hireMonth = Number(person.hire_date!.slice(5, 7));
+      return { person, hireMonth, years: nextMonthYear - hireYear };
+    })
+    .filter((entry) => entry.hireMonth === nextMonth && entry.years >= 1)
+    .sort((a, b) => b.years - a.years || byName(a.person, b.person))
+    .map((entry) => ({
+      name: displayName(entry.person),
+      department: entry.person.department_raw,
+      hire_date: entry.person.hire_date,
+      years: entry.years,
+      milestone: MILESTONES.has(entry.years),
+    }));
+
   const newStarters = activePeople
     .filter((person) => {
       if (!person.hire_date) return false;
@@ -409,6 +469,27 @@ export async function buildReport(supabase: Client, clientId: string, period: st
       hire_date: person.hire_date,
     }));
 
+  const peerLatest = new Map<string, { version: number; value: number }>();
+  const activeClientIds = new Set((activeClientsResult.data ?? []).map((row) => row.id));
+  for (const row of peerResult.data ?? []) {
+    if (row.value_numeric === null || !activeClientIds.has(row.client_id)) continue;
+    const key = `${row.client_id}::${row.metric_key}`;
+    const current = peerLatest.get(key);
+    if (!current || row.definition_version > current.version) {
+      peerLatest.set(key, { version: row.definition_version, value: Number(row.value_numeric) });
+    }
+  }
+  const peerGrouped = new Map<string, number[]>();
+  for (const [composite, entry] of peerLatest) {
+    const metricKey = composite.split("::")[1]!;
+    peerGrouped.set(metricKey, [...(peerGrouped.get(metricKey) ?? []), entry.value]);
+  }
+  const peerAverages: PeerAverage[] = [...peerGrouped].map(([metric_key, values]) => ({
+    metric_key,
+    value_numeric: values.reduce((sum, value) => sum + value, 0) / values.length,
+    client_count: values.length,
+  }));
+
   return {
     client: clientResult.data,
     period,
@@ -418,12 +499,16 @@ export async function buildReport(supabase: Client, clientId: string, period: st
     notes: (noteResult.data ?? []) as NoteBlock[],
     insights: (insightResult.data ?? []) as unknown as InsightBlock[],
     surveys,
+    asPublished: (baselineResult.data ?? []) as PublishedBaseline[],
+    recognitionPoints: (pointResult.data ?? []) as RecognitionPointDetail[],
+    peerAverages,
     lists: {
       departures,
       invited,
       notCheckedIn,
       lowMood,
       anniversaries,
+      upcomingAnniversaries,
       newStarters,
       moodThreshold: MOOD_THRESHOLD,
     },
