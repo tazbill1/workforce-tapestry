@@ -51,6 +51,7 @@ export const SECTIONS = [
   { id: "watchlist", label: "Didn't check in" },
   { id: "lowmood", label: "Checked in, low mood" },
   { id: "recognition", label: "Recognition and engagement" },
+  { id: "recognition-points", label: "Recognition points" },
   { id: "people", label: "Anniversaries and new starters" },
   { id: "insights", label: "Analyst insights" },
   { id: "action", label: "Action plan" },

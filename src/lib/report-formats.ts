@@ -117,6 +117,7 @@ export const ALL_SECTION_IDS = [
   "watchlist",
   "lowmood",
   "recognition",
+  "recognition-points",
   "people",
   "action",
   "notes",
