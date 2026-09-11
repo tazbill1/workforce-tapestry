@@ -399,15 +399,15 @@ export function ReportDocument({
               <thead><tr><th>Measure</th><th className="rp-num">Calculated</th><th className="rp-num">As published</th></tr></thead>
               <tbody>
                 {[
-                  ["Active", "headcount_active", false],
-                  ["Inactive", "headcount_inactive", false],
-                  ["Turnover", "turnover_pct", true],
-                  ["Mood", "mood_score", false],
-                ].map(([label, key, percent]) => (
-                  <tr key={String(key)}>
+                  ["Active", "headcount_active", "headcount_active", false],
+                  ["Inactive", "headcount_inactive", "headcount_inactive", false],
+                  ["Turnover", "turnover_pct", "turnover_pct", true],
+                  ["Mood", "mood_per_employee", "mood_score", false],
+                ].map(([label, calculatedKey, baselineKey, percent]) => (
+                  <tr key={String(calculatedKey)}>
                     <td>{label}</td>
-                    <td className="rp-num">{percent ? fmtPct(m.get(String(key))) : fmtNum(m.get(String(key)), key === "mood_score" ? 1 : 0)}</td>
-                    <td className="rp-num">{percent ? fmtPct(asPublished(String(key))) : fmtNum(asPublished(String(key)), key === "mood_score" ? 1 : 0)}</td>
+                    <td className="rp-num">{percent ? fmtPct(m.get(String(calculatedKey))) : fmtNum(m.get(String(calculatedKey)), calculatedKey === "mood_per_employee" ? 1 : 0)}</td>
+                    <td className="rp-num">{percent ? fmtPct(asPublished(String(baselineKey))) : fmtNum(asPublished(String(baselineKey)), baselineKey === "mood_score" ? 1 : 0)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -632,6 +632,7 @@ export function ReportDocument({
             { label: "No usable date", value: fmtInt(m.get("undated_inactive_count")) },
           ]}
         />
+        <p className="rp-lede">Engagement actions per active employee: <strong>{fmtNum(m.get("engagement_actions_per_employee"), 2)}</strong>. This combines likes, comments and recognitions; logins are excluded.</p>
         <table className="rp-table rp-tight">
           <thead>
             <tr>

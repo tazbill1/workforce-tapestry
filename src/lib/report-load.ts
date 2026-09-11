@@ -262,7 +262,7 @@ export async function buildReport(supabase: Client, clientId: string, period: st
   const priorPeriod = priorPeriodOf(period);
   const end = periodEnd(period);
 
-  const [clientResult, metricsResult, planResult, insightResult, noteResult, baselineResult, pointResult, peerResult, people, priorPeople] = await Promise.all([
+  const [clientResult, metricsResult, planResult, insightResult, noteResult, baselineResult, pointResult, peerResult, activeClientsResult, people, priorPeople] = await Promise.all([
     supabase.from("clients").select("id, name, code, logo_url").eq("id", clientId).maybeSingle(),
     supabase
       .from("published_metrics")
@@ -310,6 +310,7 @@ export async function buildReport(supabase: Client, clientId: string, period: st
       .eq("scope", "company")
       .in("metric_key", ["headcount_active", "turnover_pct", "mood_per_employee", "checked_in_pct", "engagement_recognitions_per_employee"])
       .limit(20000),
+    supabase.from("clients").select("id").eq("active", true),
     loadPeople(supabase, clientId, period),
     loadPeople(supabase, clientId, priorPeriod),
   ]);
@@ -324,6 +325,7 @@ export async function buildReport(supabase: Client, clientId: string, period: st
   if (baselineResult.error) throw new Error(baselineResult.error.message);
   if (pointResult.error) throw new Error(pointResult.error.message);
   if (peerResult.error) throw new Error(peerResult.error.message);
+  if (activeClientsResult.error) throw new Error(activeClientsResult.error.message);
   if (!clientResult.data) throw new Error("Client not found");
 
   const included = people.filter((person) => !person.is_excluded);
@@ -468,8 +470,9 @@ export async function buildReport(supabase: Client, clientId: string, period: st
     }));
 
   const peerLatest = new Map<string, { version: number; value: number }>();
+  const activeClientIds = new Set((activeClientsResult.data ?? []).map((row) => row.id));
   for (const row of peerResult.data ?? []) {
-    if (row.value_numeric === null) continue;
+    if (row.value_numeric === null || !activeClientIds.has(row.client_id)) continue;
     const key = `${row.client_id}::${row.metric_key}`;
     const current = peerLatest.get(key);
     if (!current || row.definition_version > current.version) {

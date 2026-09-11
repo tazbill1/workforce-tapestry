@@ -311,6 +311,13 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     formula_note: `engagement_${kind} / headcount_active. Stored so the report performs no arithmetic.`,
     effective_from: "2026-08-01",
   })),
+  {
+    key: "engagement_actions_per_employee",
+    version: 1,
+    description: "Likes, comments and recognitions per active employee.",
+    formula_note: "(engagement_likes + engagement_comments + engagement_recognitions) / headcount_active. Logins are intentionally excluded.",
+    effective_from: "2026-08-01",
+  },
   ...[
     ["recognition_points_allocated", "Recognition points allocated to managers for the period."],
     ["recognition_points_given", "Recognition points given by managers for the period."],
@@ -863,6 +870,16 @@ export function computeMetrics(input: ComputeInput): ComputedMetric[] {
         const perEmployeeKey = `${key}_per_employee`;
         out.push({ metric_key: perEmployeeKey, definition_version: currentVersion(perEmployeeKey), scope: "company", value_numeric: round(value / active, 2) });
       }
+    }
+    const active = company.rows.filter((row) => (row.status ?? "").toLowerCase() === "active").length;
+    const actions = [input.engagement.likes, input.engagement.comments, input.engagement.recognitions];
+    if (active > 0 && actions.every((value) => value !== null && value !== undefined)) {
+      out.push({
+        metric_key: "engagement_actions_per_employee",
+        definition_version: currentVersion("engagement_actions_per_employee"),
+        scope: "company",
+        value_numeric: round(actions.reduce<number>((sum, value) => sum + Number(value), 0) / active, 2),
+      });
     }
   }
 
