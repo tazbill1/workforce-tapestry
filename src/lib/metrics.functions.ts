@@ -7,6 +7,7 @@ import {
   loadManualInputs,
   loadPersonPeriod,
   loadRecognitionActivity,
+  loadRecognitionPoints,
   persistMetrics,
   priorPeriodOf,
 } from "./metrics-load";
@@ -75,11 +76,10 @@ export const rebuildMetrics = createServerFn({ method: "POST" })
       data.clientId,
       data.period,
     );
-    const activity = await loadRecognitionActivity(
-      context.supabase,
-      data.clientId,
-      data.period,
-    );
+    const [activity, recognitionPoints] = await Promise.all([
+      loadRecognitionActivity(context.supabase, data.clientId, data.period),
+      loadRecognitionPoints(context.supabase, data.clientId, data.period),
+    ]);
     const { data: benchmarkRows, error: benchmarkError } = await context.supabase
       .from("role_benchmarks")
       .select("role_code, turnover_pct");
@@ -91,6 +91,7 @@ export const rebuildMetrics = createServerFn({ method: "POST" })
       engagement,
       recognitions,
       activity,
+      recognitionPoints,
       benchmarks: benchmarkRows ?? [],
     });
 
@@ -102,6 +103,7 @@ export const rebuildMetrics = createServerFn({ method: "POST" })
       hasEngagement: engagement !== null,
       recognitionDepartments: recognitions.length,
       activityRows: activity.length,
+      recognitionPointRows: recognitionPoints.length,
     };
   });
 
