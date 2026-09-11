@@ -239,6 +239,10 @@ export function ReportDocument({
   const mood = m.get("mood_per_employee");
   const checkedIn = m.get("checked_in_count");
   const notCheckedIn = m.get("not_checked_in_count");
+  const publishedMap = new Map((data.asPublished ?? []).map((row) => [row.metric_key, row]));
+  const peerMap = new Map((data.peerAverages ?? []).map((row) => [row.metric_key, row]));
+  const asPublished = (key: string) => publishedMap.get(key)?.value_numeric ?? null;
+  const peer = (key: string) => peerMap.get(key) ?? null;
 
   return (
     <DocCtx.Provider
@@ -390,8 +394,42 @@ export function ReportDocument({
                 departure date and are excluded from tenure and early-departure figures.
               </li>
             </ul>
+            <p className="rp-subheading" style={{ marginTop: "8pt" }}>Calculated and as published</p>
+            <table className="rp-table rp-tight">
+              <thead><tr><th>Measure</th><th className="rp-num">Calculated</th><th className="rp-num">As published</th></tr></thead>
+              <tbody>
+                {[
+                  ["Active", "headcount_active", false],
+                  ["Inactive", "headcount_inactive", false],
+                  ["Turnover", "turnover_pct", true],
+                  ["Mood", "mood_score", false],
+                ].map(([label, key, percent]) => (
+                  <tr key={String(key)}>
+                    <td>{label}</td>
+                    <td className="rp-num">{percent ? fmtPct(m.get(String(key))) : fmtNum(m.get(String(key)), key === "mood_score" ? 1 : 0)}</td>
+                    <td className="rp-num">{percent ? fmtPct(asPublished(String(key))) : fmtNum(asPublished(String(key)), key === "mood_score" ? 1 : 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="rp-footnote">Calculated figures drive analysis. As-published figures preserve the issued report when they differ.</p>
           </div>
         </div>
+        <p className="rp-subheading" style={{ marginTop: "8pt" }}>All-client comparison</p>
+        <table className="rp-table rp-tight">
+          <thead><tr><th>Measure</th><th className="rp-num">This client</th><th className="rp-num">All-client average</th><th className="rp-num">Clients</th></tr></thead>
+          <tbody>
+            {[
+              ["Active headcount", "headcount_active", false],
+              ["Turnover", "turnover_pct", true],
+              ["Mood per employee", "mood_per_employee", false],
+              ["Checked in", "checked_in_pct", true],
+            ].map(([label, key, percent]) => {
+              const comparison = peer(String(key));
+              return <tr key={String(key)}><td>{label}</td><td className="rp-num">{percent ? fmtPct(m.get(String(key))) : fmtNum(m.get(String(key)), 1)}</td><td className="rp-num">{percent ? fmtPct(comparison?.value_numeric ?? null) : fmtNum(comparison?.value_numeric ?? null, 1)}</td><td className="rp-num">{fmtInt(comparison?.client_count ?? null)}</td></tr>;
+            })}
+          </tbody>
+        </table>
       </Page>
 
       {/* 3 — Headcount */}
@@ -1081,6 +1119,29 @@ export function ReportDocument({
         </div>
       </Page>
 
+      <Page id="recognition-points" title="Recognition points" {...page}>
+        <h2 className="rp-heading">Recognition-point allocation and use</h2>
+        <Cards cols={4} items={[
+          { label: "Allocated", value: fmtInt(m.get("recognition_points_allocated")) },
+          { label: "Given", value: fmtInt(m.get("recognition_points_given")) },
+          { label: "Utilization", value: fmtPct(m.get("recognition_points_utilization_pct")) },
+          { label: "Managers giving zero", value: fmtInt(m.get("recognition_points_zero_use_count")), caption: `of ${fmtInt(m.get("recognition_points_manager_count"))} managers` },
+        ]} />
+        <table className="rp-table rp-tight">
+          <thead><tr><th>Manager</th><th>Title</th><th>Department</th><th className="rp-num">Allocated</th><th className="rp-num">Given</th></tr></thead>
+          <tbody>
+            {(data.recognitionPoints ?? []).slice(0, spec.tableRows + 8).map((row) => (
+              <tr key={`${row.manager_name}-${row.department_raw ?? ""}`} className={(row.points_given ?? 0) === 0 ? "rp-row-highlight" : undefined}>
+                <td>{row.manager_name}</td><td>{row.manager_title ?? DASH}</td><td>{row.department_raw ?? DASH}</td><td className="rp-num">{fmtInt(row.points_allocated)}</td><td className="rp-num">{fmtInt(row.points_given)}</td>
+              </tr>
+            ))}
+            {(data.recognitionPoints?.length ?? 0) === 0 ? <tr><td colSpan={5}>No recognition-points spreadsheet was loaded for this period.</td></tr> : null}
+          </tbody>
+        </table>
+        <Overflow shown={Math.min(spec.tableRows + 8, data.recognitionPoints?.length ?? 0)} total={data.recognitionPoints?.length ?? 0} noun="managers" />
+        <p className="rp-footnote">Highlighted managers recorded zero points given. Allocation and usage are read from the uploaded source file.</p>
+      </Page>
+
       {/* 12 — Anniversaries and new starters */}
       <Page id="people" title="Anniversaries and new starters" {...page}>
         <h2 className="rp-heading">Anniversaries and new starters</h2>
@@ -1138,6 +1199,13 @@ export function ReportDocument({
               </tbody>
             </table>
             <Overflow shown={Math.min(spec.tableRows + 4, data.lists.newStarters.length)} total={data.lists.newStarters.length} noun="starters" />
+          </div>
+          <div>
+            <p className="rp-subheading">Coming next month ({data.lists.upcomingAnniversaries?.length ?? 0})</p>
+            <table className="rp-table rp-tight"><thead><tr><th>Name</th><th>Department</th><th className="rp-num">Years</th></tr></thead><tbody>
+              {(data.lists.upcomingAnniversaries ?? []).slice(0, spec.tableRows).map((row) => <tr key={`${row.name}-${row.hire_date}`} className={row.milestone ? "rp-row-highlight" : undefined}><td>{row.name}</td><td>{row.department ?? DASH}</td><td className="rp-num">{row.years}</td></tr>)}
+              {(data.lists.upcomingAnniversaries?.length ?? 0) === 0 ? <tr><td colSpan={3}>No anniversaries next month.</td></tr> : null}
+            </tbody></table>
           </div>
         </div>
         <p className="rp-footnote">
