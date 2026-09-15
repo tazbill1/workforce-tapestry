@@ -267,7 +267,7 @@ function ReportPreview() {
         toast.success(`v${result.version} ready · ${(result.byteSize / 1024).toFixed(0)} KB`);
       } else {
         // No server renderer: still record the version so the printed numbers are retained.
-        const result = await snapshotFn({ data: { clientId, period, format } });
+        const result = await snapshotFn({ data: { clientId, period, format, includeTurnover } });
         void queryClient.invalidateQueries({ queryKey: ["report-runs", clientId, period] });
         toast.success(`Snapshot saved as v${result.version}`);
         window.print();
