@@ -1032,16 +1032,57 @@ function ImportScreen() {
                       </div>
                     ) : null}
 
-                    {item.advice?.warnings?.length ? (
-                      <ul className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
-                        {item.advice.warnings.map((warning) => (
-                          <li key={warning} className="flex gap-2">
-                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                            <span>{warning}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
+                    {(() => {
+                      const risks = risksFor(item);
+                      const notes = (item.advice?.warnings ?? []).filter(
+                        (warning) => !risks.includes(warning),
+                      );
+                      return (
+                        <>
+                          {notes.length ? (
+                            <ul className="space-y-2 rounded-md border bg-muted/40 p-3 text-sm">
+                              {notes.map((warning) => (
+                                <li key={warning} className="flex gap-2">
+                                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                                  <span>{warning}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                          {risks.length ? (
+                            <div className="space-y-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+                              <ul className="space-y-2">
+                                {risks.map((risk) => (
+                                  <li key={risk} className="flex gap-2">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                                    <span>{risk}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                              <label className="flex cursor-pointer items-start gap-2 text-sm font-medium">
+                                <input
+                                  type="checkbox"
+                                  className="mt-1 h-4 w-4"
+                                  checked={item.acknowledged}
+                                  onChange={(e) =>
+                                    patch(item.id, { acknowledged: e.target.checked })
+                                  }
+                                />
+                                <span>
+                                  I have checked this: import it as{" "}
+                                  {activeClient?.name ?? "this client"} · {item.period}.
+                                </span>
+                              </label>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              Goes to {activeClient?.name ?? "this client"} · {item.period} ·{" "}
+                              {kindLabel(item.kind)}.
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                   </>
                 ) : null}
 
@@ -1058,11 +1099,26 @@ function ImportScreen() {
             ))}
 
             <div className="flex flex-wrap items-center gap-3">
-              <Button onClick={() => void runAll()} disabled={running || !clientId || pending.length === 0}>
+              <Button
+                onClick={() => void runAll()}
+                disabled={running || !clientId || pending.length === 0 || unconfirmed.length > 0}
+              >
                 {running
                   ? "Importing…"
                   : `Import ${pending.length || ""} file${pending.length === 1 ? "" : "s"}`.trim()}
               </Button>
+              {unconfirmed.length > 0 ? (
+                <p className="text-sm text-destructive">
+                  {unconfirmed.length} file{unconfirmed.length === 1 ? "" : "s"} need a second look
+                  before importing.
+                </p>
+              ) : pending.length > 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {pending.length} file{pending.length === 1 ? "" : "s"} going to{" "}
+                  {activeClient?.name ?? "this client"}:{" "}
+                  {[...new Set(pending.map((item) => item.period))].sort().join(", ")}.
+                </p>
+              ) : null}
               {queue.length > 0 && !running ? (
                 <Button variant="ghost" onClick={() => setQueue([])}>
                   Clear list
