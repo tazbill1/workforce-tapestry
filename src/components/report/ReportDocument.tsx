@@ -522,7 +522,9 @@ export function ReportDocument({
                 <td className="rp-num">{fmtInt(m.get("headcount_active", scope))}</td>
                 <td className="rp-num">{fmtInt(m.get("headcount_inactive", scope))}</td>
                 <td className="rp-num">{fmtInt(m.get("headcount_invited", scope))}</td>
-                <td className="rp-num">{fmtPct(m.get("turnover_pct", scope))}</td>
+                {turnoverOn ? (
+                  <td className="rp-num">{fmtPct(m.get("turnover_pct", scope))}</td>
+                ) : null}
                 <td className="rp-num">
                   {fmtDeltaInt(m.get("headcount_active", scope), m.prior("headcount_active", scope))}
                 </td>
