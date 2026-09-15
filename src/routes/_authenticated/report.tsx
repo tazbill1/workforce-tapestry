@@ -53,7 +53,8 @@ import {
 
 import { FixPanel } from "@/components/FixPanel";
 import { FORMAT_SPECS, REPORT_FORMATS, type ReportFormat } from "@/lib/report-formats";
-import { ReportDocument, SECTIONS } from "@/components/report/ReportDocument";
+import { ReportDocument, SECTIONS, TURNOVER_SECTION_IDS } from "@/components/report/ReportDocument";
+import { Switch } from "@/components/ui/switch";
 import "@/styles/report.css";
 
 
