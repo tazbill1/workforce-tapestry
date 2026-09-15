@@ -26,6 +26,10 @@ const inputSchema = z.object({
   periodHint: z.string().regex(/^\d{4}-\d{2}$/).nullable(),
   heuristicKind: z.enum(KINDS).nullable(),
   signals: z.array(z.object({ id: z.string().max(40), label: z.string().max(120) })).max(6).default([]),
+  dataMonths: z
+    .array(z.object({ month: z.string().regex(/^\d{4}-\d{2}$/), count: z.number().int().min(0) }))
+    .max(6)
+    .default([]),
   selectedClientId: z.string().uuid().nullable(),
   selectedPeriod: z.string().regex(/^\d{4}-\d{2}$/),
 });
@@ -37,6 +41,8 @@ export type UploadAdvice = {
   suggestedClientId: string | null;
   aiNote: string | null;
   warnings: string[];
+  /** Warnings serious enough that the analyst must tick a box before importing. */
+  blocking: string[];
   combinedNote: string | null;
 };
 
@@ -51,7 +57,11 @@ export const analyzeUpload = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => inputSchema.parse(input))
   .handler(async ({ data, context }): Promise<UploadAdvice> => {
     const supabase = context.supabase;
-    const warnings: string[] = [];
+    const issues: { message: string; blocking: boolean }[] = [];
+    const warnings = {
+      push: (message: string) => issues.push({ message, blocking: false }),
+    };
+    const block = (message: string) => issues.push({ message, blocking: true });
 
     // --- Which client do these people already belong to? ---
     const clientMatches: { clientId: string; name: string; matched: number }[] = [];
@@ -121,7 +131,7 @@ export const analyzeUpload = createServerFn({ method: "POST" })
         if (existing) existing.matched = Math.max(existing.matched, best.hits);
         else clientMatches.unshift({ clientId: best.id, name: best.name, matched: best.hits });
         if (data.selectedClientId && data.selectedClientId !== best.id) {
-          warnings.push(
+          block(
             `The email addresses in this file belong to ${best.name}'s expected domains (${best.hits} of them), not the client selected.`,
           );
         }
@@ -145,7 +155,7 @@ export const analyzeUpload = createServerFn({ method: "POST" })
       suggestedClientId !== data.selectedClientId &&
       (clientMatches[0]?.matched ?? 0) >= 3
     ) {
-      warnings.push(
+      block(
         `The people in this file mostly match ${clientMatches[0]!.name} (${clientMatches[0]!.matched} known email addresses), not the client selected.`,
       );
     }
@@ -155,9 +165,25 @@ export const analyzeUpload = createServerFn({ method: "POST" })
 
     // --- Does the period look right? ---
     if (data.periodHint && data.periodHint !== data.selectedPeriod) {
-      warnings.push(
-        `The file itself points at ${data.periodHint}, but the selected reporting period is ${data.selectedPeriod}.`,
+      block(
+        `The file itself points at ${data.periodHint}, but the month selected for it is ${data.selectedPeriod}.`,
       );
+    }
+
+    // The dates inside the rows are stronger evidence than the file name.
+    const monthTotal = data.dataMonths.reduce((sum, entry) => sum + entry.count, 0);
+    const topMonth = data.dataMonths[0];
+    if (topMonth && monthTotal >= 10) {
+      const share = topMonth.count / monthTotal;
+      if (topMonth.month !== data.selectedPeriod && share >= 0.6) {
+        block(
+          `The dates inside this file are mostly from ${topMonth.month} (${Math.round(share * 100)}% of them), not ${data.selectedPeriod}.`,
+        );
+      } else if (topMonth.month === data.selectedPeriod) {
+        warnings.push(
+          `The dates inside this file line up with ${data.selectedPeriod}, which matches the month selected.`,
+        );
+      }
     }
 
     // --- Has something like this already been imported? ---
@@ -174,7 +200,7 @@ export const analyzeUpload = createServerFn({ method: "POST" })
         .limit(1);
       if ((existing ?? []).length > 0) {
         const hit = existing![0]!;
-        warnings.push(
+        block(
           `A ${data.heuristicKind.replaceAll("_", " ")} file for this client and period was already imported (${hit.original_filename ?? "unnamed"}, ${hit.row_count ?? 0} rows).`,
         );
       }
@@ -272,7 +298,8 @@ export const analyzeUpload = createServerFn({ method: "POST" })
       clientMatches: clientMatches.slice(0, 4),
       suggestedClientId,
       aiNote,
-      warnings,
+      warnings: issues.map((issue) => issue.message),
+      blocking: issues.filter((issue) => issue.blocking).map((issue) => issue.message),
       combinedNote,
     };
   });

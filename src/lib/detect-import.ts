@@ -34,6 +34,8 @@ export type Sniff = {
   signals: DataSignal[];
   periodHint: string | null;
   preamble: string[];
+  /** Months actually found in activity-style date columns inside the sheet. */
+  dataMonths: { month: string; count: number }[];
 };
 
 const key = (value: unknown) =>
@@ -87,6 +89,29 @@ function detectPeriod(text: string): string | null {
   }
   const mdy = text.match(/\b(0?[1-9]|1[0-2])[-/](0?[1-9]|[12]\d|3[01])[-/](20\d{2})\b/);
   if (mdy) return `${mdy[3]}-${String(Number(mdy[1])).padStart(2, "0")}`;
+  return null;
+}
+
+const MONTH_ABBR: Record<string, number> = Object.fromEntries(
+  MONTHS.flatMap((name, index) => [
+    [name, index + 1],
+    [name.slice(0, 3), index + 1],
+  ]),
+);
+
+/** Reads a single cell as a calendar month, when it plainly is a date. */
+function cellMonth(value: unknown): string | null {
+  const text = String(value ?? "").trim();
+  if (!text || text.length > 40) return null;
+  const iso = text.match(/\b(20\d{2})-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01])\b/);
+  if (iso) return `${iso[1]}-${String(Number(iso[2])).padStart(2, "0")}`;
+  const mdy = text.match(/\b(0?[1-9]|1[0-2])\/(0?[1-9]|[12]\d|3[01])\/(20\d{2})\b/);
+  if (mdy) return `${mdy[3]}-${String(Number(mdy[1])).padStart(2, "0")}`;
+  const named = text.match(/\b([a-z]{3,9})\s+(0?[1-9]|[12]\d|3[01]),?\s+(20\d{2})\b/i);
+  if (named) {
+    const month = MONTH_ABBR[named[1]!.toLowerCase()] ?? MONTH_ABBR[named[1]!.slice(0, 3).toLowerCase()];
+    if (month) return `${named[3]}-${String(month).padStart(2, "0")}`;
+  }
   return null;
 }
 
@@ -287,9 +312,45 @@ export function sniffGrid(filename: string, grid: unknown[][]): Sniff {
   const top = scores[0];
   const second = scores[1];
 
+  // --- What months does the activity inside the sheet actually cover? ---
+  // Only activity-style dates count. Hire and birth dates say nothing about the
+  // reporting month, so they are deliberately left out.
+  const activityCols: number[] = [];
+  keys.forEach((k, index) => {
+    const isDateish =
+      k.includes("lastlogin") ||
+      k.includes("lastsignin") ||
+      k.includes("lastaccess") ||
+      k.includes("checkin") ||
+      k.includes("submitted") ||
+      k.includes("timestamp") ||
+      k.includes("activity") ||
+      k.includes("created") ||
+      k.includes("modified") ||
+      k.endsWith("date") ||
+      k === "date";
+    const isLifecycle =
+      k.includes("hire") || k.includes("birth") || k.includes("start") || k.includes("termination") || k.includes("departure");
+    if (isDateish && !isLifecycle) activityCols.push(index);
+  });
+
+  const monthTally = new Map<string, number>();
+  if (activityCols.length > 0) {
+    for (const row of body.slice(0, 600)) {
+      for (const index of activityCols) {
+        const month = cellMonth((row ?? [])[index]);
+        if (month) monthTally.set(month, (monthTally.get(month) ?? 0) + 1);
+      }
+    }
+  }
+  const dataMonths = [...monthTally.entries()]
+    .map(([month, count]) => ({ month, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
+
   const filePeriod = detectPeriod(filename);
   const preamblePeriod = detectPeriod(preamble.join(" "));
-  const periodHint = preamblePeriod ?? filePeriod;
+  const periodHint = preamblePeriod ?? filePeriod ?? dataMonths[0]?.month ?? null;
 
   return {
     columns,
@@ -305,6 +366,7 @@ export function sniffGrid(filename: string, grid: unknown[][]): Sniff {
     signals,
     periodHint,
     preamble: preamble.slice(0, 4),
+    dataMonths,
   };
 }
 

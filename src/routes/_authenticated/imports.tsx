@@ -147,6 +147,7 @@ type QueueItem = {
   sheetSniffs: Record<string, Sniff>;
   sniff: Sniff | null;
   advice: UploadAdvice | null;
+  acknowledged: boolean;
   applied: string[];
   message: string | null;
   progress: { label: string; value: number } | null;
@@ -248,6 +249,7 @@ function ImportScreen() {
             emails: result.emails,
             rowCount: result.rowCount,
             periodHint: result.periodHint,
+            dataMonths: result.dataMonths,
             heuristicKind: result.guess?.kind ?? null,
             signals: result.signals.map((signal) => ({ id: signal.id, label: signal.label })),
             selectedClientId: clientId || null,
@@ -281,6 +283,7 @@ function ImportScreen() {
           sheetSniffs: Object.fromEntries(scanned.map((entry) => [entry.name, entry.sniffed])),
           sniff: result,
           advice: detected,
+          acknowledged: false,
           applied,
         });
       } catch (error) {
@@ -318,6 +321,7 @@ function ImportScreen() {
         sheetSniffs: {},
         sniff: null,
         advice: null,
+        acknowledged: false,
         applied: [],
         message: null,
         progress: null,
@@ -330,6 +334,14 @@ function ImportScreen() {
     },
     [inspect, period],
   );
+
+  useEffect(() => {
+    setQueue((current) =>
+      current.some((item) => item.acknowledged)
+        ? current.map((item) => ({ ...item, acknowledged: false }))
+        : current,
+    );
+  }, [clientId]);
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
@@ -545,11 +557,66 @@ function ImportScreen() {
     ],
   );
 
+  /**
+   * Live safety checks for one queued file, recomputed whenever the analyst changes the
+   * client, the month or the kind — so the warnings never go stale behind an edit.
+   */
+  const risksFor = useCallback(
+    (item: QueueItem): string[] => {
+      const risks: string[] = [];
+      if (!item.sniff) return risks;
+
+      const months = item.sniff.dataMonths ?? [];
+      const total = months.reduce((sum, entry) => sum + entry.count, 0);
+      const top = months[0];
+      if (top && total >= 10 && top.month !== item.period && top.count / total >= 0.6) {
+        risks.push(
+          `The dates inside this file are mostly from ${top.month}, but it is set to import as ${item.period}.`,
+        );
+      } else if (item.sniff.periodHint && item.sniff.periodHint !== item.period) {
+        risks.push(
+          `The file itself points at ${item.sniff.periodHint}, but it is set to import as ${item.period}.`,
+        );
+      }
+
+      const suggested = item.advice?.suggestedClientId;
+      if (suggested && suggested !== clientId) {
+        const name =
+          item.advice?.clientMatches?.find((match) => match.clientId === suggested)?.name ??
+          "another client";
+        risks.push(`The people in this file look like ${name}, not ${activeClient?.name ?? "this client"}.`);
+      }
+
+      const already = (imports.data ?? []).find(
+        (row) =>
+          row.period === `${item.period}-01` &&
+          row.kind === item.kind &&
+          row.state === "parsed" &&
+          !row.superseded_by,
+      );
+      if (already) {
+        risks.push(
+          `A ${kindLabel(item.kind).toLowerCase()} file for ${activeClient?.name ?? "this client"} · ${item.period} is already in (${already.original_filename ?? "unnamed"}, ${already.row_count ?? 0} rows).`,
+        );
+      }
+
+      return risks;
+    },
+    [activeClient?.name, clientId, imports.data],
+  );
+
   const pending = queue.filter((item) => item.status === "ready");
+  const unconfirmed = pending.filter((item) => risksFor(item).length > 0 && !item.acknowledged);
 
   const runAll = useCallback(async () => {
     if (!clientId) {
       toast.error("Pick a client first.");
+      return;
+    }
+    if (unconfirmed.length > 0) {
+      toast.error(
+        `Check the ${unconfirmed.length} flagged file${unconfirmed.length === 1 ? "" : "s"} and tick the box before importing.`,
+      );
       return;
     }
     const todo = queue
@@ -590,7 +657,7 @@ function ImportScreen() {
     setJustImported((count) => count + done);
     queryClient.invalidateQueries({ queryKey: ["imports", clientId] });
     if (done > 0) toast.success(`Imported ${done} file${done === 1 ? "" : "s"}.`);
-  }, [clientId, importOne, patch, queue, queryClient]);
+  }, [clientId, importOne, patch, queue, queryClient, unconfirmed.length]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -887,7 +954,9 @@ function ImportScreen() {
                         <Label className="text-xs">What this file is</Label>
                         <Select
                           value={item.kind}
-                          onValueChange={(value) => patch(item.id, { kind: value })}
+                          onValueChange={(value) =>
+                            patch(item.id, { kind: value, acknowledged: false })
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -906,7 +975,9 @@ function ImportScreen() {
                         <Input
                           type="month"
                           value={item.period}
-                          onChange={(e) => patch(item.id, { period: e.target.value })}
+                          onChange={(e) =>
+                            patch(item.id, { period: e.target.value, acknowledged: false })
+                          }
                         />
                       </div>
                     </div>
@@ -973,16 +1044,57 @@ function ImportScreen() {
                       </div>
                     ) : null}
 
-                    {item.advice?.warnings?.length ? (
-                      <ul className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
-                        {item.advice.warnings.map((warning) => (
-                          <li key={warning} className="flex gap-2">
-                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                            <span>{warning}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
+                    {(() => {
+                      const risks = risksFor(item);
+                      const notes = (item.advice?.warnings ?? []).filter(
+                        (warning) => !risks.includes(warning),
+                      );
+                      return (
+                        <>
+                          {notes.length ? (
+                            <ul className="space-y-2 rounded-md border bg-muted/40 p-3 text-sm">
+                              {notes.map((warning) => (
+                                <li key={warning} className="flex gap-2">
+                                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                                  <span>{warning}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                          {risks.length ? (
+                            <div className="space-y-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+                              <ul className="space-y-2">
+                                {risks.map((risk) => (
+                                  <li key={risk} className="flex gap-2">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                                    <span>{risk}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                              <label className="flex cursor-pointer items-start gap-2 text-sm font-medium">
+                                <input
+                                  type="checkbox"
+                                  className="mt-1 h-4 w-4"
+                                  checked={item.acknowledged}
+                                  onChange={(e) =>
+                                    patch(item.id, { acknowledged: e.target.checked })
+                                  }
+                                />
+                                <span>
+                                  I have checked this: import it as{" "}
+                                  {activeClient?.name ?? "this client"} · {item.period}.
+                                </span>
+                              </label>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              Goes to {activeClient?.name ?? "this client"} · {item.period} ·{" "}
+                              {kindLabel(item.kind)}.
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                   </>
                 ) : null}
 
@@ -999,11 +1111,26 @@ function ImportScreen() {
             ))}
 
             <div className="flex flex-wrap items-center gap-3">
-              <Button onClick={() => void runAll()} disabled={running || !clientId || pending.length === 0}>
+              <Button
+                onClick={() => void runAll()}
+                disabled={running || !clientId || pending.length === 0 || unconfirmed.length > 0}
+              >
                 {running
                   ? "Importing…"
                   : `Import ${pending.length || ""} file${pending.length === 1 ? "" : "s"}`.trim()}
               </Button>
+              {unconfirmed.length > 0 ? (
+                <p className="text-sm text-destructive">
+                  {unconfirmed.length} file{unconfirmed.length === 1 ? "" : "s"} need a second look
+                  before importing.
+                </p>
+              ) : pending.length > 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {pending.length} file{pending.length === 1 ? "" : "s"} going to{" "}
+                  {activeClient?.name ?? "this client"}:{" "}
+                  {[...new Set(pending.map((item) => item.period))].sort().join(", ")}.
+                </p>
+              ) : null}
               {queue.length > 0 && !running ? (
                 <Button variant="ghost" onClick={() => setQueue([])}>
                   Clear list
