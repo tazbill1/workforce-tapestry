@@ -263,7 +263,7 @@ export async function buildReport(supabase: Client, clientId: string, period: st
   const end = periodEnd(period);
 
   const [clientResult, metricsResult, planResult, insightResult, noteResult, baselineResult, pointResult, peerResult, activeClientsResult, people, priorPeople] = await Promise.all([
-    supabase.from("clients").select("id, name, code, logo_url").eq("id", clientId).maybeSingle(),
+    supabase.from("clients").select("id, name, code, logo_url, client_group").eq("id", clientId).maybeSingle(),
     supabase
       .from("published_metrics")
       .select("id, metric_key, definition_version, scope, value_numeric, value_text, period")
@@ -310,7 +310,7 @@ export async function buildReport(supabase: Client, clientId: string, period: st
       .eq("scope", "company")
       .in("metric_key", ["headcount_active", "turnover_pct", "mood_per_employee", "checked_in_pct", "engagement_recognitions_per_employee"])
       .limit(20000),
-    supabase.from("clients").select("id").eq("active", true),
+    supabase.from("clients").select("id, client_group").eq("active", true),
     loadPeople(supabase, clientId, period),
     loadPeople(supabase, clientId, priorPeriod),
   ]);
@@ -469,10 +469,17 @@ export async function buildReport(supabase: Client, clientId: string, period: st
       hire_date: person.hire_date,
     }));
 
+  // Peer averages: when this client belongs to a comparison group, only group members count.
+  // Otherwise every active client is averaged (the previous behaviour).
+  const clientGroup = (clientResult.data as { client_group?: string | null }).client_group ?? null;
+  const peerClientIds = new Set(
+    ((activeClientsResult.data ?? []) as Array<{ id: string; client_group: string | null }>)
+      .filter((row) => (clientGroup ? row.client_group === clientGroup : true))
+      .map((row) => row.id),
+  );
   const peerLatest = new Map<string, { version: number; value: number }>();
-  const activeClientIds = new Set((activeClientsResult.data ?? []).map((row) => row.id));
   for (const row of peerResult.data ?? []) {
-    if (row.value_numeric === null || !activeClientIds.has(row.client_id)) continue;
+    if (row.value_numeric === null || !peerClientIds.has(row.client_id)) continue;
     const key = `${row.client_id}::${row.metric_key}`;
     const current = peerLatest.get(key);
     if (!current || row.definition_version > current.version) {
@@ -502,6 +509,7 @@ export async function buildReport(supabase: Client, clientId: string, period: st
     asPublished: (baselineResult.data ?? []) as PublishedBaseline[],
     recognitionPoints: (pointResult.data ?? []) as RecognitionPointDetail[],
     peerAverages,
+    peerGroupName: clientGroup,
     lists: {
       departures,
       invited,

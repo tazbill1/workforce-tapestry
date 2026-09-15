@@ -415,9 +415,9 @@ export function ReportDocument({
             <p className="rp-footnote">Calculated figures drive analysis. As-published figures preserve the issued report when they differ.</p>
           </div>
         </div>
-        <p className="rp-subheading" style={{ marginTop: "8pt" }}>All-client comparison</p>
+        <p className="rp-subheading" style={{ marginTop: "8pt" }}>{data.peerGroupName ? `Group comparison — ${data.peerGroupName}` : "All-client comparison"}</p>
         <table className="rp-table rp-tight">
-          <thead><tr><th>Measure</th><th className="rp-num">This client</th><th className="rp-num">All-client average</th><th className="rp-num">Clients</th></tr></thead>
+          <thead><tr><th>Measure</th><th className="rp-num">This client</th><th className="rp-num">{data.peerGroupName ? `${data.peerGroupName} average` : "All-client average"}</th><th className="rp-num">Clients</th></tr></thead>
           <tbody>
             {[
               ["Active headcount", "headcount_active", false],

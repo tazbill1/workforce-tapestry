@@ -16,6 +16,7 @@ import {
   listClientsAdmin,
   setClientActive,
   setClientDomains,
+  setClientGroup,
   setClientLogo,
 } from "@/lib/clients.functions";
 import { LOGO_MAX_H, LOGO_MAX_W, resizeLogo } from "@/lib/logo-resize";
@@ -50,11 +51,14 @@ function ClientsScreen() {
   const toggle = useServerFn(setClientActive);
   const saveLogo = useServerFn(setClientLogo);
   const saveDomains = useServerFn(setClientDomains);
+  const saveGroup = useServerFn(setClientGroup);
 
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [domains, setDomains] = useState("");
+  const [group, setGroup] = useState("");
   const [domainDrafts, setDomainDrafts] = useState<Record<string, string>>({});
+  const [groupDrafts, setGroupDrafts] = useState<Record<string, string>>({});
   const [exportingId, setExportingId] = useState<string | null>(null);
 
   const runExportFn = useServerFn(exportClientData);
@@ -81,12 +85,23 @@ function ClientsScreen() {
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["clients-admin"] });
 
   const addMutation = useMutation({
-    mutationFn: (input: { name: string; code: string; domains: string[] }) => add({ data: input }),
+    mutationFn: (input: { name: string; code: string; domains: string[]; group?: string }) =>
+      add({ data: input }),
     onSuccess: () => {
       toast.success("Client added");
       setName("");
       setCode("");
       setDomains("");
+      setGroup("");
+      refresh();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const groupMutation = useMutation({
+    mutationFn: (input: { clientId: string; group: string | null }) => saveGroup({ data: input }),
+    onSuccess: () => {
+      toast.success("Comparison group saved");
       refresh();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -152,7 +167,12 @@ function ClientsScreen() {
               className="flex flex-wrap items-end gap-3"
               onSubmit={(e) => {
                 e.preventDefault();
-                addMutation.mutate({ name, code, domains: [domains] });
+              const trimmedGroup = group.trim();
+              addMutation.mutate(
+                trimmedGroup
+                  ? { name, code, domains: [domains], group: trimmedGroup }
+                  : { name, code, domains: [domains] },
+              );
               }}
             >
               <div className="grid gap-1.5">
@@ -184,6 +204,15 @@ function ClientsScreen() {
                   placeholder="weautomi.com, werkandme.com"
                 />
               </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="client-group">Comparison group (optional)</Label>
+                <Input
+                  id="client-group"
+                  value={group}
+                  onChange={(e) => setGroup(e.target.value)}
+                  placeholder="My Auto Group"
+                />
+              </div>
               <Button type="submit" disabled={addMutation.isPending}>
                 {addMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Add client
@@ -211,6 +240,9 @@ function ClientsScreen() {
                   <Badge variant={client.active ? "default" : "outline"}>
                     {client.active ? "Active" : "Inactive"}
                   </Badge>
+                  {client.client_group ? (
+                    <Badge variant="outline">Group: {client.client_group}</Badge>
+                  ) : null}
                   {isAnalyst && (
                     <Button
                       variant="ghost"
@@ -349,6 +381,59 @@ function ClientsScreen() {
                       >
                         Add domain
                       </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded-md border p-3">
+                  <Label htmlFor={`group-${client.id}`}>Report comparison group</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Clients that share the same group name are averaged together in their reports —
+                    for example &ldquo;My Auto Group&rdquo;. Leave blank to compare this client
+                    against all active clients instead.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input
+                      id={`group-${client.id}`}
+                      className="max-w-xs"
+                      disabled={!isAnalyst}
+                      value={groupDrafts[client.id] ?? client.client_group ?? ""}
+                      onChange={(e) =>
+                        setGroupDrafts((prev) => ({ ...prev, [client.id]: e.target.value }))
+                      }
+                      placeholder="e.g. My Auto Group"
+                    />
+                    {isAnalyst && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={groupMutation.isPending}
+                          onClick={() => {
+                            const value = (
+                              groupDrafts[client.id] ??
+                              client.client_group ??
+                              ""
+                            ).trim();
+                            groupMutation.mutate({ clientId: client.id, group: value || null });
+                          }}
+                        >
+                          Save group
+                        </Button>
+                        {client.client_group && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={groupMutation.isPending}
+                            onClick={() => {
+                              setGroupDrafts((prev) => ({ ...prev, [client.id]: "" }));
+                              groupMutation.mutate({ clientId: client.id, group: null });
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
