@@ -87,6 +87,8 @@ export const Route = createFileRoute("/_authenticated/report")({
 
 function ReportPreview() {
   const search = Route.useSearch();
+  // Turnover rests on historical roster data that is not always trustworthy, so it can be left out.
+  const [includeTurnover, setIncludeTurnover] = useState(true);
   const queryClient = useQueryClient();
   const clientsFn = useServerFn(listMyClients);
   const periodsFn = useServerFn(listMetricPeriods);
