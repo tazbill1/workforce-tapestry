@@ -401,7 +401,7 @@ export function ReportDocument({
               Where to read further
             </p>
             <ul className="rp-bullets">
-              <Ref to="turnover" label="Turnover by role and cohort" />
+              {turnoverOn ? <Ref to="turnover" label="Turnover by role and cohort" /> : null}
               <Ref to="departures" label="Who left and when" />
               <Ref to="mood" label="Mood by franchise" />
               <Ref to="action" label="Action plan" />
