@@ -84,14 +84,16 @@ export const getReportVersion = createServerFn({ method: "POST" })
 
 export const snapshotReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { clientId: string; period: string; format: string }) =>
-    z
-      .object({
-        clientId: z.string().uuid(),
-        period: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        format: z.enum(REPORT_FORMATS),
-      })
-      .parse(input),
+  .inputValidator(
+    (input: { clientId: string; period: string; format: string; includeTurnover?: boolean }) =>
+      z
+        .object({
+          clientId: z.string().uuid(),
+          period: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          format: z.enum(REPORT_FORMATS),
+          includeTurnover: z.boolean().default(true),
+        })
+        .parse(input),
   )
   .handler(async ({ data, context }) => {
     const { snapshotReportRun } = await import("./report-pdf.server");
@@ -100,6 +102,7 @@ export const snapshotReport = createServerFn({ method: "POST" })
       period: data.period,
       format: data.format,
       userId: context.userId,
+      includeTurnover: data.includeTurnover,
     });
   });
 
