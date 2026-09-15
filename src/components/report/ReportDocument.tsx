@@ -317,16 +317,28 @@ export function ReportDocument({
               value: fmtInt(activeTotal),
               caption: `${fmtDeltaInt(activeTotal, m.prior("headcount_active"))} vs ${prior}`,
             },
-            {
-              label: "Turnover",
-              value: fmtPct(turnover),
-              caption: `${fmtDeltaPp(turnover, m.prior("turnover_pct"))} pp vs ${prior}`,
-            },
-            {
-              label: "Average tenure",
-              value: mNum(m.get("avg_tenure_years")),
-              caption: "years, dated leavers only",
-            },
+            turnoverOn
+              ? {
+                  label: "Turnover",
+                  value: fmtPct(turnover),
+                  caption: `${fmtDeltaPp(turnover, m.prior("turnover_pct"))} pp vs ${prior}`,
+                }
+              : {
+                  label: "Inactive records",
+                  value: fmtInt(m.get("headcount_inactive")),
+                  caption: "on the roster at period end",
+                },
+            turnoverOn
+              ? {
+                  label: "Average tenure",
+                  value: mNum(m.get("avg_tenure_years")),
+                  caption: "years, dated leavers only",
+                }
+              : {
+                  label: "Invited",
+                  value: fmtInt(m.get("headcount_invited")),
+                  caption: "invited, not yet active",
+                },
             {
               label: "Mood per employee",
               value: mNum(mood, 2),
