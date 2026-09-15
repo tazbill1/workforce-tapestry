@@ -95,7 +95,7 @@ export const analyzeUpload = createServerFn({ method: "POST" })
       const { data: allClients } = await supabase
         .from("clients")
         .select("id, name, expected_domains");
-      let best: { id: string; name: string; hits: number } | null = null;
+      const hitsByClient: { id: string; name: string; hits: number }[] = [];
       for (const client of allClients ?? []) {
         const expected: string[] = client.expected_domains ?? [];
         if (expected.length === 0) continue;
@@ -103,11 +103,21 @@ export const analyzeUpload = createServerFn({ method: "POST" })
         for (const [domain, count] of domainTally) {
           if (expected.some((d) => domain === d || domain.endsWith(`.${d}`))) hits += count;
         }
-        if (hits > 0 && (!best || hits > best.hits)) best = { id: client.id, name: client.name, hits };
+        if (hits > 0) hitsByClient.push({ id: client.id, name: client.name, hits });
       }
+      hitsByClient.sort((a, b) => b.hits - a.hits);
+      const topHits = hitsByClient[0]?.hits ?? 0;
+      const tied = hitsByClient.filter((c) => c.hits === topHits);
+      const selectedTied = data.selectedClientId
+        ? tied.find((c) => c.id === data.selectedClientId)
+        : undefined;
+      // A shared email domain can belong to several clients (e.g. one dealer group).
+      // Only treat the domain as identifying when exactly one client claims it, or
+      // when the selected client is among those that claim it.
+      const best = selectedTied ?? (tied.length === 1 ? tied[0]! : null);
       if (best) {
         domainClientId = best.id;
-        const existing = clientMatches.find((m) => m.clientId === best!.id);
+        const existing = clientMatches.find((m) => m.clientId === best.id);
         if (existing) existing.matched = Math.max(existing.matched, best.hits);
         else clientMatches.unshift({ clientId: best.id, name: best.name, matched: best.hits });
         if (data.selectedClientId && data.selectedClientId !== best.id) {
@@ -115,6 +125,10 @@ export const analyzeUpload = createServerFn({ method: "POST" })
             `The email addresses in this file belong to ${best.name}'s expected domains (${best.hits} of them), not the client selected.`,
           );
         }
+      } else if (tied.length > 1) {
+        warnings.push(
+          `This email domain is shared by ${tied.map((c) => c.name).join(", ")}, so it cannot tell them apart. Make sure the client selected above is the right location.`,
+        );
       } else if (domainTally.size > 0) {
         const unexpected = [...domainTally.keys()].slice(0, 4).join(", ");
         warnings.push(
