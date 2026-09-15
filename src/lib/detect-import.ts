@@ -92,6 +92,29 @@ function detectPeriod(text: string): string | null {
   return null;
 }
 
+const MONTH_ABBR: Record<string, number> = Object.fromEntries(
+  MONTHS.flatMap((name, index) => [
+    [name, index + 1],
+    [name.slice(0, 3), index + 1],
+  ]),
+);
+
+/** Reads a single cell as a calendar month, when it plainly is a date. */
+function cellMonth(value: unknown): string | null {
+  const text = String(value ?? "").trim();
+  if (!text || text.length > 40) return null;
+  const iso = text.match(/\b(20\d{2})-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01])\b/);
+  if (iso) return `${iso[1]}-${String(Number(iso[2])).padStart(2, "0")}`;
+  const mdy = text.match(/\b(0?[1-9]|1[0-2])\/(0?[1-9]|[12]\d|3[01])\/(20\d{2})\b/);
+  if (mdy) return `${mdy[3]}-${String(Number(mdy[1])).padStart(2, "0")}`;
+  const named = text.match(/\b([a-z]{3,9})\s+(0?[1-9]|[12]\d|3[01]),?\s+(20\d{2})\b/i);
+  if (named) {
+    const month = MONTH_ABBR[named[1]!.toLowerCase()] ?? MONTH_ABBR[named[1]!.slice(0, 3).toLowerCase()];
+    if (month) return `${named[3]}-${String(month).padStart(2, "0")}`;
+  }
+  return null;
+}
+
 type Score = { kind: DetectedKind; score: number; reasons: string[] };
 
 export function sniffGrid(filename: string, grid: unknown[][]): Sniff {
