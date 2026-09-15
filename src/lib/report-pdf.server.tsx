@@ -46,6 +46,18 @@ export async function loadFormatSections(
     .map((row) => row.section_id);
 }
 
+/**
+ * Turnover leans on historical roster data the analyst may not trust for a given month, so it can
+ * be switched off for a run. Storing the cut in `sections` keeps reopened versions and share links
+ * identical to what was issued.
+ */
+export function withTurnover(sections: string[], include: boolean): string[] {
+  if (include || sections.length === 0) return sections;
+  return sections.filter(
+    (id) => !TURNOVER_SECTION_IDS.includes(id as (typeof TURNOVER_SECTION_IDS)[number]),
+  );
+}
+
 export function renderReportHtml(
   data: ReportData,
   format: ReportFormat,
