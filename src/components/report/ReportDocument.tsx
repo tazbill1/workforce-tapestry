@@ -431,7 +431,9 @@ export function ReportDocument({
                 {[
                   ["Active", "headcount_active", "headcount_active", false],
                   ["Inactive", "headcount_inactive", "headcount_inactive", false],
-                  ["Turnover", "turnover_pct", "turnover_pct", true],
+                  ...(turnoverOn
+                    ? [["Turnover", "turnover_pct", "turnover_pct", true]]
+                    : []),
                   ["Mood", "mood_per_employee", "mood_score", false],
                 ].map(([label, calculatedKey, baselineKey, percent]) => (
                   <tr key={String(calculatedKey)}>
