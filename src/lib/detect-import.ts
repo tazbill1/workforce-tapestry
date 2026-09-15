@@ -34,6 +34,8 @@ export type Sniff = {
   signals: DataSignal[];
   periodHint: string | null;
   preamble: string[];
+  /** Months actually found in activity-style date columns inside the sheet. */
+  dataMonths: { month: string; count: number }[];
 };
 
 const key = (value: unknown) =>
