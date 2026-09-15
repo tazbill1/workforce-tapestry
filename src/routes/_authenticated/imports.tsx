@@ -335,6 +335,14 @@ function ImportScreen() {
     [inspect, period],
   );
 
+  useEffect(() => {
+    setQueue((current) =>
+      current.some((item) => item.acknowledged)
+        ? current.map((item) => ({ ...item, acknowledged: false }))
+        : current,
+    );
+  }, [clientId]);
+
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
@@ -946,7 +954,9 @@ function ImportScreen() {
                         <Label className="text-xs">What this file is</Label>
                         <Select
                           value={item.kind}
-                          onValueChange={(value) => patch(item.id, { kind: value })}
+                          onValueChange={(value) =>
+                            patch(item.id, { kind: value, acknowledged: false })
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -965,7 +975,9 @@ function ImportScreen() {
                         <Input
                           type="month"
                           value={item.period}
-                          onChange={(e) => patch(item.id, { period: e.target.value })}
+                          onChange={(e) =>
+                            patch(item.id, { period: e.target.value, acknowledged: false })
+                          }
                         />
                       </div>
                     </div>
