@@ -215,14 +215,21 @@ async function insertRun(
 
 export async function generateReportRun(
   supabase: Client,
-  input: { clientId: string; period: string; format: ReportFormat; userId: string },
+  input: {
+    clientId: string;
+    period: string;
+    format: ReportFormat;
+    userId: string;
+    includeTurnover?: boolean;
+  },
 ): Promise<GenerateResult> {
   const { clientId, period, format, userId } = input;
 
-  const [data, sections] = await Promise.all([
+  const [data, loadedSections] = await Promise.all([
     buildReport(supabase, clientId, period),
     loadFormatSections(supabase, clientId, format),
   ]);
+  const sections = withTurnover(loadedSections, input.includeTurnover !== false);
 
   const html = renderReportHtml(data, format, sections);
   const pdf = await renderPdfWithGotenberg(html, format);
