@@ -236,7 +236,7 @@ function ReportPreview() {
 
   const generate = useMutation({
     mutationFn: (target: ReportFormat) =>
-      generateFn({ data: { clientId, period, format: target } }),
+      generateFn({ data: { clientId, period, format: target, includeTurnover } }),
     onSuccess: (result) => {
       toast.success(
         `Saved v${result.version} · ${result.pageCount ?? "?"} pages · ${(result.byteSize / 1024).toFixed(0)} KB`,
