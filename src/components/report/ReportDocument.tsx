@@ -1486,7 +1486,9 @@ export function ReportDocument({
               ["Mood per check-in", "mood_per_checkin", "Sum of mood over check-ins by people active at period end."],
               ["Participation", "checked_in_pct", "Active people with at least one check-in over active headcount."],
               ["Recognitions", "engagement_recognitions", "Manual entry from the platform export for the period."],
-              ["Benchmark variance", "turnover_variance_pp", "Role turnover minus the published industry benchmark, in percentage points."],
+              ...(turnoverOn
+                ? [["Benchmark variance", "turnover_variance_pp", "Role turnover minus the published industry benchmark, in percentage points."]]
+                : []),
             ].map(([label, key, text]) => (
               <tr key={key}>
                 <td>{label}</td>
