@@ -279,14 +279,23 @@ export async function generateReportRun(
  */
 export async function snapshotReportRun(
   supabase: Client,
-  input: { clientId: string; period: string; format: ReportFormat; userId: string; note?: string },
+  input: {
+    clientId: string;
+    period: string;
+    format: ReportFormat;
+    userId: string;
+    note?: string;
+    includeTurnover?: boolean;
+  },
 ): Promise<GenerateResult> {
   const { clientId, period, format, userId } = input;
 
-  const [data, sections] = await Promise.all([
+  const [data, loadedSections] = await Promise.all([
     buildReport(supabase, clientId, period),
     loadFormatSections(supabase, clientId, format),
   ]);
+  const sections = withTurnover(loadedSections, input.includeTurnover !== false);
+
 
   const run = await insertRun(supabase, {
     client_id: clientId,
