@@ -1476,8 +1476,10 @@ export function ReportDocument({
           <tbody>
             {[
               ["Headcount", "headcount_active", "Active, inactive and invited people at period end, exclusions removed."],
-              ["Turnover", "turnover_pct", "Inactive over active plus inactive. Invited people are outside the ratio."],
-              ["Average tenure", "avg_tenure_years", "Years between hire date and departure proxy. Undated and negative results are dropped."],
+              ...(turnoverOn
+                ? [["Turnover", "turnover_pct", "Inactive over active plus inactive. Invited people are outside the ratio."],
+                   ["Average tenure", "avg_tenure_years", "Years between hire date and departure proxy. Undated and negative results are dropped."]]
+                : []),
               ["Departures", "departures_count", "People active in the prior period and inactive now, split by date in or after the period."],
               ["Early departure", "early_departure_pct", "Departures inside the first year over dated departures only."],
               ["Mood per employee", "mood_per_employee", "Sum of mood over active headcount at period end."],
