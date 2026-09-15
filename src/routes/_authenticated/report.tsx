@@ -631,6 +631,7 @@ function ReportPreview() {
               <ReportDocument
                 data={displayData}
                 format={displayFormat}
+                showTurnover={showTurnover}
                 {...(activeSections ? { sections: activeSections } : {})}
               />
 
