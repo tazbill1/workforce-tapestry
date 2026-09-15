@@ -13,7 +13,7 @@
 import { renderToStaticMarkup } from "react-dom/server.browser";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { ReportDocument } from "@/components/report/ReportDocument";
+import { ReportDocument, TURNOVER_SECTION_IDS } from "@/components/report/ReportDocument";
 import reportCss from "@/styles/report.css?raw";
 import type { Database } from "@/integrations/supabase/types";
 import { buildReport, type ReportData } from "./report-load";
