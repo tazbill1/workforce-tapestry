@@ -312,9 +312,45 @@ export function sniffGrid(filename: string, grid: unknown[][]): Sniff {
   const top = scores[0];
   const second = scores[1];
 
+  // --- What months does the activity inside the sheet actually cover? ---
+  // Only activity-style dates count. Hire and birth dates say nothing about the
+  // reporting month, so they are deliberately left out.
+  const activityCols: number[] = [];
+  keys.forEach((k, index) => {
+    const isDateish =
+      k.includes("lastlogin") ||
+      k.includes("lastsignin") ||
+      k.includes("lastaccess") ||
+      k.includes("checkin") ||
+      k.includes("submitted") ||
+      k.includes("timestamp") ||
+      k.includes("activity") ||
+      k.includes("created") ||
+      k.includes("modified") ||
+      k.endsWith("date") ||
+      k === "date";
+    const isLifecycle =
+      k.includes("hire") || k.includes("birth") || k.includes("start") || k.includes("termination") || k.includes("departure");
+    if (isDateish && !isLifecycle) activityCols.push(index);
+  });
+
+  const monthTally = new Map<string, number>();
+  if (activityCols.length > 0) {
+    for (const row of body.slice(0, 600)) {
+      for (const index of activityCols) {
+        const month = cellMonth((row ?? [])[index]);
+        if (month) monthTally.set(month, (monthTally.get(month) ?? 0) + 1);
+      }
+    }
+  }
+  const dataMonths = [...monthTally.entries()]
+    .map(([month, count]) => ({ month, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
+
   const filePeriod = detectPeriod(filename);
   const preamblePeriod = detectPeriod(preamble.join(" "));
-  const periodHint = preamblePeriod ?? filePeriod;
+  const periodHint = preamblePeriod ?? filePeriod ?? dataMonths[0]?.month ?? null;
 
   return {
     columns,
