@@ -382,6 +382,20 @@ function ReportPreview() {
               </SelectContent>
             </Select>
           </div>
+          <div className="mb-0.5 flex items-center gap-2 rounded-md border px-3 py-2">
+            <Switch
+              id="rp-turnover"
+              checked={includeTurnover}
+              onCheckedChange={setIncludeTurnover}
+              disabled={Boolean(viewingRunId)}
+            />
+            <Label htmlFor="rp-turnover" className="text-xs">
+              Turnover pages
+              <span className="block text-[10px] font-normal text-muted-foreground">
+                Off when the history is not reliable
+              </span>
+            </Label>
+          </div>
           {rendererConfigured.data && (
             <Button
               className="mb-0.5"
