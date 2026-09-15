@@ -260,7 +260,7 @@ function ReportPreview() {
     setExporting(true);
     try {
       if (rendererConfigured.data) {
-        const result = await generateFn({ data: { clientId, period, format } });
+        const result = await generateFn({ data: { clientId, period, format, includeTurnover } });
         void queryClient.invalidateQueries({ queryKey: ["report-runs", clientId, period] });
         const { url } = await downloadFn({ data: { runId: result.runId } });
         window.open(url, "_blank", "noopener");
