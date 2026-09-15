@@ -53,7 +53,8 @@ import {
 
 import { FixPanel } from "@/components/FixPanel";
 import { FORMAT_SPECS, REPORT_FORMATS, type ReportFormat } from "@/lib/report-formats";
-import { ReportDocument, SECTIONS } from "@/components/report/ReportDocument";
+import { ReportDocument, SECTIONS, TURNOVER_SECTION_IDS } from "@/components/report/ReportDocument";
+import { Switch } from "@/components/ui/switch";
 import "@/styles/report.css";
 
 
@@ -86,6 +87,8 @@ export const Route = createFileRoute("/_authenticated/report")({
 
 function ReportPreview() {
   const search = Route.useSearch();
+  // Turnover rests on historical roster data that is not always trustworthy, so it can be left out.
+  const [includeTurnover, setIncludeTurnover] = useState(true);
   const queryClient = useQueryClient();
   const clientsFn = useServerFn(listMyClients);
   const periodsFn = useServerFn(listMetricPeriods);
@@ -235,7 +238,7 @@ function ReportPreview() {
 
   const generate = useMutation({
     mutationFn: (target: ReportFormat) =>
-      generateFn({ data: { clientId, period, format: target } }),
+      generateFn({ data: { clientId, period, format: target, includeTurnover } }),
     onSuccess: (result) => {
       toast.success(
         `Saved v${result.version} · ${result.pageCount ?? "?"} pages · ${(result.byteSize / 1024).toFixed(0)} KB`,
@@ -259,14 +262,14 @@ function ReportPreview() {
     setExporting(true);
     try {
       if (rendererConfigured.data) {
-        const result = await generateFn({ data: { clientId, period, format } });
+        const result = await generateFn({ data: { clientId, period, format, includeTurnover } });
         void queryClient.invalidateQueries({ queryKey: ["report-runs", clientId, period] });
         const { url } = await downloadFn({ data: { runId: result.runId } });
         window.open(url, "_blank", "noopener");
         toast.success(`v${result.version} ready · ${(result.byteSize / 1024).toFixed(0)} KB`);
       } else {
         // No server renderer: still record the version so the printed numbers are retained.
-        const result = await snapshotFn({ data: { clientId, period, format } });
+        const result = await snapshotFn({ data: { clientId, period, format, includeTurnover } });
         void queryClient.invalidateQueries({ queryKey: ["report-runs", clientId, period] });
         toast.success(`Snapshot saved as v${result.version}`);
         window.print();
@@ -284,15 +287,33 @@ function ReportPreview() {
   const displayData = viewingRunId ? snapshotData : report.data;
 
   const liveSections = formatSections.data?.[format];
-  const activeSections =
-    viewing && viewing.sections.length > 0 ? viewing.sections : liveSections;
-  const sections = useMemo(
-    () =>
+  const storedSections = viewing && viewing.sections.length > 0 ? viewing.sections : null;
+  // A stored version keeps whatever cut was issued; the live preview follows the turnover switch.
+  const showTurnover = storedSections
+    ? storedSections.includes("turnover")
+    : includeTurnover;
+  const activeSections = useMemo(() => {
+    const base = storedSections ?? liveSections;
+    if (!base) return undefined;
+    if (showTurnover) return base;
+    return base.filter(
+      (id) => !TURNOVER_SECTION_IDS.includes(id as (typeof TURNOVER_SECTION_IDS)[number]),
+    );
+  }, [storedSections, liveSections, showTurnover]);
+  const sections = useMemo(() => {
+    const listed =
       activeSections && activeSections.length > 0
         ? SECTIONS.filter((section) => activeSections.includes(section.id))
-        : SECTIONS.slice(),
-    [activeSections],
-  );
+        : SECTIONS.slice();
+    return showTurnover
+      ? listed
+      : listed.filter(
+          (section) =>
+            !TURNOVER_SECTION_IDS.includes(
+              section.id as (typeof TURNOVER_SECTION_IDS)[number],
+            ),
+        );
+  }, [activeSections, showTurnover]);
 
   const runsByFormat = useMemo(() => {
     const map = new Map<string, NonNullable<typeof runs.data>>();
@@ -360,6 +381,20 @@ function ReportPreview() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="mb-0.5 flex items-center gap-2 rounded-md border px-3 py-2">
+            <Switch
+              id="rp-turnover"
+              checked={includeTurnover}
+              onCheckedChange={setIncludeTurnover}
+              disabled={Boolean(viewingRunId)}
+            />
+            <Label htmlFor="rp-turnover" className="text-xs">
+              Turnover pages
+              <span className="block text-[10px] font-normal text-muted-foreground">
+                Off when the history is not reliable
+              </span>
+            </Label>
           </div>
           {rendererConfigured.data && (
             <Button
@@ -612,6 +647,7 @@ function ReportPreview() {
               <ReportDocument
                 data={displayData}
                 format={displayFormat}
+                showTurnover={showTurnover}
                 {...(activeSections ? { sections: activeSections } : {})}
               />
 

@@ -13,7 +13,7 @@
 import { renderToStaticMarkup } from "react-dom/server.browser";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { ReportDocument } from "@/components/report/ReportDocument";
+import { ReportDocument, TURNOVER_SECTION_IDS } from "@/components/report/ReportDocument";
 import reportCss from "@/styles/report.css?raw";
 import type { Database } from "@/integrations/supabase/types";
 import { buildReport, type ReportData } from "./report-load";
@@ -44,6 +44,18 @@ export async function loadFormatSections(
     .slice()
     .sort((a, b) => a.position - b.position)
     .map((row) => row.section_id);
+}
+
+/**
+ * Turnover leans on historical roster data the analyst may not trust for a given month, so it can
+ * be switched off for a run. Storing the cut in `sections` keeps reopened versions and share links
+ * identical to what was issued.
+ */
+export function withTurnover(sections: string[], include: boolean): string[] {
+  if (include || sections.length === 0) return sections;
+  return sections.filter(
+    (id) => !TURNOVER_SECTION_IDS.includes(id as (typeof TURNOVER_SECTION_IDS)[number]),
+  );
 }
 
 export function renderReportHtml(
@@ -215,14 +227,21 @@ async function insertRun(
 
 export async function generateReportRun(
   supabase: Client,
-  input: { clientId: string; period: string; format: ReportFormat; userId: string },
+  input: {
+    clientId: string;
+    period: string;
+    format: ReportFormat;
+    userId: string;
+    includeTurnover?: boolean;
+  },
 ): Promise<GenerateResult> {
   const { clientId, period, format, userId } = input;
 
-  const [data, sections] = await Promise.all([
+  const [data, loadedSections] = await Promise.all([
     buildReport(supabase, clientId, period),
     loadFormatSections(supabase, clientId, format),
   ]);
+  const sections = withTurnover(loadedSections, input.includeTurnover !== false);
 
   const html = renderReportHtml(data, format, sections);
   const pdf = await renderPdfWithGotenberg(html, format);
@@ -272,14 +291,23 @@ export async function generateReportRun(
  */
 export async function snapshotReportRun(
   supabase: Client,
-  input: { clientId: string; period: string; format: ReportFormat; userId: string; note?: string },
+  input: {
+    clientId: string;
+    period: string;
+    format: ReportFormat;
+    userId: string;
+    note?: string;
+    includeTurnover?: boolean;
+  },
 ): Promise<GenerateResult> {
   const { clientId, period, format, userId } = input;
 
-  const [data, sections] = await Promise.all([
+  const [data, loadedSections] = await Promise.all([
     buildReport(supabase, clientId, period),
     loadFormatSections(supabase, clientId, format),
   ]);
+  const sections = withTurnover(loadedSections, input.includeTurnover !== false);
+
 
   const run = await insertRun(supabase, {
     client_id: clientId,

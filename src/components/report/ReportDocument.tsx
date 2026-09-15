@@ -38,6 +38,9 @@ import type { ReportData } from "@/lib/report-load";
  * list is stored configuration passed in as `sections`, never a filter hardcoded here.
  */
 
+/** Pages that only make sense when the historical roster behind turnover is trustworthy. */
+export const TURNOVER_SECTION_IDS = ["turnover", "benchmark", "tenure"] as const;
+
 export const SECTIONS = [
   { id: "cover", label: "Cover" },
   { id: "summary", label: "Executive summary" },
@@ -156,13 +159,17 @@ export function ReportDocument({
   data,
   format = "landscape",
   sections,
+  showTurnover,
 }: {
   data: ReportData;
   format?: ReportFormat;
   sections?: string[];
+  /** Turnover depends on historical roster data; when it is unreliable the whole thread is dropped. */
+  showTurnover?: boolean;
 }) {
   const spec = FORMAT_SPECS[format];
   const enabledIds = sections && sections.length > 0 ? new Set(sections) : null;
+  const turnoverOn = showTurnover ?? (enabledIds ? enabledIds.has("turnover") : true);
   const insights = data.insights ?? [];
   const surveys = data.surveys ?? [];
   /** The insights section only exists when an analyst pinned something to this period. */
@@ -170,6 +177,7 @@ export function ReportDocument({
     (id !== "insights" || insights.length > 0) &&
     (id !== "notes" || (data.notes?.length ?? 0) > 0) &&
     (id !== "surveys" || surveys.length > 0) &&
+    (turnoverOn || !TURNOVER_SECTION_IDS.includes(id as (typeof TURNOVER_SECTION_IDS)[number])) &&
     (enabledIds ? enabledIds.has(id) : true);
 
   /** Chart heights are declared at landscape scale and shrunk for the shorter formats. */
@@ -309,16 +317,28 @@ export function ReportDocument({
               value: fmtInt(activeTotal),
               caption: `${fmtDeltaInt(activeTotal, m.prior("headcount_active"))} vs ${prior}`,
             },
-            {
-              label: "Turnover",
-              value: fmtPct(turnover),
-              caption: `${fmtDeltaPp(turnover, m.prior("turnover_pct"))} pp vs ${prior}`,
-            },
-            {
-              label: "Average tenure",
-              value: mNum(m.get("avg_tenure_years")),
-              caption: "years, dated leavers only",
-            },
+            turnoverOn
+              ? {
+                  label: "Turnover",
+                  value: fmtPct(turnover),
+                  caption: `${fmtDeltaPp(turnover, m.prior("turnover_pct"))} pp vs ${prior}`,
+                }
+              : {
+                  label: "Inactive records",
+                  value: fmtInt(m.get("headcount_inactive")),
+                  caption: "on the roster at period end",
+                },
+            turnoverOn
+              ? {
+                  label: "Average tenure",
+                  value: mNum(m.get("avg_tenure_years")),
+                  caption: "years, dated leavers only",
+                }
+              : {
+                  label: "Invited",
+                  value: fmtInt(m.get("headcount_invited")),
+                  caption: "invited, not yet active",
+                },
             {
               label: "Mood per employee",
               value: mNum(mood, 2),
@@ -355,11 +375,18 @@ export function ReportDocument({
           <div>
             <p className="rp-subheading">What the numbers say</p>
             <ul className="rp-bullets">
-              <li>
-                Turnover is {fmtPct(turnover)} against {fmtPct(m.prior("turnover_pct"))} last
-                period, a change of {fmtDeltaPp(turnover, m.prior("turnover_pct"))} percentage
-                points.
-              </li>
+              {turnoverOn ? (
+                <li>
+                  Turnover is {fmtPct(turnover)} against {fmtPct(m.prior("turnover_pct"))} last
+                  period, a change of {fmtDeltaPp(turnover, m.prior("turnover_pct"))} percentage
+                  points.
+                </li>
+              ) : (
+                <li>
+                  {fmtInt(activeTotal)} people are active at period end, a change of{" "}
+                  {fmtDeltaInt(activeTotal, m.prior("headcount_active"))} against {prior}.
+                </li>
+              )}
               <li>
                 {fmtInt(checkedIn)} of {fmtInt(activeTotal)} active people checked in, leaving{" "}
                 {fmtInt(notCheckedIn)} without a signal this month.
@@ -374,7 +401,7 @@ export function ReportDocument({
               Where to read further
             </p>
             <ul className="rp-bullets">
-              <Ref to="turnover" label="Turnover by role and cohort" />
+              {turnoverOn ? <Ref to="turnover" label="Turnover by role and cohort" /> : null}
               <Ref to="departures" label="Who left and when" />
               <Ref to="mood" label="Mood by franchise" />
               <Ref to="action" label="Action plan" />
@@ -404,7 +431,9 @@ export function ReportDocument({
                 {[
                   ["Active", "headcount_active", "headcount_active", false],
                   ["Inactive", "headcount_inactive", "headcount_inactive", false],
-                  ["Turnover", "turnover_pct", "turnover_pct", true],
+                  ...(turnoverOn
+                    ? [["Turnover", "turnover_pct", "turnover_pct", true]]
+                    : []),
                   ["Mood", "mood_per_employee", "mood_score", false],
                 ].map(([label, calculatedKey, baselineKey, percent]) => (
                   <tr key={String(calculatedKey)}>
@@ -433,7 +462,7 @@ export function ReportDocument({
           <tbody>
             {[
               ["Active headcount", "headcount_active", false],
-              ["Turnover", "turnover_pct", true],
+              ...(turnoverOn ? [["Turnover", "turnover_pct", true]] : []),
               ["Mood per employee", "mood_per_employee", false],
               ["Checked in", "checked_in_pct", true],
             ].map(([label, key, percent]) => {
@@ -482,7 +511,7 @@ export function ReportDocument({
               <th className="rp-num">Active</th>
               <th className="rp-num">Inactive</th>
               <th className="rp-num">Invited</th>
-              <th className="rp-num">Turnover</th>
+              {turnoverOn ? <th className="rp-num">Turnover</th> : null}
               <th className="rp-num">Active vs {prior}</th>
             </tr>
           </thead>
@@ -493,7 +522,9 @@ export function ReportDocument({
                 <td className="rp-num">{fmtInt(m.get("headcount_active", scope))}</td>
                 <td className="rp-num">{fmtInt(m.get("headcount_inactive", scope))}</td>
                 <td className="rp-num">{fmtInt(m.get("headcount_invited", scope))}</td>
-                <td className="rp-num">{fmtPct(m.get("turnover_pct", scope))}</td>
+                {turnoverOn ? (
+                  <td className="rp-num">{fmtPct(m.get("turnover_pct", scope))}</td>
+                ) : null}
                 <td className="rp-num">
                   {fmtDeltaInt(m.get("headcount_active", scope), m.prior("headcount_active", scope))}
                 </td>
@@ -504,13 +535,15 @@ export function ReportDocument({
               <td className="rp-num">{fmtInt(activeTotal)}</td>
               <td className="rp-num">{fmtInt(m.get("headcount_inactive"))}</td>
               <td className="rp-num">{fmtInt(m.get("headcount_invited"))}</td>
-              <td className="rp-num">{fmtPct(turnover)}</td>
+              {turnoverOn ? <td className="rp-num">{fmtPct(turnover)}</td> : null}
               <td className="rp-num">{fmtDeltaInt(activeTotal, m.prior("headcount_active"))}</td>
             </tr>
           </tbody>
         </table>
         <p className="rp-footnote">
-          Invited people are counted in headcount and excluded from turnover, tenure and mood.
+          {turnoverOn
+            ? "Invited people are counted in headcount and excluded from turnover, tenure and mood."
+            : "Invited people are counted in headcount and excluded from every ratio. Turnover is left out of this report because the historical roster behind it is not confirmed."}
         </p>
       </Page>
 
@@ -1443,15 +1476,19 @@ export function ReportDocument({
           <tbody>
             {[
               ["Headcount", "headcount_active", "Active, inactive and invited people at period end, exclusions removed."],
-              ["Turnover", "turnover_pct", "Inactive over active plus inactive. Invited people are outside the ratio."],
-              ["Average tenure", "avg_tenure_years", "Years between hire date and departure proxy. Undated and negative results are dropped."],
+              ...(turnoverOn
+                ? [["Turnover", "turnover_pct", "Inactive over active plus inactive. Invited people are outside the ratio."],
+                   ["Average tenure", "avg_tenure_years", "Years between hire date and departure proxy. Undated and negative results are dropped."]]
+                : []),
               ["Departures", "departures_count", "People active in the prior period and inactive now, split by date in or after the period."],
               ["Early departure", "early_departure_pct", "Departures inside the first year over dated departures only."],
               ["Mood per employee", "mood_per_employee", "Sum of mood over active headcount at period end."],
               ["Mood per check-in", "mood_per_checkin", "Sum of mood over check-ins by people active at period end."],
               ["Participation", "checked_in_pct", "Active people with at least one check-in over active headcount."],
               ["Recognitions", "engagement_recognitions", "Manual entry from the platform export for the period."],
-              ["Benchmark variance", "turnover_variance_pp", "Role turnover minus the published industry benchmark, in percentage points."],
+              ...(turnoverOn
+                ? [["Benchmark variance", "turnover_variance_pp", "Role turnover minus the published industry benchmark, in percentage points."]]
+                : []),
             ].map(([label, key, text]) => (
               <tr key={key}>
                 <td>{label}</td>
