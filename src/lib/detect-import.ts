@@ -366,6 +366,7 @@ export function sniffGrid(filename: string, grid: unknown[][]): Sniff {
     signals,
     periodHint,
     preamble: preamble.slice(0, 4),
+    dataMonths,
   };
 }
 
