@@ -38,6 +38,9 @@ import type { ReportData } from "@/lib/report-load";
  * list is stored configuration passed in as `sections`, never a filter hardcoded here.
  */
 
+/** Pages that only make sense when the historical roster behind turnover is trustworthy. */
+export const TURNOVER_SECTION_IDS = ["turnover", "benchmark", "tenure"] as const;
+
 export const SECTIONS = [
   { id: "cover", label: "Cover" },
   { id: "summary", label: "Executive summary" },
