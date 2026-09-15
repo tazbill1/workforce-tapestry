@@ -511,7 +511,7 @@ export function ReportDocument({
               <th className="rp-num">Active</th>
               <th className="rp-num">Inactive</th>
               <th className="rp-num">Invited</th>
-              <th className="rp-num">Turnover</th>
+              {turnoverOn ? <th className="rp-num">Turnover</th> : null}
               <th className="rp-num">Active vs {prior}</th>
             </tr>
           </thead>
