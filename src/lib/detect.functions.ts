@@ -12,6 +12,7 @@ const KINDS = [
   "engagement_totals",
   "recognition_counts",
   "recognition_activity",
+  "recognition_points",
   "survey",
 ] as const;
 
@@ -202,10 +203,11 @@ export const analyzeUpload = createServerFn({ method: "POST" })
                 role: "system",
                 content:
                   "You classify workforce reporting spreadsheets for an internal tool. Reply with JSON only: " +
-                  '{"kind": one of roster|mood_matrix|login_report|engagement_totals|recognition_counts|recognition_activity|unknown, ' +
+                  '{"kind": one of roster|mood_matrix|login_report|engagement_totals|recognition_counts|recognition_activity|recognition_points|unknown, ' +
                   '"period": "YYYY-MM" or null, "note": one short sentence explaining the call}. ' +
                   "roster = people with employment status/title/department. mood_matrix = per-person check-ins or mood scores. " +
                   "login_report = per-person last login times. recognition_activity = per-person posts/comments/likes. " +
+                  "recognition_points = managers with points allocated/given. " +
                   "recognition_counts = counts per department. engagement_totals = a handful of headline totals.",
               },
               { role: "user", content: prompt },
