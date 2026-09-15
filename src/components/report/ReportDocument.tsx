@@ -156,13 +156,17 @@ export function ReportDocument({
   data,
   format = "landscape",
   sections,
+  showTurnover,
 }: {
   data: ReportData;
   format?: ReportFormat;
   sections?: string[];
+  /** Turnover depends on historical roster data; when it is unreliable the whole thread is dropped. */
+  showTurnover?: boolean;
 }) {
   const spec = FORMAT_SPECS[format];
   const enabledIds = sections && sections.length > 0 ? new Set(sections) : null;
+  const turnoverOn = showTurnover ?? (enabledIds ? enabledIds.has("turnover") : true);
   const insights = data.insights ?? [];
   const surveys = data.surveys ?? [];
   /** The insights section only exists when an analyst pinned something to this period. */
@@ -170,6 +174,7 @@ export function ReportDocument({
     (id !== "insights" || insights.length > 0) &&
     (id !== "notes" || (data.notes?.length ?? 0) > 0) &&
     (id !== "surveys" || surveys.length > 0) &&
+    (turnoverOn || !TURNOVER_SECTION_IDS.includes(id as (typeof TURNOVER_SECTION_IDS)[number])) &&
     (enabledIds ? enabledIds.has(id) : true);
 
   /** Chart heights are declared at landscape scale and shrunk for the shorter formats. */
