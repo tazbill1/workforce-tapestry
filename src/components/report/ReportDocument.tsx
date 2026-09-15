@@ -420,7 +420,18 @@ export function ReportDocument({
         </div>
         <p className="rp-subheading" style={{ marginTop: "8pt" }}>{data.peerGroupName ? `Group comparison — ${data.peerGroupName}` : "All-client comparison"}</p>
         <table className="rp-table rp-tight">
-          <thead><tr><th>Measure</th><th className="rp-num">This client</th><th className="rp-num">{data.peerGroupName ? `${data.peerGroupName} average` : "All-client average"}</th><th className="rp-num">Clients</th></tr></thead>
+        <p className="rp-subheading" style={{ marginTop: "8pt" }}>{data.peerGroupName ? `Comparison — ${data.peerGroupName} and all clients` : "All-client comparison"}</p>
+        <table className="rp-table rp-tight">
+          <thead>
+            <tr>
+              <th>Measure</th>
+              <th className="rp-num">This client</th>
+              {data.peerGroupName ? <th className="rp-num">{data.peerGroupName} average</th> : null}
+              {data.peerGroupName ? <th className="rp-num">Group n</th> : null}
+              <th className="rp-num">All-client average</th>
+              <th className="rp-num">Clients</th>
+            </tr>
+          </thead>
           <tbody>
             {[
               ["Active headcount", "headcount_active", false],
@@ -428,12 +439,25 @@ export function ReportDocument({
               ["Mood per employee", "mood_per_employee", false],
               ["Checked in", "checked_in_pct", true],
             ].map(([label, key, percent]) => {
-              const comparison = peer(String(key));
-              return <tr key={String(key)}><td>{label}</td><td className="rp-num">{percent ? fmtPct(m.get(String(key))) : fmtNum(m.get(String(key)), 1)}</td><td className="rp-num">{percent ? fmtPct(comparison?.value_numeric ?? null) : fmtNum(comparison?.value_numeric ?? null, 1)}</td><td className="rp-num">{fmtInt(comparison?.client_count ?? null)}</td></tr>;
+              const groupCmp = peer(String(key));
+              const allCmp = allPeer(String(key));
+              const fmt = (value: number | null) => (percent ? fmtPct(value) : fmtNum(value, 1));
+              return (
+                <tr key={String(key)}>
+                  <td>{label}</td>
+                  <td className="rp-num">{fmt(m.get(String(key)))}</td>
+                  {data.peerGroupName ? <td className="rp-num">{fmt(groupCmp?.value_numeric ?? null)}</td> : null}
+                  {data.peerGroupName ? <td className="rp-num">{fmtInt(groupCmp?.client_count ?? null)}</td> : null}
+                  <td className="rp-num">{fmt(allCmp?.value_numeric ?? null)}</td>
+                  <td className="rp-num">{fmtInt(allCmp?.client_count ?? null)}</td>
+                </tr>
+              );
             })}
           </tbody>
         </table>
+        <p className="rp-footnote">Comparisons are aggregate averages only; no other dealership is identified.</p>
       </Page>
+
 
       {/* 3 — Headcount */}
       <Page id="headcount" title="Headcount and composition" {...page}>
