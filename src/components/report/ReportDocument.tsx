@@ -462,7 +462,7 @@ export function ReportDocument({
           <tbody>
             {[
               ["Active headcount", "headcount_active", false],
-              ["Turnover", "turnover_pct", true],
+              ...(turnoverOn ? [["Turnover", "turnover_pct", true]] : []),
               ["Mood per employee", "mood_per_employee", false],
               ["Checked in", "checked_in_pct", true],
             ].map(([label, key, percent]) => {
