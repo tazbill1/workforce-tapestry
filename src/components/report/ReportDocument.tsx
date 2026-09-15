@@ -418,8 +418,6 @@ export function ReportDocument({
             <p className="rp-footnote">Calculated figures drive analysis. As-published figures preserve the issued report when they differ.</p>
           </div>
         </div>
-        <p className="rp-subheading" style={{ marginTop: "8pt" }}>{data.peerGroupName ? `Group comparison — ${data.peerGroupName}` : "All-client comparison"}</p>
-        <table className="rp-table rp-tight">
         <p className="rp-subheading" style={{ marginTop: "8pt" }}>{data.peerGroupName ? `Comparison — ${data.peerGroupName} and all clients` : "All-client comparison"}</p>
         <table className="rp-table rp-tight">
           <thead>
