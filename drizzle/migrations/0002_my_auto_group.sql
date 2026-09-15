@@ -1,0 +1,2 @@
+ALTER TABLE public.clients ADD COLUMN client_group text;
+COMMENT ON COLUMN public.clients.client_group IS 'Optional group name (e.g. a dealer group). Reports for a client with a group compare against group members only.';

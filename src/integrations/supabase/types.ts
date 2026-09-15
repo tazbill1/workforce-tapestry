@@ -79,6 +79,7 @@ export type Database = {
       clients: {
         Row: {
           active: boolean
+          client_group: string | null
           code: string
           created_at: string
           expected_domains: string[]
@@ -88,6 +89,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          client_group?: string | null
           code: string
           created_at?: string
           expected_domains?: string[]
@@ -97,6 +99,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          client_group?: string | null
           code?: string
           created_at?: string
           expected_domains?: string[]

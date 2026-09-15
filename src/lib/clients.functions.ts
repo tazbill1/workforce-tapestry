@@ -16,7 +16,7 @@ export const listClientsAdmin = createServerFn({ method: "GET" })
     });
     const { data: clients, error } = await context.supabase
       .from("clients")
-      .select("id, name, code, active, created_at, logo_url, expected_domains")
+      .select("id, name, code, active, created_at, logo_url, expected_domains, client_group")
       .order("name");
     if (error) throw new Error(error.message);
 
@@ -46,7 +46,7 @@ export function normalizeDomains(raw: string[]): string[] {
 
 export const createClient = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { name: string; code: string; domains?: string[] }) =>
+  .inputValidator((input: { name: string; code: string; domains?: string[]; group?: string }) =>
     z
       .object({
         name: z.string().trim().min(1).max(120),
@@ -57,6 +57,7 @@ export const createClient = createServerFn({ method: "POST" })
           .max(40)
           .regex(/^[A-Za-z0-9_-]+$/, "Code may contain letters, numbers, _ and - only"),
         domains: z.array(z.string().max(200)).max(25).default([]),
+        group: z.string().trim().max(80).optional(),
       })
       .parse(input),
   )
@@ -69,6 +70,7 @@ export const createClient = createServerFn({ method: "POST" })
         code: data.code.toUpperCase(),
         active: true,
         expected_domains: normalizeDomains(data.domains ?? []),
+        client_group: data.group ? data.group : null,
       })
       .select("id, name, code, active")
       .single();
@@ -95,6 +97,26 @@ export const setClientDomains = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     if (!row) throw new Error("Could not save domains for that client.");
     return { domains: (row.expected_domains as string[]) ?? domains };
+  });
+
+export const setClientGroup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { clientId: string; group: string | null }) =>
+    z
+      .object({
+        clientId: z.string().uuid(),
+        group: z.string().trim().min(1).max(80).nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnalyst(context);
+    const { error } = await context.supabase
+      .from("clients")
+      .update({ client_group: data.group })
+      .eq("id", data.clientId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const setClientActive = createServerFn({ method: "POST" })
