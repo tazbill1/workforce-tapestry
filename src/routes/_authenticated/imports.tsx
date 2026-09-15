@@ -147,6 +147,7 @@ type QueueItem = {
   sheetSniffs: Record<string, Sniff>;
   sniff: Sniff | null;
   advice: UploadAdvice | null;
+  acknowledged: boolean;
   applied: string[];
   message: string | null;
   progress: { label: string; value: number } | null;
@@ -248,6 +249,7 @@ function ImportScreen() {
             emails: result.emails,
             rowCount: result.rowCount,
             periodHint: result.periodHint,
+            dataMonths: result.dataMonths,
             heuristicKind: result.guess?.kind ?? null,
             signals: result.signals.map((signal) => ({ id: signal.id, label: signal.label })),
             selectedClientId: clientId || null,
@@ -281,6 +283,7 @@ function ImportScreen() {
           sheetSniffs: Object.fromEntries(scanned.map((entry) => [entry.name, entry.sniffed])),
           sniff: result,
           advice: detected,
+          acknowledged: false,
           applied,
         });
       } catch (error) {
@@ -318,6 +321,7 @@ function ImportScreen() {
         sheetSniffs: {},
         sniff: null,
         advice: null,
+        acknowledged: false,
         applied: [],
         message: null,
         progress: null,
@@ -545,11 +549,66 @@ function ImportScreen() {
     ],
   );
 
+  /**
+   * Live safety checks for one queued file, recomputed whenever the analyst changes the
+   * client, the month or the kind — so the warnings never go stale behind an edit.
+   */
+  const risksFor = useCallback(
+    (item: QueueItem): string[] => {
+      const risks: string[] = [];
+      if (!item.sniff) return risks;
+
+      const months = item.sniff.dataMonths ?? [];
+      const total = months.reduce((sum, entry) => sum + entry.count, 0);
+      const top = months[0];
+      if (top && total >= 10 && top.month !== item.period && top.count / total >= 0.6) {
+        risks.push(
+          `The dates inside this file are mostly from ${top.month}, but it is set to import as ${item.period}.`,
+        );
+      } else if (item.sniff.periodHint && item.sniff.periodHint !== item.period) {
+        risks.push(
+          `The file itself points at ${item.sniff.periodHint}, but it is set to import as ${item.period}.`,
+        );
+      }
+
+      const suggested = item.advice?.suggestedClientId;
+      if (suggested && suggested !== clientId) {
+        const name =
+          item.advice?.clientMatches?.find((match) => match.clientId === suggested)?.name ??
+          "another client";
+        risks.push(`The people in this file look like ${name}, not ${activeClient?.name ?? "this client"}.`);
+      }
+
+      const already = (imports.data ?? []).find(
+        (row) =>
+          row.period === `${item.period}-01` &&
+          row.kind === item.kind &&
+          row.state === "parsed" &&
+          !row.superseded_by,
+      );
+      if (already) {
+        risks.push(
+          `A ${kindLabel(item.kind).toLowerCase()} file for ${activeClient?.name ?? "this client"} · ${item.period} is already in (${already.original_filename ?? "unnamed"}, ${already.row_count ?? 0} rows).`,
+        );
+      }
+
+      return risks;
+    },
+    [activeClient?.name, clientId, imports.data],
+  );
+
   const pending = queue.filter((item) => item.status === "ready");
+  const unconfirmed = pending.filter((item) => risksFor(item).length > 0 && !item.acknowledged);
 
   const runAll = useCallback(async () => {
     if (!clientId) {
       toast.error("Pick a client first.");
+      return;
+    }
+    if (unconfirmed.length > 0) {
+      toast.error(
+        `Check the ${unconfirmed.length} flagged file${unconfirmed.length === 1 ? "" : "s"} and tick the box before importing.`,
+      );
       return;
     }
     const todo = queue
@@ -590,7 +649,7 @@ function ImportScreen() {
     setJustImported((count) => count + done);
     queryClient.invalidateQueries({ queryKey: ["imports", clientId] });
     if (done > 0) toast.success(`Imported ${done} file${done === 1 ? "" : "s"}.`);
-  }, [clientId, importOne, patch, queue, queryClient]);
+  }, [clientId, importOne, patch, queue, queryClient, unconfirmed.length]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
