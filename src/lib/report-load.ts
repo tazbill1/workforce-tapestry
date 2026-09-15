@@ -521,7 +521,9 @@ export async function buildReport(supabase: Client, clientId: string, period: st
     asPublished: (baselineResult.data ?? []) as PublishedBaseline[],
     recognitionPoints: (pointResult.data ?? []) as RecognitionPointDetail[],
     peerAverages,
+    allClientAverages,
     peerGroupName: clientGroup,
+
     lists: {
       departures,
       invited,
