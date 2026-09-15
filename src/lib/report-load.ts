@@ -469,33 +469,45 @@ export async function buildReport(supabase: Client, clientId: string, period: st
       hire_date: person.hire_date,
     }));
 
-  // Peer averages: when this client belongs to a comparison group, only group members count.
-  // Otherwise every active client is averaged (the previous behaviour).
+  // Comparisons are always aggregate averages — no other dealership is ever named.
+  // Group average: only clients sharing this client's comparison group.
+  // All-client average: every active client, used alongside the group figure.
   const clientGroup = (clientResult.data as { client_group?: string | null }).client_group ?? null;
-  const peerClientIds = new Set(
-    ((activeClientsResult.data ?? []) as Array<{ id: string; client_group: string | null }>)
-      .filter((row) => (clientGroup ? row.client_group === clientGroup : true))
-      .map((row) => row.id),
+  const activeClients = ((activeClientsResult.data ?? []) as Array<{ id: string; client_group: string | null }>);
+  const groupClientIds = new Set(
+    activeClients.filter((row) => (clientGroup ? row.client_group === clientGroup : false)).map((row) => row.id),
   );
-  const peerLatest = new Map<string, { version: number; value: number }>();
+  const allClientIds = new Set(activeClients.map((row) => row.id));
+
+  const latestByClientMetric = new Map<string, { clientId: string; metricKey: string; version: number; value: number }>();
   for (const row of peerResult.data ?? []) {
-    if (row.value_numeric === null || !peerClientIds.has(row.client_id)) continue;
+    if (row.value_numeric === null || !allClientIds.has(row.client_id)) continue;
     const key = `${row.client_id}::${row.metric_key}`;
-    const current = peerLatest.get(key);
+    const current = latestByClientMetric.get(key);
     if (!current || row.definition_version > current.version) {
-      peerLatest.set(key, { version: row.definition_version, value: Number(row.value_numeric) });
+      latestByClientMetric.set(key, {
+        clientId: row.client_id,
+        metricKey: row.metric_key,
+        version: row.definition_version,
+        value: Number(row.value_numeric),
+      });
     }
   }
-  const peerGrouped = new Map<string, number[]>();
-  for (const [composite, entry] of peerLatest) {
-    const metricKey = composite.split("::")[1]!;
-    peerGrouped.set(metricKey, [...(peerGrouped.get(metricKey) ?? []), entry.value]);
-  }
-  const peerAverages: PeerAverage[] = [...peerGrouped].map(([metric_key, values]) => ({
-    metric_key,
-    value_numeric: values.reduce((sum, value) => sum + value, 0) / values.length,
-    client_count: values.length,
-  }));
+  const averageOver = (ids: Set<string>): PeerAverage[] => {
+    const grouped = new Map<string, number[]>();
+    for (const entry of latestByClientMetric.values()) {
+      if (!ids.has(entry.clientId)) continue;
+      grouped.set(entry.metricKey, [...(grouped.get(entry.metricKey) ?? []), entry.value]);
+    }
+    return [...grouped].map(([metric_key, values]) => ({
+      metric_key,
+      value_numeric: values.reduce((sum, value) => sum + value, 0) / values.length,
+      client_count: values.length,
+    }));
+  };
+  const peerAverages: PeerAverage[] = clientGroup ? averageOver(groupClientIds) : [];
+  const allClientAverages: PeerAverage[] = averageOver(allClientIds);
+
 
   return {
     client: clientResult.data,
@@ -509,7 +521,9 @@ export async function buildReport(supabase: Client, clientId: string, period: st
     asPublished: (baselineResult.data ?? []) as PublishedBaseline[],
     recognitionPoints: (pointResult.data ?? []) as RecognitionPointDetail[],
     peerAverages,
+    allClientAverages,
     peerGroupName: clientGroup,
+
     lists: {
       departures,
       invited,
