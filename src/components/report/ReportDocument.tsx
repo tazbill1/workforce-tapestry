@@ -241,8 +241,11 @@ export function ReportDocument({
   const notCheckedIn = m.get("not_checked_in_count");
   const publishedMap = new Map((data.asPublished ?? []).map((row) => [row.metric_key, row]));
   const peerMap = new Map((data.peerAverages ?? []).map((row) => [row.metric_key, row]));
+  const allMap = new Map((data.allClientAverages ?? []).map((row) => [row.metric_key, row]));
   const asPublished = (key: string) => publishedMap.get(key)?.value_numeric ?? null;
   const peer = (key: string) => peerMap.get(key) ?? null;
+  const allPeer = (key: string) => allMap.get(key) ?? null;
+
 
   return (
     <DocCtx.Provider
