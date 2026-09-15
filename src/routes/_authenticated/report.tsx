@@ -285,15 +285,33 @@ function ReportPreview() {
   const displayData = viewingRunId ? snapshotData : report.data;
 
   const liveSections = formatSections.data?.[format];
-  const activeSections =
-    viewing && viewing.sections.length > 0 ? viewing.sections : liveSections;
-  const sections = useMemo(
-    () =>
+  const storedSections = viewing && viewing.sections.length > 0 ? viewing.sections : null;
+  // A stored version keeps whatever cut was issued; the live preview follows the turnover switch.
+  const showTurnover = storedSections
+    ? storedSections.includes("turnover")
+    : includeTurnover;
+  const activeSections = useMemo(() => {
+    const base = storedSections ?? liveSections;
+    if (!base) return undefined;
+    if (showTurnover) return base;
+    return base.filter(
+      (id) => !TURNOVER_SECTION_IDS.includes(id as (typeof TURNOVER_SECTION_IDS)[number]),
+    );
+  }, [storedSections, liveSections, showTurnover]);
+  const sections = useMemo(() => {
+    const listed =
       activeSections && activeSections.length > 0
         ? SECTIONS.filter((section) => activeSections.includes(section.id))
-        : SECTIONS.slice(),
-    [activeSections],
-  );
+        : SECTIONS.slice();
+    return showTurnover
+      ? listed
+      : listed.filter(
+          (section) =>
+            !TURNOVER_SECTION_IDS.includes(
+              section.id as (typeof TURNOVER_SECTION_IDS)[number],
+            ),
+        );
+  }, [activeSections, showTurnover]);
 
   const runsByFormat = useMemo(() => {
     const map = new Map<string, NonNullable<typeof runs.data>>();
