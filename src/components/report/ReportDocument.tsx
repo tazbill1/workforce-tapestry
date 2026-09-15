@@ -375,11 +375,18 @@ export function ReportDocument({
           <div>
             <p className="rp-subheading">What the numbers say</p>
             <ul className="rp-bullets">
-              <li>
-                Turnover is {fmtPct(turnover)} against {fmtPct(m.prior("turnover_pct"))} last
-                period, a change of {fmtDeltaPp(turnover, m.prior("turnover_pct"))} percentage
-                points.
-              </li>
+              {turnoverOn ? (
+                <li>
+                  Turnover is {fmtPct(turnover)} against {fmtPct(m.prior("turnover_pct"))} last
+                  period, a change of {fmtDeltaPp(turnover, m.prior("turnover_pct"))} percentage
+                  points.
+                </li>
+              ) : (
+                <li>
+                  {fmtInt(activeTotal)} people are active at period end, a change of{" "}
+                  {fmtDeltaInt(activeTotal, m.prior("headcount_active"))} against {prior}.
+                </li>
+              )}
               <li>
                 {fmtInt(checkedIn)} of {fmtInt(activeTotal)} active people checked in, leaving{" "}
                 {fmtInt(notCheckedIn)} without a signal this month.
