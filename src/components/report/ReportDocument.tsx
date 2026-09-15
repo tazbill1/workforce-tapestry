@@ -535,13 +535,15 @@ export function ReportDocument({
               <td className="rp-num">{fmtInt(activeTotal)}</td>
               <td className="rp-num">{fmtInt(m.get("headcount_inactive"))}</td>
               <td className="rp-num">{fmtInt(m.get("headcount_invited"))}</td>
-              <td className="rp-num">{fmtPct(turnover)}</td>
+              {turnoverOn ? <td className="rp-num">{fmtPct(turnover)}</td> : null}
               <td className="rp-num">{fmtDeltaInt(activeTotal, m.prior("headcount_active"))}</td>
             </tr>
           </tbody>
         </table>
         <p className="rp-footnote">
-          Invited people are counted in headcount and excluded from turnover, tenure and mood.
+          {turnoverOn
+            ? "Invited people are counted in headcount and excluded from turnover, tenure and mood."
+            : "Invited people are counted in headcount and excluded from every ratio. Turnover is left out of this report because the historical roster behind it is not confirmed."}
         </p>
       </Page>
 
