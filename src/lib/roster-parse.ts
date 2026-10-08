@@ -56,13 +56,30 @@ const FIELD_SYNONYMS: Record<FieldKey, string[]> = {
   last_login: ["lastlogin", "lastlogindate", "lastloginat", "lastsignin", "lastaccess", "lastactivity"],
 };
 
-export type HeaderMap = Partial<Record<FieldKey, string>>;
+export type HeaderMap = Partial<Record<FieldKey, string>> & {
+  /** Set when the file splits the name across two columns (e.g. the Daily User Login export). */
+  first_name?: string;
+  last_name?: string;
+};
+
+const FIRST_NAME_KEYS = ["firstname", "first", "fname", "givenname"];
+const LAST_NAME_KEYS = ["lastname", "last", "lname", "surname", "familyname"];
 
 /** Map logical field -> actual column name present in this file. Absent fields are simply omitted. */
 export function buildHeaderMap(columns: string[]): HeaderMap {
   const normalized = columns.map((c) => ({ original: c, key: normalizeHeader(c) }));
   const map: HeaderMap = {};
   const taken = new Set<string>();
+
+  // Split name columns are claimed first, so "First Name" is never mistaken for the full name.
+  const first = normalized.find((c) => FIRST_NAME_KEYS.includes(c.key));
+  const last = normalized.find((c) => LAST_NAME_KEYS.includes(c.key));
+  if (first && last) {
+    map.first_name = first.original;
+    map.last_name = last.original;
+    taken.add(first.original);
+    taken.add(last.original);
+  }
 
   for (const [field, synonyms] of Object.entries(FIELD_SYNONYMS) as [FieldKey, string[]][]) {
     for (const synonym of synonyms) {
@@ -186,7 +203,12 @@ export function extractRow(row: SourceRow, headers: HeaderMap, rowNumber: number
   if (emailRaw === null) flags.push("missing_email");
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)) flags.push("malformed_email");
 
-  if (cellToText(get("name")) === null) flags.push("missing_name");
+  const splitName = [headers.first_name, headers.last_name]
+    .map((column) => (column === undefined ? null : cellToText(row[column])))
+    .filter(Boolean)
+    .join(" ");
+  const nameRaw = cellToText(get("name")) ?? (splitName || null);
+  if (nameRaw === null) flags.push("missing_name");
   if (headers.status === undefined) flags.push("no_status_column");
   if (headers.department === undefined) flags.push("no_department_column");
   if (headers.title === undefined) flags.push("no_title_column");
@@ -194,7 +216,7 @@ export function extractRow(row: SourceRow, headers: HeaderMap, rowNumber: number
   return {
     row_number: rowNumber,
     payload: jsonSafe(row),
-    name_raw: cellToText(get("name")),
+    name_raw: nameRaw,
     email_raw: emailRaw,
     employee_id_raw: cellToText(get("employee_id")),
     title_raw: cellToText(get("title")),

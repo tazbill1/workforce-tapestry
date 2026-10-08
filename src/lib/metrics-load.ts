@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { buildNameResolver } from "./engagement-parse";
 import type { Database } from "@/integrations/supabase/types";
 import {
   METRIC_DEFINITIONS,
@@ -89,7 +90,34 @@ export async function loadRecognitionActivity(
     rows.push(...((data ?? []) as unknown as ActivityRow[]));
     if (!data || data.length < pageSize) break;
   }
-  return rows;
+  if (rows.length === 0) return rows;
+
+  // Nothing writes recognition_activity.matched_email, so names are resolved here with the
+  // same rule the review screen shows (confirmed link, then a single name match). Without
+  // this every row counts as unmatched and recognition participation publishes as zero.
+  const [people, links] = await Promise.all([
+    supabase
+      .from("person_period")
+      .select("normalized_email, name")
+      .eq("client_id", clientId)
+      .eq("period", period)
+      .limit(10000),
+    supabase
+      .from("name_links")
+      .select("normalized_name, normalized_email")
+      .eq("client_id", clientId)
+      .eq("active", true),
+  ]);
+  if (people.error) throw new Error(people.error.message);
+  if (links.error) throw new Error(links.error.message);
+  const resolveName = buildNameResolver(
+    (people.data ?? []).map((person) => ({ email: person.normalized_email, name: person.name })),
+    links.data ?? [],
+  );
+  return rows.map((row) => ({
+    ...row,
+    matched_email: row.matched_email ?? resolveName(row.normalized_name, row.name_raw).email,
+  }));
 }
 
 export async function loadRecognitionPoints(

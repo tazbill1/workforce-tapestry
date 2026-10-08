@@ -17,6 +17,7 @@ export type RosterRow = {
 };
 
 export type MoodRow = {
+  import_id?: string | null;
   normalized_email: string | null;
   email_raw: string | null;
   payload: Record<string, unknown> | null;
@@ -115,6 +116,11 @@ export function patternMatches(pattern: string, value: string | null): boolean {
   return false;
 }
 
+const MONTH_NAMES = [
+  "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december",
+];
+
 /** Parses a spreadsheet column header that may be a date, e.g. "2026-06-03", "6/3/2026", "Jun 3". */
 export function headerAsDate(header: string, year: number): Date | null {
   const value = header.trim();
@@ -126,19 +132,45 @@ export function headerAsDate(header: string, year: number): Date | null {
     const y = rawYear ? (rawYear.length === 2 ? 2000 + +rawYear : +rawYear) : year;
     return new Date(Date.UTC(y, +us[1]! - 1, +us[2]!));
   }
-  const parsed = Date.parse(`${value} ${year} UTC`);
-  if (!Number.isNaN(parsed)) return new Date(parsed);
+  // Named months only: "Sep 1", "September 1, 2026", "Mon Sep 1", "1-Sep", "1 Sep 2026".
+  // Deliberately not Date.parse: it reads any header containing a month-like word plus a
+  // number ("Sept Avg", "March Total") as a date and would count that column as a check-in.
+  const monthOf = (word: string) => {
+    const w = word.toLowerCase().replace(/\.$/, "");
+    const index = MONTH_NAMES.findIndex((name) => w === name || w === name.slice(0, 3) || (name === "september" && w === "sept"));
+    return index;
+  };
+  const yearOf = (raw: string | undefined) =>
+    raw ? (raw.length === 2 ? 2000 + +raw : +raw) : year;
+  const monthFirst = value.match(
+    /^(?:(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*,?\s+)?([a-z]{3,9}\.?)[\s-]+(\d{1,2})(?:st|nd|rd|th)?(?:,?[\s-]+(\d{4}|\d{2}))?(?:\s+\d{1,2}:\d{2}.*)?$/i,
+  );
+  if (monthFirst) {
+    const month = monthOf(monthFirst[1]!);
+    const day = +monthFirst[2]!;
+    if (month >= 0 && day >= 1 && day <= 31) return new Date(Date.UTC(yearOf(monthFirst[3]), month, day));
+  }
+  const dayFirst = value.match(
+    /^(?:(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*,?\s+)?(\d{1,2})(?:st|nd|rd|th)?[\s-]+([a-z]{3,9}\.?)(?:,?[\s-]+(\d{4}|\d{2}))?$/i,
+  );
+  if (dayFirst) {
+    const month = monthOf(dayFirst[2]!);
+    const day = +dayFirst[1]!;
+    if (month >= 0 && day >= 1 && day <= 31) return new Date(Date.UTC(yearOf(dayFirst[3]), month, day));
+  }
   return null;
 }
 
 export function moodForPeriod(
-  payload: Record<string, unknown> | null,
+  payload: Record<string, unknown> | null | Array<Record<string, unknown> | null>,
   period: string,
 ): { checkin_count: number; mood_avg: number | null } {
   const { start, end } = periodBounds(period);
   let count = 0;
   let sum = 0;
-  for (const [key, raw] of Object.entries(payload ?? {})) {
+  // Several payloads = several accounts merged into one person: every check-in is kept.
+  const payloads = Array.isArray(payload) ? payload : [payload];
+  for (const [key, raw] of payloads.flatMap((item) => Object.entries(item ?? {}))) {
     const day = headerAsDate(key, start.getUTCFullYear());
     if (!day) continue;
     if (day < start || day > end) continue;
@@ -234,11 +266,25 @@ export function buildPersonPeriod(input: BuildInput): BuildResult {
   }
 
   // Mood / login lookups keyed by canonical email.
-  const moodByEmail = new Map<string, Record<string, unknown> | null>();
+  // A person can have more than one mood row: two accounts merged into one person, or the
+  // same account in two uploads (a partial pull, then the full month). Rows for the same
+  // original email are overlaid day by day so nothing is double counted; rows for different
+  // emails that merge into one person are all kept. Previously the last row silently won.
+  const moodByOriginal = new Map<string, Record<string, unknown>>();
   for (const row of input.moodRows) {
     const email = row.normalized_email ?? norm(row.email_raw);
     if (!email) continue;
-    moodByEmail.set(resolveCanonical(email), row.payload ?? null);
+    const merged = moodByOriginal.get(email) ?? {};
+    for (const [key, value] of Object.entries(row.payload ?? {})) {
+      if (value !== null && value !== undefined && value !== "") merged[key] = value;
+      else if (!(key in merged)) merged[key] = value;
+    }
+    moodByOriginal.set(email, merged);
+  }
+  const moodByEmail = new Map<string, Array<Record<string, unknown>>>();
+  for (const [email, payload] of moodByOriginal) {
+    const canonical = resolveCanonical(email);
+    moodByEmail.set(canonical, [...(moodByEmail.get(canonical) ?? []), payload]);
   }
   const loginByEmail = new Map<string, string | null>();
   for (const row of input.loginRows) {

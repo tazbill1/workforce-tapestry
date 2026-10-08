@@ -43,11 +43,11 @@ import {
 import { DiffPanel, type DiffResult } from "@/components/import/DiffPanel";
 import { FlagSummaryPanel, type FlagSummary } from "@/components/import/FlagSummaryPanel";
 import { buildHeaderMap, extractRow, sha256Hex, type SourceRow } from "@/lib/roster-parse";
-import { parseEngagementSheet } from "@/lib/engagement-parse";
+import { parseEngagementSheet, parseRecognitionWorkbook } from "@/lib/engagement-parse";
 import { insertRecognitionActivity } from "@/lib/engagement.functions";
 import { parseRecognitionPointsSheet } from "@/lib/recognition-points-parse";
 import { insertRecognitionPoints } from "@/lib/recognition-points.functions";
-import { sniffGrid, KIND_LABELS, type Sniff } from "@/lib/detect-import";
+import { headerRowForImport, sniffGrid, KIND_LABELS, type Sniff } from "@/lib/detect-import";
 import { analyzeUpload, type UploadAdvice } from "@/lib/detect.functions";
 import { previewStatedFigures, saveStatedFigures } from "@/lib/stated.functions";
 import {
@@ -435,7 +435,20 @@ function ImportScreen() {
             defval: null,
             raw: true,
           });
-          const parsed = parseEngagementSheet(grid as unknown[][]);
+          // The platform export spreads activity over three event tabs; read the whole
+          // workbook when it is that export, otherwise the single summary sheet.
+          const allSheets = Object.fromEntries(
+            workbook.SheetNames.map((name) => [
+              name,
+              XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[name]!, {
+                header: 1,
+                defval: null,
+                raw: true,
+              }) as unknown[][],
+            ]),
+          );
+          const parsed =
+            parseRecognitionWorkbook(allSheets) ?? parseEngagementSheet(grid as unknown[][]);
           for (let i = 0; i < parsed.rows.length; i += BATCH_SIZE) {
             const batch = parsed.rows.slice(i, i + BATCH_SIZE);
             setProgress(
@@ -493,7 +506,17 @@ function ImportScreen() {
           return { summary: null, diff: null, totalRows: parsed.rows.length };
         }
 
-        const rows = XLSX.utils.sheet_to_json<SourceRow>(sheet, { defval: null, raw: true });
+        // Exports often open with a title or date-range line. Read from the real header row
+        // instead of assuming row 1, or every column name is wrong and no one has an email.
+        const sheetStart = XLSX.utils.decode_range(sheet["!ref"] ?? "A1").s.r;
+        const headerOffset = headerRowForImport(
+          XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: false }) as unknown[][],
+        );
+        const rows = XLSX.utils.sheet_to_json<SourceRow>(sheet, {
+          defval: null,
+          raw: true,
+          range: sheetStart + headerOffset,
+        });
         const columnNames = Array.from(
           rows.reduce<Set<string>>((set, row) => {
             Object.keys(row).forEach((key) => set.add(key));
@@ -501,7 +524,9 @@ function ImportScreen() {
           }, new Set<string>()),
         );
         const headerMap = buildHeaderMap(columnNames);
-        const extracted = rows.map((row, index) => extractRow(row, headerMap, index + 2));
+        const extracted = rows.map((row, index) =>
+          extractRow(row, headerMap, sheetStart + headerOffset + index + 2),
+        );
 
         for (let i = 0; i < extracted.length; i += BATCH_SIZE) {
           const batch = extracted.slice(i, i + BATCH_SIZE);
