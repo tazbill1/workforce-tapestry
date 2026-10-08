@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { withClockSkewRetry } from "./clock-skew";
-import { normalizeName } from "./engagement-parse";
+import { buildNameResolver } from "./engagement-parse";
 import type { QuestionKind, Sentiment } from "./survey-parse";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
@@ -270,28 +270,16 @@ export const getSurvey = createServerFn({ method: "POST" })
       }
 
       // Names are resolved at read time so a confirmed name link applies immediately.
-      const byName = new Map<string, string[]>();
-      for (const person of people.data ?? []) {
-        if (!person.name) continue;
-        const nameKey = normalizeName(person.name);
-        if (!nameKey) continue;
-        byName.set(nameKey, [...(byName.get(nameKey) ?? []), person.normalized_email]);
-      }
-      const linkMap = new Map(
-        (links.data ?? []).map((row) => [row.normalized_name, row.normalized_email]),
+      const resolveName = buildNameResolver(
+        (people.data ?? []).map((person) => ({ email: person.normalized_email, name: person.name })),
+        links.data ?? [],
       );
-      const matchOf = (name: string | null) => {
-        if (!name) return null;
-        const linked = linkMap.get(name);
-        if (linked) return linked;
-        const candidates = byName.get(name) ?? [];
-        return candidates.length === 1 ? candidates[0]! : null;
-      };
+      const matchOf = (name: string | null, raw?: string | null) => resolveName(name, raw).email;
 
       const rows = (responses.data ?? []) as SurveyResponseRow[];
       const unmatched = new Set<string>();
       for (const row of rows) {
-        if (row.participant_raw && !matchOf(row.normalized_name)) {
+        if (row.participant_raw && !matchOf(row.normalized_name, row.participant_raw)) {
           unmatched.add(row.participant_raw);
         }
       }
@@ -299,7 +287,7 @@ export const getSurvey = createServerFn({ method: "POST" })
       return {
         survey,
         questions: questions.data ?? [],
-        responses: rows.map((row) => ({ ...row, matched_email: matchOf(row.normalized_name) })),
+        responses: rows.map((row) => ({ ...row, matched_email: matchOf(row.normalized_name, row.participant_raw) })),
         summary: summary.data ?? null,
         unmatchedParticipants: [...unmatched].sort(),
       };

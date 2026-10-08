@@ -39,6 +39,84 @@ export function normalizeName(value: string): string {
     .trim();
 }
 
+const NAME_SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv"]);
+
+/**
+ * Looser key used only when the exact name finds nobody: accents are folded ("José" -> "jose"),
+ * suffixes (Jr, III) and middle names/initials are dropped, leaving first + last name.
+ * Returns null when fewer than two name tokens remain.
+ */
+export function looseNameKey(value: string): string | null {
+  let text = value.replace(/\s+/g, " ").trim();
+  const comma = text.indexOf(",");
+  if (comma > 0 && text.indexOf(",", comma + 1) === -1) {
+    const after = text.slice(comma + 1).trim();
+    // "Smith, John" flips; "John Smith, Jr" keeps its order.
+    if (!NAME_SUFFIXES.has(after.toLowerCase().replace(/[^a-z]/g, ""))) {
+      text = `${after} ${text.slice(0, comma).trim()}`;
+    }
+  }
+  const tokens = text
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .filter((token) => !NAME_SUFFIXES.has(token));
+  if (tokens.length < 2) return null;
+  return `${tokens[0]} ${tokens[tokens.length - 1]}`;
+}
+
+export type NameMatchStatus = "confirmed" | "matched" | "ambiguous" | "unmatched";
+export type NameMatch = {
+  status: NameMatchStatus;
+  email: string | null;
+  /** How the match was made; null when there is none. */
+  source: "link" | "exact" | "loose" | null;
+};
+
+/**
+ * One name-matching rule shared by the review screen, surveys and the metrics build, so a
+ * person matched on screen is the same person counted in the numbers. Order: a confirmed
+ * link, then a single exact name, then a single first+last match. Two or more people sharing
+ * a name is ambiguous and is never guessed.
+ */
+export function buildNameResolver(
+  people: Array<{ email: string; name: string | null }>,
+  links: Array<{ normalized_name: string; normalized_email: string }>,
+) {
+  const exact = new Map<string, Set<string>>();
+  const loose = new Map<string, Set<string>>();
+  const add = (map: Map<string, Set<string>>, mapKey: string | null, email: string) => {
+    if (!mapKey) return;
+    const set = map.get(mapKey) ?? new Set<string>();
+    set.add(email);
+    map.set(mapKey, set);
+  };
+  for (const person of people) {
+    if (!person.name) continue;
+    add(exact, normalizeName(person.name), person.email);
+    add(loose, looseNameKey(person.name), person.email);
+  }
+  const linkMap = new Map(links.map((row) => [row.normalized_name, row.normalized_email]));
+
+  return (normalizedName: string | null, nameRaw?: string | null): NameMatch => {
+    if (!normalizedName) return { status: "unmatched", email: null, source: null };
+    const linked = linkMap.get(normalizedName);
+    if (linked) return { status: "confirmed", email: linked, source: "link" };
+
+    const exactHits = exact.get(normalizedName);
+    if (exactHits?.size === 1) return { status: "matched", email: [...exactHits][0]!, source: "exact" };
+    if (exactHits && exactHits.size > 1) return { status: "ambiguous", email: null, source: null };
+
+    const looseHits = loose.get(looseNameKey(nameRaw || normalizedName) ?? "");
+    if (looseHits?.size === 1) return { status: "matched", email: [...looseHits][0]!, source: "loose" };
+    if (looseHits && looseHits.size > 1) return { status: "ambiguous", email: null, source: null };
+    return { status: "unmatched", email: null, source: null };
+  };
+}
+
 const key = (value: unknown) =>
   String(value ?? "")
     .toLowerCase()

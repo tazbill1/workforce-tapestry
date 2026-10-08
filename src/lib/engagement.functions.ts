@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { withClockSkewRetry } from "./clock-skew";
-import { normalizeName } from "./engagement-parse";
+import { buildNameResolver, normalizeName } from "./engagement-parse";
 
 /**
  * Per-person recognition engagement.
@@ -101,34 +101,14 @@ export const getEngagementReview = createServerFn({ method: "POST" })
         excluded: Boolean(row.is_excluded),
       }));
 
-      // Roster index by canonical name. A name held by two people is ambiguous, never guessed.
-      const byName = new Map<string, Person[]>();
-      for (const person of roster) {
-        if (!person.name) continue;
-        const key = normalizeName(person.name);
-        if (!key) continue;
-        byName.set(key, [...(byName.get(key) ?? []), person]);
-      }
-
-      const linkMap = new Map((links.data ?? []).map((row) => [row.normalized_name, row]));
+      // Same matching rule the metrics build uses. A name held by two people is ambiguous,
+      // never guessed.
+      const resolveName = buildNameResolver(roster, links.data ?? []);
 
       const rows = (activity.data ?? []).map((row) => {
-        const link = linkMap.get(row.normalized_name);
-        const candidates = byName.get(row.normalized_name) ?? [];
-
-        let status: "confirmed" | "matched" | "ambiguous" | "unmatched";
-        let email: string | null = null;
-        if (link) {
-          status = "confirmed";
-          email = link.normalized_email;
-        } else if (candidates.length === 1) {
-          status = "matched";
-          email = candidates[0]!.email;
-        } else if (candidates.length > 1) {
-          status = "ambiguous";
-        } else {
-          status = "unmatched";
-        }
+        const match = resolveName(row.normalized_name, row.name_raw);
+        const status = match.status;
+        const email = match.email;
 
         const suggestions =
           status === "confirmed" || status === "matched"

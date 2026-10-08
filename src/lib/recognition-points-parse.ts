@@ -29,7 +29,9 @@ export function parseRecognitionPointsSheet(grid: unknown[][]) {
   for (let index = 0; index < Math.min(grid.length, 30); index += 1) {
     const cells = (grid[index] ?? []).map(key);
     const hasManager = cells.some((cell) => ["manager", "managername", "name", "leader"].includes(cell));
-    const hasAllocation = cells.some((cell) => cell.includes("allocat") || cell.includes("budget") || cell === "availablepoints");
+    const hasAllocation = cells.some(
+      (cell) => cell.includes("allocat") || cell.includes("budget") || cell.includes("togive") || cell === "availablepoints",
+    );
     const hasGiven = cells.some((cell) => cell.includes("given") || cell.includes("used") || cell.includes("awarded"));
     if (hasManager && (hasAllocation || hasGiven)) {
       headerIndex = index;
@@ -47,7 +49,8 @@ export function parseRecognitionPointsSheet(grid: unknown[][]) {
   const nameIndex = find("managername", "manager", "leader", "name");
   const titleIndex = find("title", "position");
   const departmentIndex = find("department", "dept", "location");
-  const allocatedIndex = find("allocated", "allocation", "budget", "availablepoints");
+  // "Points to Give (Monthly)" is the platform export's name for the allocation.
+  const allocatedIndex = find("allocated", "allocation", "budget", "availablepoints", "pointstogive", "togive");
   const givenIndex = find("pointsgiven", "given", "used", "awarded");
 
   const rows: RecognitionPointRow[] = [];

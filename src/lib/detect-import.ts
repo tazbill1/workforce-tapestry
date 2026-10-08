@@ -3,6 +3,8 @@
 // Purely advisory: it looks at the sheet the user just picked and proposes a file kind and a
 // reporting period. Nothing here imports anything — the user still confirms before any write.
 
+import { headerAsDate } from "./assembly-core";
+
 export type DetectedKind =
   | "roster"
   | "mood_matrix"
@@ -117,6 +119,22 @@ function cellMonth(value: unknown): string | null {
 
 type Score = { kind: DetectedKind; score: number; reasons: string[] };
 
+const filledCount = (row: unknown[] | undefined) =>
+  (row ?? []).filter((c) => String(c ?? "").trim()).length;
+
+/**
+ * The header row the importer should read from. Row 1 unless everything above the detected
+ * header is a title or note line (two cells or fewer), so an ordinary table is never shifted.
+ */
+export function headerRowForImport(grid: unknown[][]): number {
+  const index = findHeaderRow(grid);
+  if (index === 0) return 0;
+  for (let i = 0; i < index; i += 1) {
+    if (filledCount(grid[i]) > 2) return 0;
+  }
+  return index;
+}
+
 export function sniffGrid(filename: string, grid: unknown[][]): Sniff {
   const headerRowIndex = findHeaderRow(grid);
   const header = (grid[headerRowIndex] ?? []).map((c) => String(c ?? "").trim());
@@ -176,7 +194,7 @@ export function sniffGrid(filename: string, grid: unknown[][]): Sniff {
   addSignal(
     "points",
     "Manager recognition points",
-    matchCols((k) => k.includes("allocat") || k.includes("budget") || k.includes("pointsgiven") || k.includes("pointsused")),
+    matchCols((k) => k.includes("allocat") || k.includes("budget") || k.includes("togive") || k.includes("pointsgiven") || k.includes("pointsused")),
   );
   addSignal(
     "mood",
@@ -230,7 +248,7 @@ export function sniffGrid(filename: string, grid: unknown[][]): Sniff {
     const reasons: string[] = [];
     let score = 0;
     const hasManager = has("manager") || has("managername") || has("leader") || has("name");
-    const hasAllocation = hasLike("allocat") || hasLike("budget") || has("availablepoints");
+    const hasAllocation = hasLike("allocat") || hasLike("budget") || hasLike("togive") || has("availablepoints");
     const hasGiven = hasLike("pointsgiven") || has("given") || hasLike("pointsused") || has("awarded");
     if (hasManager && (hasAllocation || hasGiven)) {
       score = 96;
@@ -251,13 +269,19 @@ export function sniffGrid(filename: string, grid: unknown[][]): Sniff {
     push("login_report", score, reasons);
   }
 
-  // Mood matrix: check-in / mood / pulse columns.
+  // Mood matrix: check-in / mood / pulse columns, or the platform's daily grid — one row per
+  // person and one column per day, where the headers are dates and nothing says "mood".
   {
     const reasons: string[] = [];
     let score = 0;
     if (hasLike("mood") || hasLike("checkin") || hasLike("pulse") || hasLike("sentiment")) {
       score = 72;
       reasons.push("Has mood / check-in columns");
+    }
+    const dayColumns = columns.filter((c) => headerAsDate(c, new Date().getUTCFullYear()) !== null).length;
+    if (dayColumns >= 5 && (hasLike("email") || has("name"))) {
+      score = 94;
+      reasons.push(`${dayColumns} columns are calendar days (a daily mood grid)`);
     }
     push("mood_matrix", score, reasons);
   }
