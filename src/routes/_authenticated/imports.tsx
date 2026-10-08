@@ -43,7 +43,7 @@ import {
 import { DiffPanel, type DiffResult } from "@/components/import/DiffPanel";
 import { FlagSummaryPanel, type FlagSummary } from "@/components/import/FlagSummaryPanel";
 import { buildHeaderMap, extractRow, sha256Hex, type SourceRow } from "@/lib/roster-parse";
-import { parseEngagementSheet } from "@/lib/engagement-parse";
+import { parseEngagementSheet, parseRecognitionWorkbook } from "@/lib/engagement-parse";
 import { insertRecognitionActivity } from "@/lib/engagement.functions";
 import { parseRecognitionPointsSheet } from "@/lib/recognition-points-parse";
 import { insertRecognitionPoints } from "@/lib/recognition-points.functions";
@@ -435,7 +435,20 @@ function ImportScreen() {
             defval: null,
             raw: true,
           });
-          const parsed = parseEngagementSheet(grid as unknown[][]);
+          // The platform export spreads activity over three event tabs; read the whole
+          // workbook when it is that export, otherwise the single summary sheet.
+          const allSheets = Object.fromEntries(
+            workbook.SheetNames.map((name) => [
+              name,
+              XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[name]!, {
+                header: 1,
+                defval: null,
+                raw: true,
+              }) as unknown[][],
+            ]),
+          );
+          const parsed =
+            parseRecognitionWorkbook(allSheets) ?? parseEngagementSheet(grid as unknown[][]);
           for (let i = 0; i < parsed.rows.length; i += BATCH_SIZE) {
             const batch = parsed.rows.slice(i, i + BATCH_SIZE);
             setProgress(

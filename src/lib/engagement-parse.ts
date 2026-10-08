@@ -144,6 +144,84 @@ export function extractWindow(lines: string[]): { from: string | null; to: strin
   return { from: null, to: null };
 }
 
+const isoDay = (value: unknown): string | null => {
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return null;
+    // Spreadsheet dates are built in local time; reading them as UTC moves a late-evening
+    // post into the next day.
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+  }
+  const hit = String(value ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return hit ? `${hit[1]}-${hit[2]}-${hit[3]}` : null;
+};
+
+/**
+ * Reads the platform's own recognitions export: one workbook with an event-level sheet each
+ * for recognitions (Author / Recipients), comments (Commenter) and likes (Liked By). Sheets are
+ * recognised by their columns, not their names. Events are counted per person, so the result
+ * has the same shape as the hand-made Name / Posts / Comments / Likes summary. Posts authored
+ * by "System" (birthday and anniversary announcements) are not anyone's activity.
+ * Returns null when the workbook is not this export.
+ */
+export function parseRecognitionWorkbook(sheets: Record<string, unknown[][]>): EngagementSheet | null {
+  const find = (test: (keys: string[]) => boolean) => {
+    for (const grid of Object.values(sheets)) {
+      for (let i = 0; i < Math.min(grid.length, 10); i += 1) {
+        const keys = (grid[i] ?? []).map(key);
+        if (test(keys)) return { grid, headerIndex: i, keys };
+      }
+    }
+    return null;
+  };
+  const posts = find((k) => k.includes("author") && k.includes("recipients"));
+  const comments = find((k) => k.includes("commenter"));
+  const likes = find((k) => k.includes("likedby") && k.includes("recognitionid"));
+  if (!posts && !comments && !likes) return null;
+
+  const people = new Map<string, EngagementRow>();
+  const bump = (nameRaw: string, field: "posts" | "comments" | "likes") => {
+    const name = nameRaw.replace(/\s+/g, " ").trim();
+    if (!name || name.toLowerCase() === "system") return;
+    const normalized = normalizeName(name);
+    if (!normalized) return;
+    const row =
+      people.get(normalized) ??
+      { row_number: people.size + 1, name_raw: name, normalized_name: normalized, posts: 0, comments: 0, likes: 0 };
+    row[field] += 1;
+    people.set(normalized, row);
+  };
+  const eachRow = (found: NonNullable<typeof posts>, column: string, visit: (cell: unknown, row: unknown[]) => void) => {
+    const index = found.keys.indexOf(column);
+    if (index === -1) return;
+    for (const row of found.grid.slice(found.headerIndex + 1)) {
+      if ((row ?? []).some((c) => String(c ?? "").trim())) visit((row ?? [])[index], row ?? []);
+    }
+  };
+
+  let from: string | null = null;
+  let to: string | null = null;
+  if (posts) {
+    const created = posts.keys.indexOf("created");
+    eachRow(posts, "author", (cell, row) => {
+      bump(String(cell ?? ""), "posts");
+      const day = created === -1 ? null : isoDay(row[created]);
+      if (day && (!from || day < from)) from = day;
+      if (day && (!to || day > to)) to = day;
+    });
+  }
+  if (comments) eachRow(comments, "commenter", (cell) => bump(String(cell ?? ""), "comments"));
+  if (likes) eachRow(likes, "likedby", (cell) => bump(String(cell ?? ""), "likes"));
+
+  return {
+    rows: [...people.values()],
+    columnNames: ["Name", "Posts", "Comments", "Likes"],
+    windowFrom: from,
+    windowTo: to,
+    duplicateNames: [],
+  };
+}
+
 /** Grid is the sheet as an array of arrays (XLSX `header: 1`). Never throws on shape. */
 export function parseEngagementSheet(grid: unknown[][]): EngagementSheet {
   let headerIndex = -1;

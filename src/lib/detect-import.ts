@@ -243,6 +243,11 @@ export function sniffGrid(filename: string, grid: unknown[][]): Sniff {
     push("recognition_activity", score, reasons);
   }
 
+  // The platform's own recognitions export: event rows on Recognitions / Comments / Likes tabs.
+  if ((has("author") && has("recipients")) || has("commenter") || (has("likedby") && has("recognitionid"))) {
+    push("recognition_activity", 93, ["Platform recognitions export (one row per post, comment or like)"]);
+  }
+
   // Recognition points: manager/name plus an allocation or usage column.
   {
     const reasons: string[] = [];
